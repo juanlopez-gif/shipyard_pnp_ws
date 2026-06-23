@@ -1,0 +1,370 @@
+════════════════════════════════════════════════════════
+  Experiment 1 — Physical enforcement run
+  2026-06-23 15:42:15
+  Session log: /home/isecapstone/shipyard_pnp_ws/results/experiment_1_boundary_enforcement/physical/logs/session_20260623_154215.log
+════════════════════════════════════════════════════════
+
+────────────────────────────────────────────────────────
+  CASE: cross_vendor_access
+────────────────────────────────────────────────────────
+[INFO] [1782243736.397554460] [experiment_1_physical_probe]: probe ready — publishing to '/niryo_factory/command', monitoring '/niryo_factory/ack'
+[cross_vendor_access] sending 20 messages to /niryo_factory/command ...
+  monitoring acks:   /niryo_factory/ack
+  monitoring events: /shipyard/acl_events
+  expected reason:   SENDER_NOT_AUTHORIZED
+
+  [001] CMD-niry... → no ack (PASS, 1525ms)  (no event yet)
+  [002] CMD-niry... → no ack (PASS, 1720ms)  (no event yet)
+  [003] CMD-niry... → no ack (PASS, 21ms)  observed=NO_TOKEN
+  [004] CMD-niry... → no ack (PASS, 26ms)  observed=NO_TOKEN
+  [005] CMD-niry... → no ack (PASS, 21ms)  observed=NO_TOKEN
+  [006] CMD-niry... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [007] CMD-niry... → no ack (PASS, 35ms)  observed=NO_TOKEN
+  [008] CMD-niry... → no ack (PASS, 26ms)  observed=NO_TOKEN
+  [009] CMD-niry... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [010] CMD-niry... → no ack (PASS, 11ms)  observed=NO_TOKEN
+  [011] CMD-niry... → no ack (PASS, 34ms)  observed=NO_TOKEN
+  [012] CMD-niry... → no ack (PASS, 20ms)  observed=NO_TOKEN
+  [013] CMD-niry... → no ack (PASS, 44ms)  observed=NO_TOKEN
+  [014] CMD-niry... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [015] CMD-niry... → no ack (PASS, 15ms)  observed=NO_TOKEN
+  [016] CMD-niry... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [017] CMD-niry... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [018] CMD-niry... → no ack (PASS, 66ms)  observed=NO_TOKEN
+  [019] CMD-niry... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [020] CMD-niry... → no ack (PASS, 31ms)  observed=NO_TOKEN
+
+============================================================
+Case:              cross_vendor_access
+Messages sent:     20
+ACKs received:     0  (expected: 0)
+Expected reason:   SENDER_NOT_AUTHORIZED
+Reason match:      0/20 ACL events received (node may not be running or HMAC not configured)
+Verdict:           PASS ✓
+Results saved to:  /home/isecapstone/shipyard_pnp_ws/results/experiment_1_boundary_enforcement/physical/cross_vendor_access.csv
+
+────────────────────────────────────────────────────────
+  CASE: external_no_token
+────────────────────────────────────────────────────────
+[INFO] [1782243742.142056532] [experiment_1_physical_probe]: probe ready — publishing to '/niryo_factory/command', monitoring '/niryo_factory/ack'
+[external_no_token] sending 20 messages to /niryo_factory/command ...
+  monitoring acks:   /niryo_factory/ack
+  monitoring events: /shipyard/acl_events
+  expected reason:   NO_TOKEN
+
+  [001] CMD-niry... → no ack (PASS, 1506ms)  (no event yet)
+  [002] CMD-niry... → no ack (PASS, 1508ms)  (no event yet)
+  [003] CMD-niry... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [004] CMD-niry... → no ack (PASS, 30ms)  observed=NO_TOKEN
+  [005] CMD-niry... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [006] CMD-niry... → no ack (PASS, 32ms)  observed=NO_TOKEN
+  [007] CMD-niry... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [008] CMD-niry... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [009] CMD-niry... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [010] CMD-niry... → no ack (PASS, 24ms)  observed=NO_TOKEN
+  [011] CMD-niry... → no ack (PASS, 63ms)  observed=NO_TOKEN
+  [012] CMD-niry... → no ack (PASS, 30ms)  observed=NO_TOKEN
+  [013] CMD-niry... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [014] CMD-niry... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [015] CMD-niry... → no ack (PASS, 35ms)  observed=NO_TOKEN
+  [016] CMD-niry... → no ack (PASS, 22ms)  observed=NO_TOKEN
+  [017] CMD-niry... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [018] CMD-niry... → no ack (PASS, 21ms)  observed=NO_TOKEN
+  [019] CMD-niry... → no ack (PASS, 11ms)  observed=NO_TOKEN
+  [020] CMD-niry... → no ack (PASS, 10ms)  observed=NO_TOKEN
+
+============================================================
+Case:              external_no_token
+Messages sent:     20
+ACKs received:     0  (expected: 0)
+Expected reason:   NO_TOKEN
+Reason match:      18/20 messages matched expected reason 'NO_TOKEN'
+Verdict:           PASS ✓
+Results saved to:  /home/isecapstone/shipyard_pnp_ws/results/experiment_1_boundary_enforcement/physical/external_no_token.csv
+
+────────────────────────────────────────────────────────
+  CASE: external_forged_token
+────────────────────────────────────────────────────────
+[INFO] [1782243747.299032168] [experiment_1_physical_probe]: probe ready — publishing to '/niryo_factory/command', monitoring '/niryo_factory/ack'
+[external_forged_token] sending 20 messages to /niryo_factory/command ...
+  monitoring acks:   /niryo_factory/ack
+  monitoring events: /shipyard/acl_events
+  expected reason:   BAD_HMAC
+
+  [001] CMD-niry... → no ack (PASS, 10ms)  observed=BAD_HMAC
+  [002] CMD-niry... → no ack (PASS, 11ms)  observed=BAD_HMAC
+  [003] CMD-niry... → no ack (PASS, 10ms)  observed=BAD_HMAC
+  [004] CMD-niry... → no ack (PASS, 16ms)  observed=BAD_HMAC
+  [005] CMD-niry... → no ack (PASS, 41ms)  observed=BAD_HMAC
+  [006] CMD-niry... → no ack (PASS, 11ms)  observed=BAD_HMAC
+  [007] CMD-niry... → no ack (PASS, 11ms)  observed=BAD_HMAC
+  [008] CMD-niry... → no ack (PASS, 10ms)  observed=BAD_HMAC
+  [009] CMD-niry... → no ack (PASS, 11ms)  observed=BAD_HMAC
+  [010] CMD-niry... → no ack (PASS, 10ms)  observed=BAD_HMAC
+  [011] CMD-niry... → no ack (PASS, 21ms)  observed=BAD_HMAC
+  [012] CMD-niry... → no ack (PASS, 10ms)  observed=BAD_HMAC
+  [013] CMD-niry... → no ack (PASS, 10ms)  observed=BAD_HMAC
+  [014] CMD-niry... → no ack (PASS, 11ms)  observed=BAD_HMAC
+  [015] CMD-niry... → no ack (PASS, 10ms)  observed=BAD_HMAC
+  [016] CMD-niry... → no ack (PASS, 10ms)  observed=BAD_HMAC
+  [017] CMD-niry... → no ack (PASS, 11ms)  observed=BAD_HMAC
+  [018] CMD-niry... → no ack (PASS, 10ms)  observed=BAD_HMAC
+  [019] CMD-niry... → no ack (PASS, 13ms)  observed=BAD_HMAC
+  [020] CMD-niry... → no ack (PASS, 51ms)  observed=BAD_HMAC
+
+============================================================
+Case:              external_forged_token
+Messages sent:     20
+ACKs received:     0  (expected: 0)
+Expected reason:   BAD_HMAC
+Reason match:      20/20 messages matched expected reason 'BAD_HMAC'
+Verdict:           PASS ✓
+Results saved to:  /home/isecapstone/shipyard_pnp_ws/results/experiment_1_boundary_enforcement/physical/external_forged_token.csv
+
+────────────────────────────────────────────────────────
+  CASE: vendor_to_factory_leakage
+────────────────────────────────────────────────────────
+[INFO] [1782243749.398104386] [experiment_1_physical_probe]: probe ready — publishing to '/niryo_factory/status' (evidence via /shipyard/acl_events)
+[vendor_to_factory_leakage] sending 50 messages to /niryo_factory/status ...
+  monitoring events: /shipyard/acl_events
+  expected reason:   PROPRIETARY_FIELD
+
+  [001] CMD-niry... → sent (18ms)  observed=PROPRIETARY_FIELD
+  [002] CMD-niry... → sent (351ms)  observed=PROPRIETARY_FIELD
+  [003] CMD-niry... → sent (35ms)  observed=PROPRIETARY_FIELD
+  [004] CMD-niry... → sent (58ms)  observed=PROPRIETARY_FIELD
+  [005] CMD-niry... → sent (23ms)  observed=PROPRIETARY_FIELD
+  [006] CMD-niry... → sent (20ms)  observed=PROPRIETARY_FIELD
+  [007] CMD-niry... → sent (32ms)  observed=PROPRIETARY_FIELD
+  [008] CMD-niry... → sent (26ms)  observed=PROPRIETARY_FIELD
+  [009] CMD-niry... → sent (13ms)  observed=PROPRIETARY_FIELD
+  [010] CMD-niry... → sent (21ms)  observed=PROPRIETARY_FIELD
+  [011] CMD-niry... → sent (22ms)  observed=PROPRIETARY_FIELD
+  [012] CMD-niry... → sent (43ms)  observed=PROPRIETARY_FIELD
+  [013] CMD-niry... → sent (74ms)  observed=PROPRIETARY_FIELD
+  [014] CMD-niry... → sent (10ms)  observed=PROPRIETARY_FIELD
+  [015] CMD-niry... → sent (21ms)  observed=PROPRIETARY_FIELD
+  [016] CMD-niry... → sent (36ms)  observed=PROPRIETARY_FIELD
+  [017] CMD-niry... → sent (97ms)  observed=PROPRIETARY_FIELD
+  [018] CMD-niry... → sent (12ms)  observed=PROPRIETARY_FIELD
+  [019] CMD-niry... → sent (33ms)  observed=PROPRIETARY_FIELD
+  [020] CMD-niry... → sent (332ms)  observed=PROPRIETARY_FIELD
+  [021] CMD-niry... → sent (17ms)  observed=PROPRIETARY_FIELD
+  [022] CMD-niry... → sent (21ms)  observed=PROPRIETARY_FIELD
+  [023] CMD-niry... → sent (26ms)  observed=PROPRIETARY_FIELD
+  [024] CMD-niry... → sent (32ms)  observed=PROPRIETARY_FIELD
+  [025] CMD-niry... → sent (24ms)  observed=PROPRIETARY_FIELD
+  [026] CMD-niry... → sent (13ms)  observed=PROPRIETARY_FIELD
+  [027] CMD-niry... → sent (22ms)  observed=PROPRIETARY_FIELD
+  [028] CMD-niry... → sent (11ms)  observed=PROPRIETARY_FIELD
+  [029] CMD-niry... → sent (341ms)  observed=PROPRIETARY_FIELD
+  [030] CMD-niry... → sent (25ms)  observed=PROPRIETARY_FIELD
+  [031] CMD-niry... → sent (12ms)  observed=PROPRIETARY_FIELD
+  [032] CMD-niry... → sent (30ms)  observed=PROPRIETARY_FIELD
+  [033] CMD-niry... → sent (21ms)  observed=PROPRIETARY_FIELD
+  [034] CMD-niry... → sent (11ms)  observed=PROPRIETARY_FIELD
+  [035] CMD-niry... → sent (27ms)  observed=PROPRIETARY_FIELD
+  [036] CMD-niry... → sent (21ms)  observed=PROPRIETARY_FIELD
+  [037] CMD-niry... → sent (22ms)  observed=PROPRIETARY_FIELD
+  [038] CMD-niry... → sent (29ms)  observed=PROPRIETARY_FIELD
+  [039] CMD-niry... → sent (33ms)  observed=PROPRIETARY_FIELD
+  [040] CMD-niry... → sent (46ms)  observed=PROPRIETARY_FIELD
+  [041] CMD-niry... → sent (40ms)  observed=PROPRIETARY_FIELD
+  [042] CMD-niry... → sent (51ms)  observed=PROPRIETARY_FIELD
+  [043] CMD-niry... → sent (41ms)  observed=PROPRIETARY_FIELD
+  [044] CMD-niry... → sent (80ms)  observed=PROPRIETARY_FIELD
+  [045] CMD-niry... → sent (32ms)  observed=PROPRIETARY_FIELD
+  [046] CMD-niry... → sent (19ms)  observed=PROPRIETARY_FIELD
+  [047] CMD-niry... → sent (28ms)  observed=PROPRIETARY_FIELD
+  [048] CMD-niry... → sent (86ms)  observed=PROPRIETARY_FIELD
+  [049] CMD-niry... → sent (10ms)  observed=PROPRIETARY_FIELD
+  [050] CMD-niry... → sent (11ms)  observed=PROPRIETARY_FIELD
+
+============================================================
+Case:              vendor_to_factory_leakage
+Messages sent:     50
+Expected reason:   PROPRIETARY_FIELD
+Reason match:      50/50 messages matched expected reason 'PROPRIETARY_FIELD'
+Verdict:           PASS ✓ (evidence: /shipyard/acl_events + receiver logs)
+Results saved to:  /home/isecapstone/shipyard_pnp_ws/results/experiment_1_boundary_enforcement/physical/vendor_to_factory_leakage.csv
+
+────────────────────────────────────────────────────────
+  CASE: factory_to_vendor_leakage
+────────────────────────────────────────────────────────
+[INFO] [1782243753.791009085] [experiment_1_physical_probe]: probe ready — publishing to '/niryo_factory/command', monitoring '/niryo_factory/ack'
+[factory_to_vendor_leakage] sending 20 messages to /niryo_factory/command ...
+  monitoring acks:   /niryo_factory/ack
+  monitoring events: /shipyard/acl_events
+  expected reason:   PROPRIETARY_FIELD
+
+  [001] CMD-niry... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [002] CMD-niry... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [003] CMD-niry... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [004] CMD-niry... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [005] CMD-niry... → no ack (PASS, 29ms)  observed=NO_TOKEN
+  [006] CMD-niry... → no ack (PASS, 28ms)  observed=NO_TOKEN
+  [007] CMD-niry... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [008] CMD-niry... → no ack (PASS, 115ms)  observed=NO_TOKEN
+  [009] CMD-niry... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [010] CMD-niry... → no ack (PASS, 22ms)  observed=NO_TOKEN
+  [011] CMD-niry... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [012] CMD-niry... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [013] CMD-niry... → no ack (PASS, 42ms)  observed=NO_TOKEN
+  [014] CMD-niry... → no ack (PASS, 90ms)  observed=NO_TOKEN
+  [015] CMD-niry... → no ack (PASS, 63ms)  observed=NO_TOKEN
+  [016] CMD-niry... → no ack (PASS, 48ms)  observed=NO_TOKEN
+  [017] CMD-niry... → no ack (PASS, 45ms)  observed=NO_TOKEN
+  [018] CMD-niry... → no ack (PASS, 49ms)  observed=NO_TOKEN
+  [019] CMD-niry... → no ack (PASS, 57ms)  observed=NO_TOKEN
+  [020] CMD-niry... → no ack (PASS, 10ms)  observed=NO_TOKEN
+
+============================================================
+Case:              factory_to_vendor_leakage
+Messages sent:     20
+ACKs received:     0  (expected: 0)
+Expected reason:   PROPRIETARY_FIELD
+Reason match:      0/20 ACL events received (node may not be running or HMAC not configured)
+Verdict:           PASS ✓
+Results saved to:  /home/isecapstone/shipyard_pnp_ws/results/experiment_1_boundary_enforcement/physical/factory_to_vendor_leakage.csv
+
+────────────────────────────────────────────────────────
+  CASE: ack_injection
+────────────────────────────────────────────────────────
+[INFO] [1782243756.251836091] [experiment_1_physical_probe]: probe ready — publishing to '/niryo_factory/ack' (evidence via /shipyard/acl_events)
+[ack_injection] sending 20 messages to /niryo_factory/ack ...
+  monitoring events: /shipyard/acl_events
+  expected reason:   SENDER_NOT_AUTHORIZED
+
+  [001] CMD-niry... → sent (1510ms)  (no event yet)
+  [002] CMD-niry... → sent (10ms)  observed=SENDER_NOT_AUTHORIZED
+  [003] CMD-niry... → sent (23ms)  observed=SENDER_NOT_AUTHORIZED
+  [004] CMD-niry... → sent (22ms)  observed=SENDER_NOT_AUTHORIZED
+  [005] CMD-niry... → sent (24ms)  observed=SENDER_NOT_AUTHORIZED
+  [006] CMD-niry... → sent (25ms)  observed=SENDER_NOT_AUTHORIZED
+  [007] CMD-niry... → sent (26ms)  observed=SENDER_NOT_AUTHORIZED
+  [008] CMD-niry... → sent (10ms)  observed=SENDER_NOT_AUTHORIZED
+  [009] CMD-niry... → sent (30ms)  observed=SENDER_NOT_AUTHORIZED
+  [010] CMD-niry... → sent (103ms)  observed=SENDER_NOT_AUTHORIZED
+  [011] CMD-niry... → sent (12ms)  observed=SENDER_NOT_AUTHORIZED
+  [012] CMD-niry... → sent (23ms)  observed=SENDER_NOT_AUTHORIZED
+  [013] CMD-niry... → sent (25ms)  observed=SENDER_NOT_AUTHORIZED
+  [014] CMD-niry... → sent (25ms)  observed=SENDER_NOT_AUTHORIZED
+  [015] CMD-niry... → sent (12ms)  observed=SENDER_NOT_AUTHORIZED
+  [016] CMD-niry... → sent (26ms)  observed=SENDER_NOT_AUTHORIZED
+  [017] CMD-niry... → sent (23ms)  observed=SENDER_NOT_AUTHORIZED
+  [018] CMD-niry... → sent (10ms)  observed=SENDER_NOT_AUTHORIZED
+  [019] CMD-niry... → sent (21ms)  observed=SENDER_NOT_AUTHORIZED
+  [020] CMD-niry... → sent (24ms)  observed=SENDER_NOT_AUTHORIZED
+
+============================================================
+Case:              ack_injection
+Messages sent:     20
+Expected reason:   SENDER_NOT_AUTHORIZED
+Reason match:      19/20 messages matched expected reason 'SENDER_NOT_AUTHORIZED'
+Verdict:           PASS ✓ (evidence: /shipyard/acl_events + receiver logs)
+Results saved to:  /home/isecapstone/shipyard_pnp_ws/results/experiment_1_boundary_enforcement/physical/ack_injection.csv
+
+────────────────────────────────────────────────────────
+  CASE: bantam_external_no_token
+────────────────────────────────────────────────────────
+[INFO] [1782243759.997742671] [experiment_1_physical_probe]: probe ready — publishing to '/bantam_factory/command', monitoring '/bantam_factory/ack'
+[bantam_external_no_token] sending 20 messages to /bantam_factory/command ...
+  monitoring acks:   /bantam_factory/ack
+  monitoring events: /shipyard/acl_events
+  expected reason:   NO_TOKEN
+
+  [001] CMD-bant... → no ack (PASS, 11ms)  observed=NO_TOKEN
+  [002] CMD-bant... → no ack (PASS, 34ms)  observed=NO_TOKEN
+  [003] CMD-bant... → no ack (PASS, 23ms)  observed=NO_TOKEN
+  [004] CMD-bant... → no ack (PASS, 33ms)  observed=NO_TOKEN
+  [005] CMD-bant... → no ack (PASS, 12ms)  observed=NO_TOKEN
+  [006] CMD-bant... → no ack (PASS, 21ms)  observed=NO_TOKEN
+  [007] CMD-bant... → no ack (PASS, 31ms)  observed=NO_TOKEN
+  [008] CMD-bant... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [009] CMD-bant... → no ack (PASS, 24ms)  observed=NO_TOKEN
+  [010] CMD-bant... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [011] CMD-bant... → no ack (PASS, 124ms)  observed=NO_TOKEN
+  [012] CMD-bant... → no ack (PASS, 13ms)  observed=NO_TOKEN
+  [013] CMD-bant... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [014] CMD-bant... → no ack (PASS, 20ms)  observed=NO_TOKEN
+  [015] CMD-bant... → no ack (PASS, 20ms)  observed=NO_TOKEN
+  [016] CMD-bant... → no ack (PASS, 11ms)  observed=NO_TOKEN
+  [017] CMD-bant... → no ack (PASS, 20ms)  observed=NO_TOKEN
+  [018] CMD-bant... → no ack (PASS, 30ms)  observed=NO_TOKEN
+  [019] CMD-bant... → no ack (PASS, 52ms)  observed=NO_TOKEN
+  [020] CMD-bant... → no ack (PASS, 21ms)  observed=NO_TOKEN
+
+============================================================
+Case:              bantam_external_no_token
+Messages sent:     20
+ACKs received:     0  (expected: 0)
+Expected reason:   NO_TOKEN
+Reason match:      20/20 messages matched expected reason 'NO_TOKEN'
+Verdict:           PASS ✓
+Results saved to:  /home/isecapstone/shipyard_pnp_ws/results/experiment_1_boundary_enforcement/physical/bantam_external_no_token.csv
+
+────────────────────────────────────────────────────────
+  CASE: bantam_external_forged_token
+────────────────────────────────────────────────────────
+[INFO] [1782243762.636546404] [experiment_1_physical_probe]: probe ready — publishing to '/bantam_factory/command', monitoring '/bantam_factory/ack'
+[bantam_external_forged_token] sending 20 messages to /bantam_factory/command ...
+  monitoring acks:   /bantam_factory/ack
+  monitoring events: /shipyard/acl_events
+  expected reason:   BAD_HMAC
+
+  [001] CMD-bant... → no ack (PASS, 1507ms)  (no event yet)
+  [002] CMD-bant... → no ack (PASS, 285ms)  observed=BAD_HMAC
+  [003] CMD-bant... → no ack (PASS, 21ms)  observed=BAD_HMAC
+  [004] CMD-bant... → no ack (PASS, 21ms)  observed=BAD_HMAC
+  [005] CMD-bant... → no ack (PASS, 11ms)  observed=BAD_HMAC
+  [006] CMD-bant... → no ack (PASS, 21ms)  observed=BAD_HMAC
+  [007] CMD-bant... → no ack (PASS, 22ms)  observed=BAD_HMAC
+  [008] CMD-bant... → no ack (PASS, 14ms)  observed=BAD_HMAC
+  [009] CMD-bant... → no ack (PASS, 14ms)  observed=BAD_HMAC
+  [010] CMD-bant... → no ack (PASS, 10ms)  observed=BAD_HMAC
+  [011] CMD-bant... → no ack (PASS, 31ms)  observed=BAD_HMAC
+  [012] CMD-bant... → no ack (PASS, 21ms)  observed=BAD_HMAC
+  [013] CMD-bant... → no ack (PASS, 11ms)  observed=BAD_HMAC
+  [014] CMD-bant... → no ack (PASS, 11ms)  observed=BAD_HMAC
+  [015] CMD-bant... → no ack (PASS, 23ms)  observed=BAD_HMAC
+  [016] CMD-bant... → no ack (PASS, 13ms)  observed=BAD_HMAC
+  [017] CMD-bant... → no ack (PASS, 10ms)  observed=BAD_HMAC
+  [018] CMD-bant... → no ack (PASS, 14ms)  observed=BAD_HMAC
+  [019] CMD-bant... → no ack (PASS, 20ms)  observed=BAD_HMAC
+  [020] CMD-bant... → no ack (PASS, 36ms)  observed=BAD_HMAC
+
+============================================================
+Case:              bantam_external_forged_token
+Messages sent:     20
+ACKs received:     0  (expected: 0)
+Expected reason:   BAD_HMAC
+Reason match:      19/20 messages matched expected reason 'BAD_HMAC'
+Verdict:           PASS ✓
+Results saved to:  /home/isecapstone/shipyard_pnp_ws/results/experiment_1_boundary_enforcement/physical/bantam_external_forged_token.csv
+
+════════════════════════════════════════════════════════
+  RESUMEN PHYSICAL — 2026-06-23 15:42:45
+════════════════════════════════════════════════════════
+
+  CASE                                    SENT  ACKS REASONS VERDICT
+  ────────────────────────────────────── ───── ───── ─────── ───────
+  ack_injection                             20     0   19/20  PASS ✓ (logs)
+  bantam_external_forged_token              20     0   19/20  PASS ✓
+  bantam_external_no_token                  20     0   20/20  PASS ✓
+  cross_vendor_access                       20     0    0/20  PASS ✓
+  external_forged_token                     20     0   20/20  PASS ✓
+  external_no_token                         20     0   18/20  PASS ✓
+  factory_to_vendor_leakage                 20     0    0/20  PASS ✓
+  vendor_to_factory_leakage                 50     0   50/50  PASS ✓ (logs)
+
+Columna REASONS = mensajes donde observed_reason == expected_reason.
+
+Si 1b1/1b2 muestran SENDER_NOT_AUTHORIZED en lugar de NO_TOKEN/BAD_HMAC:
+  → Nodos no reiniciaron tras hmac_secrets.yaml. Reinicia y re-ejecuta.
+
+Si REASONS = 0/N para cualquier caso:
+  → El nodo receptor no estaba corriendo, o /shipyard/acl_events no llegó.
+
+Logs:
+  Sesión:    /home/isecapstone/shipyard_pnp_ws/results/experiment_1_boundary_enforcement/physical/logs/session_20260623_154215.log
+  Por caso:  /home/isecapstone/shipyard_pnp_ws/results/experiment_1_boundary_enforcement/physical/logs/<caso>.log

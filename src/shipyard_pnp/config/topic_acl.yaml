@@ -1,0 +1,50 @@
+# Topic ACL — see ARCHITECTURE_PLAN.md section 4
+nodes:
+  factory_supervisor:
+    publishes:
+      - /niryo_factory/command
+      - /ufactory_factory/command
+      - /laser_factory/command
+      - /globalvision_factory/command
+      - /green_conveyors_factory/command
+      - /arduino_vacuum_factory/command
+      - /bantam_factory/command
+      - /factory/system_state
+    subscribes:
+      - /niryo_factory/ack
+      - /niryo_factory/status
+      - /ufactory_factory/ack
+      - /ufactory_factory/status
+      - /laser_factory/ack
+      - /laser_factory/status
+      - /globalvision_factory/ack
+      - /globalvision_factory/status
+      - /green_conveyors_factory/ack
+      - /green_conveyors_factory/status
+      - /arduino_vacuum_factory/ack
+      - /arduino_vacuum_factory/status
+      - /bantam_factory/ack
+      - /bantam_factory/status
+  niryo_vendor_supervisor:
+    subscribes: [/niryo_factory/command]
+    publishes: [/niryo_factory/ack, /niryo_factory/status]
+  ufactory_vendor_supervisor:
+    subscribes: [/ufactory_factory/command]
+    publishes: [/ufactory_factory/ack, /ufactory_factory/status]
+  laser_vendor_supervisor:
+    subscribes: [/laser_factory/command]
+    publishes: [/laser_factory/ack, /laser_factory/status]
+  globalvision_vendor_supervisor:
+    subscribes: [/globalvision_factory/command]
+    publishes: [/globalvision_factory/ack, /globalvision_factory/status]
+  green_conveyors_vendor_supervisor:
+    subscribes: [/green_conveyors_factory/command]
+    publishes: [/green_conveyors_factory/ack, /green_conveyors_factory/status]
+  arduino_vacuum_vendor_supervisor:
+    subscribes: [/arduino_vacuum_factory/command]
+    publishes: [/arduino_vacuum_factory/ack, /arduino_vacuum_factory/status]
+  bantam_vendor_supervisor:
+    subscribes: [/bantam_factory/command]
+    publishes: [/bantam_factory/ack, /bantam_factory/status]
+  dashboard_node:
+    subscribes: [/factory/system_state]

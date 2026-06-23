@@ -1,0 +1,179 @@
+════════════════════════════════════════════════════════
+  Experiment 3 — Coordination Overhead
+  2026-06-23 16:27:54
+  Log: /home/isecapstone/shipyard_pnp_ws/results/experiment_3_coordination_overhead/session_20260623_162754.log
+════════════════════════════════════════════════════════
+
+────────────────────────────────────────────────────────
+  Phase 1: Offline — message serialization overhead
+────────────────────────────────────────────────────────
+
+==================================================================
+  EXPERIMENT 3 — OFFLINE COORDINATION BASELINE
+==================================================================
+  Iterations:  1000  |  Secret: HMAC-SHA256  |  Domain: niryo/GOTO_PICK_POSITION
+
+  Metric                              Mean µs    Std µs    Max µs
+  --------------------------------  ---------  --------  --------
+  command_build_and_sign                38.05     10.36    118.31
+  command_json_serialize                13.22      5.07     70.54
+  command_json_parse                    13.18      6.21     76.20
+  command_hmac_verify                    9.72      4.75     61.53
+  ack_build_and_sign                    23.70      6.64     87.65
+  ack_json_serialize                    11.61      5.48    119.92
+  status_build_and_sign                 24.72      7.35     77.80
+  status_json_serialize                 12.88      4.86     69.21
+  T_coord_total                        147.08     31.64    290.54
+
+  T_coord total — mean: 147.08 µs  max: 290.54 µs
+
+  Overhead vs representative physical task times:
+    GOTO_PICK_POSITION            7s  overhead=0.0021%
+    LIFT_AND_PLACE                5s  overhead=0.0029%
+    RUN_JOB (laser)              60s  overhead=0.0002%
+    INITIALIZE_DOMAIN             3s  overhead=0.0049%
+
+  PASS ✓  T_coord max 290.5 µs < 1000 µs (sub-millisecond)
+
+  Per-cycle CSV: /home/isecapstone/shipyard_pnp_ws/results/experiment_3_coordination_overhead/offline_baseline.csv
+  Summary CSV:   /home/isecapstone/shipyard_pnp_ws/results/experiment_3_coordination_overhead/offline_summary.csv
+
+Offline phase complete.
+  offline_baseline.csv  — 1000 per-cycle measurements
+  offline_summary.csv   — mean/std/min/max per step
+
+────────────────────────────────────────────────────────
+  Phase 2: Physical — ROS2 bag analysis
+────────────────────────────────────────────────────────
+Bag:     /home/isecapstone/shipyard_pnp_ws/results/bags/exp3_coordination_overhead
+Vendors: niryo, ufactory, laser, globalvision, green_conveyors, arduino_vacuum, bantam
+Topics:  21
+Messages read: 795
+  SKIP CMD-ufactory-xarm2-20260: missing ['cmd', 'ack']
+  niryo                RUN_NIRYO_CONVEYOR         T_coord=9.4ms  phys=5.78s  overhead=0.16%
+  globalvision         LOCATE_NEXT_PIECE          T_coord=2.0ms  phys=0.01s  overhead=28.04%
+  ufactory             MOVE_PIECE                 T_coord=48.0ms  phys=13.28s  overhead=0.36%
+  ufactory             MOVE_PIECE                 T_coord=10.2ms  phys=15.73s  overhead=0.06%
+  niryo                RUN_NIRYO_CONVEYOR         T_coord=7.0ms  phys=5.87s  overhead=0.12%
+  niryo                RUN_NIRYO_CONVEYOR         T_coord=9.2ms  phys=9.69s  overhead=0.10%
+  globalvision         LOCATE_NEXT_PIECE          T_coord=2.6ms  phys=0.00s  overhead=34.61%
+  ufactory             MOVE_PIECE                 T_coord=5.8ms  phys=11.46s  overhead=0.05%
+  ufactory             MOVE_PIECE                 T_coord=4.5ms  phys=15.74s  overhead=0.03%
+  niryo                CAPTURE_LOCAL_VISION       T_coord=6.9ms  phys=11.59s  overhead=0.06%
+  green_conveyors      RUN_CONVEYOR               T_coord=2.0ms  phys=0.83s  overhead=0.24%
+  ufactory             MOVE_XARM_HOME             T_coord=4.8ms  phys=3.91s  overhead=0.12%
+  niryo                MOVE_PIECE                 T_coord=5.9ms  phys=29.00s  overhead=0.02%
+  niryo                RUN_NIRYO_CONVEYOR         T_coord=5.3ms  phys=0.65s  overhead=0.81%
+  green_conveyors      STOP_CONVEYOR              T_coord=1.5ms  phys=0.08s  overhead=1.76%
+  niryo                CLASSIFY_AND_PICK          T_coord=6.3ms  phys=10.73s  overhead=0.06%
+  niryo                RUN_NIRYO_CONVEYOR         T_coord=10.0ms  phys=8.53s  overhead=0.12%
+  arduino_vacuum       PICK                       T_coord=2.1ms  phys=1.56s  overhead=0.13%
+  niryo                LIFT_AND_PLACE             T_coord=8.8ms  phys=16.23s  overhead=0.05%
+  globalvision         LOCATE_NEXT_PIECE          T_coord=2.4ms  phys=0.00s  overhead=33.20%
+  ufactory             MOVE_PIECE                 T_coord=4.9ms  phys=11.42s  overhead=0.04%
+  green_conveyors      RUN_CONVEYOR               T_coord=2.4ms  phys=0.85s  overhead=0.28%
+  ufactory             MOVE_XARM_HOME             T_coord=9.5ms  phys=3.97s  overhead=0.24%
+  bantam               RUN_JOB                    T_coord=4.1ms  phys=48.64s  overhead=0.01%
+  niryo                CAPTURE_LOCAL_VISION       T_coord=8.4ms  phys=5.34s  overhead=0.16%
+  globalvision         LOCATE_NEXT_PIECE          T_coord=2.2ms  phys=0.01s  overhead=28.41%
+  ufactory             MOVE_PIECE                 T_coord=8.2ms  phys=13.32s  overhead=0.06%
+  arduino_vacuum       RELEASE                    T_coord=1.7ms  phys=1.35s  overhead=0.12%
+  niryo                RETURN_HOME                T_coord=7.8ms  phys=10.26s  overhead=0.08%
+  niryo                MOVE_PIECE                 T_coord=11.8ms  phys=24.24s  overhead=0.05%
+  green_conveyors      STOP_CONVEYOR              T_coord=3.4ms  phys=0.08s  overhead=3.98%
+  niryo                RUN_NIRYO_CONVEYOR         T_coord=6.4ms  phys=5.53s  overhead=0.12%
+  niryo                CLASSIFY_AND_PICK          T_coord=5.2ms  phys=10.43s  overhead=0.05%
+  ufactory             MOVE_PIECE                 T_coord=6.6ms  phys=15.10s  overhead=0.04%
+  arduino_vacuum       PICK                       T_coord=1.6ms  phys=1.55s  overhead=0.10%
+  niryo                LIFT_AND_PLACE             T_coord=11.1ms  phys=16.21s  overhead=0.07%
+  globalvision         LOCATE_NEXT_PIECE          T_coord=19.8ms  phys=0.01s  overhead=75.01%
+  ufactory             MOVE_PIECE                 T_coord=5.2ms  phys=11.42s  overhead=0.05%
+  laser                RUN_JOB                    T_coord=2.9ms  phys=22.88s  overhead=0.01%
+  green_conveyors      RUN_CONVEYOR               T_coord=3.7ms  phys=0.85s  overhead=0.43%
+  ufactory             MOVE_XARM_HOME             T_coord=6.1ms  phys=3.96s  overhead=0.15%
+  arduino_vacuum       RELEASE                    T_coord=3.1ms  phys=1.35s  overhead=0.23%
+  niryo                RETURN_HOME                T_coord=8.8ms  phys=10.29s  overhead=0.09%
+  green_conveyors      STOP_CONVEYOR              T_coord=1.9ms  phys=0.08s  overhead=2.28%
+  niryo                MOVE_PIECE                 T_coord=7.9ms  phys=26.89s  overhead=0.03%
+  niryo                CLASSIFY_AND_PICK          T_coord=4.4ms  phys=10.34s  overhead=0.04%
+  ufactory             MOVE_PIECE                 T_coord=6.2ms  phys=14.94s  overhead=0.04%
+  arduino_vacuum       PICK                       T_coord=2.0ms  phys=1.55s  overhead=0.13%
+  niryo                RUN_NIRYO_CONVEYOR         T_coord=4.6ms  phys=9.36s  overhead=0.05%
+  niryo                LIFT_AND_PLACE             T_coord=7.8ms  phys=16.46s  overhead=0.05%
+  green_conveyors      RUN_CONVEYOR               T_coord=2.0ms  phys=0.83s  overhead=0.24%
+  niryo                RETURN_HOME                T_coord=7.2ms  phys=9.35s  overhead=0.08%
+  arduino_vacuum       RELEASE                    T_coord=2.0ms  phys=1.35s  overhead=0.15%
+  niryo                RETURN_HOME                T_coord=5.2ms  phys=10.54s  overhead=0.05%
+  niryo                MOVE_PIECE                 T_coord=10.4ms  phys=36.79s  overhead=0.03%
+  green_conveyors      STOP_CONVEYOR              T_coord=3.7ms  phys=0.08s  overhead=4.22%
+  niryo                CLASSIFY_AND_PICK          T_coord=7.3ms  phys=10.42s  overhead=0.07%
+  arduino_vacuum       PICK                       T_coord=2.6ms  phys=1.56s  overhead=0.17%
+  niryo                LIFT_AND_PLACE             T_coord=6.6ms  phys=13.90s  overhead=0.05%
+  arduino_vacuum       RELEASE                    T_coord=1.9ms  phys=1.36s  overhead=0.14%
+  niryo                RETURN_HOME                T_coord=5.3ms  phys=8.93s  overhead=0.06%
+  bantam               RUN_JOB                    T_coord=10.4ms  phys=49.05s  overhead=0.02%
+  niryo                CAPTURE_LOCAL_VISION       T_coord=17.1ms  phys=6.03s  overhead=0.28%
+  niryo                MOVE_PIECE                 T_coord=8.9ms  phys=17.69s  overhead=0.05%
+  green_conveyors      RUN_CONVEYOR               T_coord=3.1ms  phys=0.85s  overhead=0.36%
+  niryo                RETURN_HOME                T_coord=20.7ms  phys=9.40s  overhead=0.22%
+  green_conveyors      STOP_CONVEYOR              T_coord=4.8ms  phys=0.08s  overhead=5.50%
+  niryo                CLASSIFY_AND_PICK          T_coord=13.3ms  phys=10.59s  overhead=0.13%
+  arduino_vacuum       PICK                       T_coord=3.0ms  phys=1.56s  overhead=0.19%
+  niryo                LIFT_AND_PLACE             T_coord=16.2ms  phys=15.68s  overhead=0.10%
+  niryo                MOVE_PIECE                 T_coord=13.0ms  phys=26.95s  overhead=0.05%
+  arduino_vacuum       RELEASE                    T_coord=2.4ms  phys=1.35s  overhead=0.18%
+  niryo                RETURN_HOME                T_coord=6.2ms  phys=10.44s  overhead=0.06%
+  green_conveyors      RUN_CONVEYOR               T_coord=1.7ms  phys=0.85s  overhead=0.20%
+  niryo                RETURN_HOME                T_coord=7.4ms  phys=9.47s  overhead=0.08%
+  green_conveyors      STOP_CONVEYOR              T_coord=3.5ms  phys=0.08s  overhead=4.00%
+  niryo                CLASSIFY_AND_PICK          T_coord=12.7ms  phys=10.35s  overhead=0.12%
+  arduino_vacuum       PICK                       T_coord=1.9ms  phys=1.56s  overhead=0.12%
+  niryo                LIFT_AND_PLACE             T_coord=6.7ms  phys=14.93s  overhead=0.04%
+  arduino_vacuum       RELEASE                    T_coord=4.2ms  phys=1.36s  overhead=0.31%
+  niryo                RETURN_HOME                T_coord=7.8ms  phys=10.18s  overhead=0.08%
+  niryo                STOP_NIRYO_CONVEYOR        T_coord=5.1ms  phys=0.16s  overhead=3.02%
+  niryo                STOP_NIRYO_CONVEYOR        T_coord=8.9ms  phys=0.08s  overhead=10.38%
+  green_conveyors      STOP_CONVEYOR              T_coord=5.0ms  phys=0.08s  overhead=5.65%
+  green_conveyors      STOP_CONVEYOR              T_coord=2.7ms  phys=0.08s  overhead=3.20%
+  bantam               CLOSE_DOOR                 T_coord=20.6ms  phys=11.81s  overhead=0.17%
+  SKIP CMD-arduino_vacuum-ardui: missing ['status']
+
+Complete cycles: 86  Skipped (incomplete): 2
+Per-cycle CSV: /home/isecapstone/shipyard_pnp_ws/results/experiment_3_coordination_overhead/coordination_latencies.csv
+Summary CSV:   /home/isecapstone/shipyard_pnp_ws/results/experiment_3_coordination_overhead/coordination_summary.csv
+
+==================================================================
+  EXPERIMENT 3 — COORDINATION OVERHEAD RESULTS
+==================================================================
+  Metric                                        Mean      Std      Max      N
+  ----------------------------------------  --------  -------  -------  -----
+  command_to_ack_roundtrip_T_cmd               6.49ms    6.22ms   47.83ms     86
+  status_transit_T_status                      0.44ms    0.38ms    2.62ms     86
+  total_T_coord_per_task                       6.93ms    6.24ms   47.99ms     86
+  physical_task_time                           8.90s    9.99s   49.05s     86
+  overhead_percent                             2.93%   10.31%   75.01%     86
+
+  T_coord range: 1.5 – 48.0 ms
+  Physical task: 0.0 – 49.0 s
+  Mean overhead: 2.933%
+
+  T_coord max < 1000 ms:    PASS ✓
+  All cycles terminal:      PASS ✓
+
+  Per-vendor breakdown:
+    arduino_vacuum         n= 12  T_coord=2.4ms  phys=1.46s
+    bantam                 n=  3  T_coord=11.7ms  phys=36.50s
+    globalvision           n=  5  T_coord=5.8ms  phys=0.01s
+    green_conveyors        n= 14  T_coord=3.0ms  phys=0.41s
+    laser                  n=  1  T_coord=2.9ms  phys=22.88s
+    niryo                  n= 39  T_coord=8.7ms  phys=12.19s
+    ufactory               n= 12  T_coord=10.0ms  phys=11.19s
+
+Physical phase complete.
+  coordination_latencies.csv — per-cycle T_cmd / T_status / T_coord
+  coordination_summary.csv   — aggregated statistics
+
+════════════════════════════════════════════════════════
+  Experiment 3 complete — 2026-06-23 16:27:54
+  Results: /home/isecapstone/shipyard_pnp_ws/results/experiment_3_coordination_overhead/
+════════════════════════════════════════════════════════

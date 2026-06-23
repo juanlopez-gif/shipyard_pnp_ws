@@ -1,0 +1,35 @@
+[INFO] [1782244250.106908383] [experiment_1_physical_probe]: probe ready — publishing to '/bantam_factory/command', monitoring '/bantam_factory/ack'
+[bantam_external_forged_token] sending 20 messages to /bantam_factory/command ...
+  monitoring acks:   /bantam_factory/ack
+  monitoring events: /shipyard/acl_events
+  expected reason:   BAD_HMAC
+
+  [001] CMD-bant... → no ack (PASS, 1508ms)  (no event yet)
+  [002] CMD-bant... → no ack (PASS, 11ms)  observed=BAD_HMAC
+  [003] CMD-bant... → no ack (PASS, 31ms)  observed=BAD_HMAC
+  [004] CMD-bant... → no ack (PASS, 10ms)  observed=BAD_HMAC
+  [005] CMD-bant... → no ack (PASS, 83ms)  observed=BAD_HMAC
+  [006] CMD-bant... → no ack (PASS, 11ms)  observed=BAD_HMAC
+  [007] CMD-bant... → no ack (PASS, 21ms)  observed=BAD_HMAC
+  [008] CMD-bant... → no ack (PASS, 33ms)  observed=BAD_HMAC
+  [009] CMD-bant... → no ack (PASS, 101ms)  observed=BAD_HMAC
+  [010] CMD-bant... → no ack (PASS, 13ms)  observed=BAD_HMAC
+  [011] CMD-bant... → no ack (PASS, 44ms)  observed=BAD_HMAC
+  [012] CMD-bant... → no ack (PASS, 52ms)  observed=BAD_HMAC
+  [013] CMD-bant... → no ack (PASS, 79ms)  observed=BAD_HMAC
+  [014] CMD-bant... → no ack (PASS, 21ms)  observed=BAD_HMAC
+  [015] CMD-bant... → no ack (PASS, 21ms)  observed=BAD_HMAC
+  [016] CMD-bant... → no ack (PASS, 21ms)  observed=BAD_HMAC
+  [017] CMD-bant... → no ack (PASS, 10ms)  observed=BAD_HMAC
+  [018] CMD-bant... → no ack (PASS, 43ms)  observed=BAD_HMAC
+  [019] CMD-bant... → no ack (PASS, 10ms)  observed=BAD_HMAC
+  [020] CMD-bant... → no ack (PASS, 36ms)  observed=BAD_HMAC
+
+============================================================
+Case:              bantam_external_forged_token
+Messages sent:     20
+ACKs received:     0  (expected: 0)
+Expected reason:   BAD_HMAC
+Reason match:      19/20 messages matched expected reason 'BAD_HMAC'
+Verdict:           PASS ✓
+Results saved to:  /home/isecapstone/shipyard_pnp_ws/results/experiment_1_boundary_enforcement/physical/bantam_external_forged_token.csv

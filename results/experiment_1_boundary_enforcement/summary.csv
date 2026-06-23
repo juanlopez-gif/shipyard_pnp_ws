@@ -1,0 +1,6 @@
+case,messages_sent,messages_acted_upon,sequential_count,sequential_mean_us,sequential_std_us,sequential_max_us,batch_count,batch_mean_us,batch_std_us,batch_max_us,rejection_reasons,expected_reason,pass,fail_reasons
+cross_vendor_access,200,0,100,280.315,71.283,472.194,100,200.007,36.644,296.684,SENDER_NOT_AUTHORIZED,SENDER_NOT_AUTHORIZED,True,
+external_forged_token,200,0,100,11.222,6.859,62.996,100,7.362,3.94,35.27,BAD_HMAC,BAD_HMAC,True,
+external_no_token,200,0,100,2.0,0.674,4.679,100,3.185,0.908,7.124,NO_TOKEN,NO_TOKEN,True,
+factory_to_vendor_leakage,200,0,100,193.65,32.123,293.75,100,186.799,27.276,301.153,PROPRIETARY_FIELD,PROPRIETARY_FIELD,True,
+vendor_to_factory_leakage,200,0,100,217.347,48.992,417.229,100,188.182,32.939,290.747,PROPRIETARY_FIELD,PROPRIETARY_FIELD,True,

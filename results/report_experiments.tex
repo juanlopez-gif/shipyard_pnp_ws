@@ -1,0 +1,476 @@
+%% Plug-and-Plan Experimental Results Report
+%% Experiments 1 (Boundary Enforcement) and 3 (Coordination Overhead)
+%% Testbed: 7-vendor ROS 2 Jazzy Pick-and-Place factory
+%% Run date: 2026-06-23
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{listings}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{siunitx}
+
+\hypersetup{colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue}
+
+\definecolor{passgreen}{RGB}{0,128,0}
+\definecolor{failred}{RGB}{180,0,0}
+\definecolor{graylight}{RGB}{245,245,245}
+
+\newcommand{\pass}{\textcolor{passgreen}{\textbf{PASS}}}
+\newcommand{\fail}{\textcolor{failred}{\textbf{FAIL}}}
+\newcommand{\us}{\,\si{\micro s}}
+\newcommand{\ms}{\,\si{ms}}
+
+\title{\textbf{Plug-and-Plan: Experimental Validation Report}\\
+  \large Boundary Enforcement (Experiment~1) and
+  Coordination Overhead (Experiment~3)}
+
+\author{Shipyard Pick-and-Place Testbed\\
+  ROS~2 Jazzy $\cdot$ Python~3.12 $\cdot$ Ubuntu~24.04}
+
+\date{2026-06-23}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This report presents the experimental results validating the Plug-and-Plan
+vendor-agnostic coordination architecture on a physical seven-domain robotic
+testbed.
+\textbf{Experiment~1} (Boundary Enforcement) demonstrates that the AclGuard
+layer blocks \emph{all} unauthorized messages across eight attack vectors on
+two vendor domains, with zero unauthorized actions in both offline (1{,}000
+messages) and physical (190 live DDS messages) runs.
+\textbf{Experiment~3} (Coordination Overhead) shows that the three-message
+coordination protocol (command/ack/status) adds a mean overhead of
+\SI{6.93}{\ms} per task over real DDS transport, representing less than
+\SI{0.2}{\percent} of physical task duration for all tasks with meaningful
+hardware execution time.
+\end{abstract}
+
+\tableofcontents
+
+\newpage
+
+% ============================================================
+\section{Testbed and Architecture}
+% ============================================================
+
+The testbed implements a Pick-and-Place factory with three colour-coded
+production paths (RED $\to$ laser; BLUE $\to$ Bantam~CNC; GREEN $\to$
+conveyor~3).
+The coordination architecture comprises a single \emph{Factory Supervisor}
+(FS) that issues tasks to seven independent \emph{Vendor Supervisors}~(VS)
+through a strict three-topic contract per domain:
+
+\[
+  \texttt{/\{vendor\}\_factory/command} \quad
+  \texttt{/\{vendor\}\_factory/ack} \quad
+  \texttt{/\{vendor\}\_factory/status}
+\]
+
+\begin{table}[h]
+\centering
+\caption{Vendor domains under test}
+\label{tab:vendors}
+\begin{tabular}{@{}llp{6.5cm}@{}}
+\toprule
+\textbf{Domain} & \textbf{Supervisor node} & \textbf{Internal resources} \\
+\midrule
+niryo           & \texttt{niryo\_vendor\_supervisor}          & robot1, robot2, conveyor1, conveyor2, IR sensors, local vision \\
+ufactory        & \texttt{ufactory\_vendor\_supervisor}       & xarm1, xarm2 \\
+laser           & \texttt{laser\_vendor\_supervisor}         & laser (HTTP) \\
+globalvision    & \texttt{globalvision\_vendor\_supervisor}   & global camera, slot inventory \\
+green\_conveyors& \texttt{green\_conveyors\_vendor\_supervisor}& conveyor3, conveyor4 (Arduino) \\
+arduino\_vacuum & \texttt{arduino\_vacuum\_vendor\_supervisor}& vacuum (serial) \\
+bantam          & \texttt{bantam\_vendor\_supervisor}        & Bantam CNC, door (ZMQ) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The AclGuard enforces a four-gate check on every incoming message:
+
+\begin{enumerate}
+  \item \textbf{Gate~1 -- \texttt{NO\_TOKEN}}: authentication field absent.
+  \item \textbf{Gate~2 -- \texttt{BAD\_HMAC}}: HMAC-SHA256 token invalid.
+  \item \textbf{Gate~3 -- \texttt{SENDER\_NOT\_AUTHORIZED}}: sender not in the
+    topic ACL.
+  \item \textbf{Gate~4 -- \texttt{PROPRIETARY\_FIELD}}: payload contains a
+    forbidden boundary key (\texttt{joint\_states}, \texttt{servo},
+    \texttt{raw\_image}, \texttt{gcode\_line}, etc.).
+\end{enumerate}
+
+Rejections are published to \texttt{/shipyard/acl\_events} (JSON) and
+captured live by the probe.
+
+% ============================================================
+\section{Experiment 1 -- Boundary Enforcement}
+% ============================================================
+
+\subsection{Research Questions and Theorems}
+
+\begin{itemize}
+  \item \textbf{RQ2} (Proprietary Confinement): vendor-internal data never
+    crosses the boundary even when the channel itself is valid.
+  \item \textbf{RQ4} (Fault Containment): an unauthorized node cannot trigger
+    any physical action in another domain.
+  \item \textbf{Theorem~2}: the AclGuard blocks all cross-domain and
+    unauthenticated access.
+  \item \textbf{Theorem~3}: the boundary key filter blocks proprietary-field
+    leakage independently of the sender's ACL status.
+\end{itemize}
+
+\subsection{Sub-experiment Design}
+
+\begin{table}[h]
+\centering
+\caption{Experiment~1 sub-experiments}
+\label{tab:exp1-design}
+\footnotesize
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{@{}c p{2.6cm} p{4.8cm} c p{3.0cm}@{}}
+\toprule
+\textbf{ID} & \textbf{Case} & \textbf{Attacker} $\to$ \textbf{Topic} & \textbf{G} & \textbf{Expected reason} \\
+\midrule
+1a  & Cross-vendor access       & \texttt{bantam\_VS} $\to$ \texttt{/niryo\_factory/command}       & 3 & \texttt{SENDER\_NOT\_AUTHORIZED} \\
+1b1 & External, no token        & \texttt{external} (no token) $\to$ \texttt{/niryo\_factory/command}   & 1 & \texttt{NO\_TOKEN} \\
+1b2 & External, forged HMAC     & \texttt{external} (forged) $\to$ \texttt{/niryo\_factory/command}     & 2 & \texttt{BAD\_HMAC} \\
+1c  & Vendor$\to$factory leakage& \texttt{niryo\_VS} + \texttt{joint\_states} $\to$ \texttt{/niryo\_factory/status} & 4 & \texttt{PROPRIETARY\_FIELD} \\
+1d  & Factory$\to$vendor leakage& \texttt{FS} + \texttt{servo} field $\to$ \texttt{/niryo\_factory/command}       & 4 & \texttt{PROPRIETARY\_FIELD} \\
+1e  & ACK injection             & \texttt{external} $\to$ \texttt{/niryo\_factory/ack}               & 3 & \texttt{SENDER\_NOT\_AUTHORIZED} \\
+1f  & Bantam, no token          & \texttt{external} (no token) $\to$ \texttt{/bantam\_factory/command} & 1 & \texttt{NO\_TOKEN} \\
+1g  & Bantam, forged HMAC       & \texttt{external} (forged) $\to$ \texttt{/bantam\_factory/command}   & 2 & \texttt{BAD\_HMAC} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Cases 1c and 1d use a \emph{valid sender identity} to isolate Gate~4
+(boundary key check) from Gate~3 (ACL check).
+Case~1e validates the previously unguarded \texttt{on\_ack()} entry point in
+the Factory Supervisor.
+Cases 1f--1g confirm enforcement is in \texttt{BaseVendorSupervisor}, not
+vendor-specific code.
+
+\subsection{Offline Results}
+
+The probe calls \texttt{check\_outbound()} directly in Python without ROS~2.
+Each case: 100 sequential + 100 batch messages = 200 messages total.
+
+\begin{table}[h]
+\centering
+\caption{Experiment~1 -- offline results (200 messages per case, 0 acted upon)}
+\label{tab:exp1-offline}
+\begin{tabular}{@{}lrccrr@{}}
+\toprule
+\textbf{Case} & \textbf{Sent} & \textbf{Acted} & \textbf{Gate} &
+\textbf{Seq.\ mean (\us)} & \textbf{Seq.\ max (\us)} \\
+\midrule
+cross\_vendor\_access        & 200 & 0 & 3 & 280.3 & 472.2 \\
+external\_no\_token          & 200 & 0 & 1 &   2.0 &   4.7 \\
+external\_forged\_token      & 200 & 0 & 2 &  11.2 &  63.0 \\
+vendor\_to\_factory\_leakage & 200 & 0 & 4 & 217.3 & 417.2 \\
+factory\_to\_vendor\_leakage & 200 & 0 & 4 & 193.7 & 293.8 \\
+\midrule
+\textbf{Total}               & \textbf{1{,}000} & \textbf{0} & -- & -- & \textbf{472.2} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent\textbf{Result:} 1{,}000 unauthorized messages sent; 0 acted upon.
+All ACL checks sub-millisecond. \pass{}
+
+\subsection{Physical Results}
+
+The probe publishes messages over real ROS~2 DDS transport with the full
+system running (all seven vendor nodes + Factory Supervisor).
+The \texttt{observed\_reason} column is captured live from
+\texttt{/shipyard/acl\_events}.
+Reason-match counts below~$n$ reflect DDS subscription warm-up on the first
+1--2 messages per case (\textasciitilde500\,ms settling); the security
+property (0 acks) holds for all messages including those.
+
+\begin{table}[h]
+\centering
+\caption{Experiment~1 -- physical results (ROS~2 DDS, hardware running, 2026-06-23)}
+\label{tab:exp1-physical}
+\small
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{@{}c p{3.8cm} r r r r c@{}}
+\toprule
+\textbf{ID} & \textbf{Case} & \textbf{Sent} & \textbf{Acks} &
+\textbf{Match} & \textbf{Mean (\ms)} & \textbf{Verdict} \\
+\midrule
+1a  & Cross-vendor access        & 20 & 0 & 18/20 & 167.0 & \pass{} \\
+1b1 & External, no token         & 20 & 0 & 20/20 &  21.6 & \pass{} \\
+1b2 & External, forged HMAC      & 20 & 0 & 19/20 &  91.6 & \pass{} \\
+1c  & Vendor$\to$factory leakage & 50 & 0 & 50/50 &  21.2 & \pass{} \\
+1d  & Factory$\to$vendor leakage & 20 & 0 & 20/20 &  23.1 & \pass{} \\
+1e  & ACK injection              & 20 & 0 & 18/20 & 195.7 & \pass{} \\
+1f  & Bantam, no token           & 20 & 0 & 20/20 &  34.0 & \pass{} \\
+1g  & Bantam, forged HMAC        & 20 & 0 & 19/20 & 108.0 & \pass{} \\
+\midrule
+    & \textbf{Total}             & \textbf{190} & \textbf{0} & \textbf{184/190} & -- & \pass{} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Key Findings -- Experiment~1}
+
+\begin{enumerate}
+  \item \textbf{Zero unauthorized actions} across 190 physical DDS messages
+    and 1{,}000 offline messages spanning all four gates and two vendor
+    domains.
+  \item \textbf{HMAC gates validated}: Cases 1b1/1b2 and 1f/1g confirm
+    Gate~1 (\texttt{NO\_TOKEN}) and Gate~2 (\texttt{BAD\_HMAC}) fire
+    correctly once \texttt{hmac\_secrets.yaml} is deployed.
+    Prior to deployment, messages fell through to Gate~3 (still blocked,
+    different reason).
+  \item \textbf{Proprietary field boundary holds on live DDS}: Case~1c
+    (50 messages at Gate~4) shows zero DDS message loss and all 50 reasons
+    captured from \texttt{/shipyard/acl\_events}.
+  \item \textbf{Ack-injection gap closed}: \texttt{factory\_supervisor.on\_ack()}
+    was previously unguarded.  The guard added in this experiment (Case~1e)
+    prevents a fake ACK from advancing planner state.
+  \item \textbf{Enforcement is vendor-agnostic}: Cases 1f--1g (bantam) produce
+    identical enforcement to 1b1--1b2 (niryo), confirming the mechanism
+    lives in \texttt{BaseVendorSupervisor}, not vendor-specific code.
+  \item \textbf{Production unaffected}: Niryo robots, xArms, conveyors,
+    Bantam CNC, and the laser continued normal operation throughout all
+    eight probe runs.
+\end{enumerate}
+
+% ============================================================
+\section{Experiment 3 -- Coordination Overhead}
+% ============================================================
+
+\subsection{Research Question}
+
+\textbf{RQ5}: Is the coordination overhead bounded by exactly three messages
+per vendor task, and does it remain negligible relative to physical task
+duration?
+
+\subsection{Measurement Model}
+
+Per task, let:
+\begin{align*}
+  T_{\text{cmd}} &= \text{time from command published (FS) to ack received
+    (bag recorder)}\\
+                 &\approx \text{DDS transit}_{\text{cmd}} +
+                   \text{VS processing}_{\text{ack}} +
+                   \text{DDS transit}_{\text{ack}}\\[4pt]
+  T_{\text{status}} &= \text{status published (VS)} \to
+    \text{status received (bag recorder)}\\
+                    &= \text{DDS transit}_{\text{status}}\\[4pt]
+  T_{\text{coord}} &= T_{\text{cmd}} + T_{\text{status}}\\[4pt]
+  T_{\text{phys}}  &= \texttt{ack.accepted\_at} \to
+    \texttt{status.published\_at}
+    \quad\text{(hardware execution)}
+\end{align*}
+
+\noindent Overhead: $\varepsilon = T_{\text{coord}} /
+(T_{\text{coord}} + T_{\text{phys}}) \times 100\%$
+
+\subsection{Offline Baseline (software layer only)}
+
+1{,}000 iterations. Domain \texttt{niryo/GOTO\_PICK\_POSITION}.
+Measures build + HMAC-sign + JSON-serialize + parse + verify for a complete
+command/ack/status cycle (no DDS, no hardware).
+
+\begin{table}[h]
+\centering
+\caption{Experiment~3 -- offline baseline: per-step serialization latency
+  ($n = 1{,}000$)}
+\label{tab:exp3-offline}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+\textbf{Step} & \textbf{Mean (\us)} & \textbf{Std (\us)} & \textbf{Max (\us)} \\
+\midrule
+command build + HMAC sign  & 38.0 &  10.4 & 118.3 \\
+command JSON serialize      & 13.2 &   5.1 &  70.5 \\
+command JSON parse          & 13.2 &   6.2 &  76.2 \\
+command HMAC verify         &  9.7 &   4.8 &  61.5 \\
+ack build + HMAC sign       & 23.7 &   6.6 &  87.7 \\
+ack JSON serialize          & 11.6 &   5.5 & 119.9 \\
+status build + HMAC sign    & 24.7 &   7.4 &  77.8 \\
+status JSON serialize       & 12.9 &   4.9 &  69.2 \\
+\midrule
+\textbf{$T_{\text{coord}}$ total} & \textbf{147.1} & \textbf{31.6} & \textbf{290.5} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent\textbf{Result:} Software-only $T_{\text{coord}}$ mean
+\SI{147.1}{\micro s}, worst case \SI{290.5}{\micro s}.
+Sub-millisecond in all 1{,}000 iterations. \pass{}
+
+\subsection{Physical Results (ROS 2 DDS, full testbed)}
+
+86 complete coordination cycles recorded from a live production run across
+all seven vendor domains (2 incomplete cycles discarded from bag
+start/end boundary).
+
+\begin{table}[h]
+\centering
+\caption{Experiment~3 -- physical summary ($n = 86$ cycles, 2026-06-23)}
+\label{tab:exp3-physical-summary}
+\begin{tabular}{@{}lrrrrl@{}}
+\toprule
+\textbf{Metric} & \textbf{Mean} & \textbf{Std} & \textbf{Min} & \textbf{Max} & \textbf{Unit} \\
+\midrule
+$T_{\text{cmd}}$ (command roundtrip)  &  6.49 &  6.22 & 1.13 & 47.83 & ms \\
+$T_{\text{status}}$ (status transit)  &  0.44 &  0.38 & 0.11 &  2.62 & ms \\
+$T_{\text{coord}}$ (total)            &  6.93 &  6.24 & 1.49 & 47.99 & ms \\
+$T_{\text{phys}}$ (physical task)     &  8.90 &  9.99 & 0.01 & 49.05 & s  \\
+Overhead $\varepsilon$                &  2.93 & 10.31 & 0.01 & 75.01 & \% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Note on overhead statistics.}
+The mean overhead (2.93\%) and maximum (75.01\%) are dominated by near-instant
+tasks: \texttt{globalvision/LOCATE\_NEXT\_PIECE} completes in
+$T_{\text{phys}} \approx \SI{10}{\ms}$ (a camera query), making any fixed
+DDS latency appear disproportionate.
+For all tasks with meaningful hardware duration ($T_{\text{phys}} > \SI{1}{s}$),
+overhead is consistently below 0.2\%.
+
+\begin{table}[h]
+\centering
+\caption{Experiment~3 -- per-vendor breakdown for tasks with
+  $T_{\text{phys}} > \SI{1}{s}$}
+\label{tab:exp3-per-vendor}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+\textbf{Vendor} & \textbf{$n$} &
+\textbf{$T_{\text{coord}}$ mean (\ms)} &
+\textbf{$T_{\text{phys}}$ mean (s)} &
+\textbf{Overhead (\%)} \\
+\midrule
+arduino\_vacuum & 12 &  2.36 &  1.46 & 0.164 \\
+bantam          &  3 & 11.70 & 36.50 & 0.067 \\
+laser           &  1 &  2.93 & 22.88 & 0.010 \\
+niryo           & 36 &  8.88 & 13.18 & 0.084 \\
+ufactory        & 12 & 10.00 & 11.19 & 0.103 \\
+\midrule
+\textbf{All}    & \textbf{64} & \textbf{7.79} & \textbf{12.70} & \textbf{0.104} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[h]
+\centering
+\caption{Experiment~3 -- all 86 physical cycles by vendor}
+\label{tab:exp3-all-vendors}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+\textbf{Vendor} & \textbf{$n$} &
+\textbf{$T_{\text{coord}}$ mean (\ms)} &
+\textbf{$T_{\text{phys}}$ mean (s)} \\
+\midrule
+arduino\_vacuum  & 12 &  2.4 &  1.46 \\
+bantam           &  3 & 11.7 & 36.50 \\
+globalvision     &  5 &  5.8 &  0.01 \\
+green\_conveyors & 14 &  3.0 &  0.41 \\
+laser            &  1 &  2.9 & 22.88 \\
+niryo            & 39 &  8.7 & 12.19 \\
+ufactory         & 12 & 10.0 & 11.19 \\
+\midrule
+\textbf{Total}   & \textbf{86} & \textbf{6.93} & \textbf{8.90} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Key Findings -- Experiment~3}
+
+\begin{enumerate}
+  \item \textbf{Three-message contract holds across all 7 vendors}: every
+    coordination cycle uses exactly command + ack + terminal status.  No
+    additional topics are needed regardless of internal vendor complexity
+    (the niryo domain controls 6 resources through a single domain; it
+    still uses 3 messages per issued task).
+  \item \textbf{$T_{\text{coord}} < \SI{48}{\ms}$ in all 86 cycles}:
+    the worst case (\SI{47.99}{\ms}) corresponds to an
+    \texttt{ufactory/MOVE\_PIECE} at system startup (DDS discovery overhead).
+    Steady-state $T_{\text{coord}}$ is 2--11\,ms.
+  \item \textbf{Status DDS transit is sub-3\,ms}: mean
+    \SI{0.44}{\ms}, max \SI{2.62}{\ms}, confirming near-instantaneous
+    delivery of completion notifications to the FS.
+  \item \textbf{Overhead for physical tasks is below 0.2\%}: for the 64
+    cycles where $T_{\text{phys}} > \SI{1}{s}$, the mean coordination
+    overhead is \SI{0.104}{\percent}.
+    The most demanding physical task observed (bantam RUN\_JOB, up to
+    \SI{49.05}{s}) has an overhead of \SI{0.067}{\percent}.
+  \item \textbf{Software-only lower bound is \SI{147}{\,\micro s}}: the
+    offline baseline shows that build + sign + serialize + parse + verify
+    for the complete 3-message cycle costs \SI{147.1}{\,\micro s} on
+    average.  DDS transport adds $\approx$\SI{6.8}{\ms} on average in
+    the physical testbed -- four orders of magnitude smaller than the
+    physical task times.
+  \item \textbf{Vendor complexity does not add coordination topics}: adding
+    internal resources (e.g., robot vision, conveyors) to a domain never
+    requires additional boundary topics.  The FS always issues a single
+    command and receives a single terminal status.
+\end{enumerate}
+
+% ============================================================
+\section{Summary}
+% ============================================================
+
+\begin{table}[h]
+\centering
+\caption{Overall experimental results summary}
+\label{tab:summary}
+\small
+\setlength{\tabcolsep}{6pt}
+\begin{tabular}{@{}p{3.4cm} p{2.6cm} p{6.2cm} c@{}}
+\toprule
+\textbf{Experiment} & \textbf{RQ / Theorem} & \textbf{Key result} & \textbf{Verdict} \\
+\midrule
+\multirow{4}{3.4cm}{1 -- Boundary Enforcement}
+  & RQ2, RQ4         & 0 unauthorized actions across 190 physical messages & \pass{} \\
+  & Theorem~2        & Gates 1--3 block all cross-domain and unauthenticated access & \pass{} \\
+  & Theorem~3        & Gate~4 blocks proprietary-field leakage (valid sender)  & \pass{} \\
+  & New: ack gap     & ACK injection attack surface discovered and closed       & \pass{} \\
+\midrule
+\multirow{3}{3.4cm}{3 -- Coordination Overhead}
+  & RQ5              & $T_{\text{coord}}$ max \SI{48}{\ms}; software bound \SI{291}{\,\micro s} & \pass{} \\
+  & 3-msg contract   & All 86 cycles use exactly command + ack + status          & \pass{} \\
+  & Overhead         & Mean $< 0.2\%$ for all tasks with $T_{\text{phys}} > \SI{1}{s}$        & \pass{} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Artifacts}
+
+\begin{itemize}
+  \item \texttt{results/experiment\_1\_boundary\_enforcement/summary.csv} --
+    Experiment~1 offline latency data.
+  \item \texttt{results/experiment\_1\_boundary\_enforcement/physical/*.csv} --
+    Experiment~1 physical per-message data with \texttt{observed\_reason}.
+  \item \texttt{results/experiment\_3\_coordination\_overhead/offline\_summary.csv} --
+    Experiment~3 offline serialization baseline.
+  \item \texttt{results/experiment\_3\_coordination\_overhead/coordination\_summary.csv} --
+    Experiment~3 physical T\_coord statistics.
+  \item \texttt{results/experiment\_3\_coordination\_overhead/coordination\_latencies.csv} --
+    Experiment~3 physical per-cycle data (86 rows).
+  \item \texttt{results/bags/exp3\_coordination\_overhead/} -- ROS~2 MCAP
+    bag used for Experiment~3 physical analysis.
+  \item Source code: \texttt{src/shipyard\_pnp/shipyard\_pnp/}.
+  \item Probes: \texttt{experiments/boundary\_enforcement/},
+    \texttt{experiments/coordination\_overhead/}.
+\end{itemize}
+
+\end{document}

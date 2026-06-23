@@ -1,0 +1,10 @@
+metric,mean_us,std_us,min_us,max_us,count
+command_build_and_sign,38.046,10.355,24.654,118.31,1000
+command_json_serialize,13.223,5.07,8.171,70.539,1000
+command_json_parse,13.183,6.21,8.101,76.196,1000
+command_hmac_verify,9.717,4.752,5.657,61.53,1000
+ack_build_and_sign,23.697,6.636,16.203,87.65,1000
+ack_json_serialize,11.612,5.478,6.635,119.917,1000
+status_build_and_sign,24.722,7.353,17.18,77.802,1000
+status_json_serialize,12.883,4.859,8.102,69.212,1000
+T_coord_total,147.084,31.644,102.526,290.538,1000

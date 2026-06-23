@@ -1,0 +1,2 @@
+[external_forged_token]  sent=200  acted_upon=0  reasons={'BAD_HMAC'}  -> results/experiment_1_boundary_enforcement/external_forged_token.csv
+PASS: 0 unauthorized messages acted upon

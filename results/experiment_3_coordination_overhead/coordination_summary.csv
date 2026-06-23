@@ -1,0 +1,6 @@
+metric,mean,std,min,max,count,unit
+command_to_ack_roundtrip_T_cmd,6.49,6.222,1.132,47.833,86,ms
+status_transit_T_status,0.442,0.384,0.107,2.624,86,ms
+total_T_coord_per_task,6.932,6.238,1.491,47.992,86,ms
+physical_task_time,8.897,9.994,0.005,49.05,86,s
+overhead_percent,2.933,10.307,0.01,75.01,86,%

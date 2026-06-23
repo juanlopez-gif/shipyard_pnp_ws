@@ -1,0 +1,35 @@
+[INFO] [1782244240.192349660] [experiment_1_physical_probe]: probe ready — publishing to '/niryo_factory/command', monitoring '/niryo_factory/ack'
+[factory_to_vendor_leakage] sending 20 messages to /niryo_factory/command ...
+  monitoring acks:   /niryo_factory/ack
+  monitoring events: /shipyard/acl_events
+  expected reason:   PROPRIETARY_FIELD
+
+  [001] CMD-niry... → no ack (PASS, 10ms)  observed=PROPRIETARY_FIELD
+  [002] CMD-niry... → no ack (PASS, 11ms)  observed=PROPRIETARY_FIELD
+  [003] CMD-niry... → no ack (PASS, 13ms)  observed=PROPRIETARY_FIELD
+  [004] CMD-niry... → no ack (PASS, 21ms)  observed=PROPRIETARY_FIELD
+  [005] CMD-niry... → no ack (PASS, 22ms)  observed=PROPRIETARY_FIELD
+  [006] CMD-niry... → no ack (PASS, 10ms)  observed=PROPRIETARY_FIELD
+  [007] CMD-niry... → no ack (PASS, 10ms)  observed=PROPRIETARY_FIELD
+  [008] CMD-niry... → no ack (PASS, 10ms)  observed=PROPRIETARY_FIELD
+  [009] CMD-niry... → no ack (PASS, 11ms)  observed=PROPRIETARY_FIELD
+  [010] CMD-niry... → no ack (PASS, 10ms)  observed=PROPRIETARY_FIELD
+  [011] CMD-niry... → no ack (PASS, 10ms)  observed=PROPRIETARY_FIELD
+  [012] CMD-niry... → no ack (PASS, 39ms)  observed=PROPRIETARY_FIELD
+  [013] CMD-niry... → no ack (PASS, 20ms)  observed=PROPRIETARY_FIELD
+  [014] CMD-niry... → no ack (PASS, 19ms)  observed=PROPRIETARY_FIELD
+  [015] CMD-niry... → no ack (PASS, 60ms)  observed=PROPRIETARY_FIELD
+  [016] CMD-niry... → no ack (PASS, 53ms)  observed=PROPRIETARY_FIELD
+  [017] CMD-niry... → no ack (PASS, 10ms)  observed=PROPRIETARY_FIELD
+  [018] CMD-niry... → no ack (PASS, 31ms)  observed=PROPRIETARY_FIELD
+  [019] CMD-niry... → no ack (PASS, 79ms)  observed=PROPRIETARY_FIELD
+  [020] CMD-niry... → no ack (PASS, 10ms)  observed=PROPRIETARY_FIELD
+
+============================================================
+Case:              factory_to_vendor_leakage
+Messages sent:     20
+ACKs received:     0  (expected: 0)
+Expected reason:   PROPRIETARY_FIELD
+Reason match:      20/20 messages matched expected reason 'PROPRIETARY_FIELD'
+Verdict:           PASS ✓
+Results saved to:  /home/isecapstone/shipyard_pnp_ws/results/experiment_1_boundary_enforcement/physical/factory_to_vendor_leakage.csv

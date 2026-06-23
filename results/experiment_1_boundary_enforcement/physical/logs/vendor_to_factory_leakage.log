@@ -1,0 +1,63 @@
+[INFO] [1782244237.367890779] [experiment_1_physical_probe]: probe ready — publishing to '/niryo_factory/status' (evidence via /shipyard/acl_events)
+[vendor_to_factory_leakage] sending 50 messages to /niryo_factory/status ...
+  monitoring events: /shipyard/acl_events
+  expected reason:   PROPRIETARY_FIELD
+
+  [001] CMD-niry... → sent (11ms)  observed=PROPRIETARY_FIELD
+  [002] CMD-niry... → sent (36ms)  observed=PROPRIETARY_FIELD
+  [003] CMD-niry... → sent (31ms)  observed=PROPRIETARY_FIELD
+  [004] CMD-niry... → sent (79ms)  observed=PROPRIETARY_FIELD
+  [005] CMD-niry... → sent (12ms)  observed=PROPRIETARY_FIELD
+  [006] CMD-niry... → sent (10ms)  observed=PROPRIETARY_FIELD
+  [007] CMD-niry... → sent (26ms)  observed=PROPRIETARY_FIELD
+  [008] CMD-niry... → sent (16ms)  observed=PROPRIETARY_FIELD
+  [009] CMD-niry... → sent (35ms)  observed=PROPRIETARY_FIELD
+  [010] CMD-niry... → sent (37ms)  observed=PROPRIETARY_FIELD
+  [011] CMD-niry... → sent (20ms)  observed=PROPRIETARY_FIELD
+  [012] CMD-niry... → sent (41ms)  observed=PROPRIETARY_FIELD
+  [013] CMD-niry... → sent (23ms)  observed=PROPRIETARY_FIELD
+  [014] CMD-niry... → sent (14ms)  observed=PROPRIETARY_FIELD
+  [015] CMD-niry... → sent (35ms)  observed=PROPRIETARY_FIELD
+  [016] CMD-niry... → sent (22ms)  observed=PROPRIETARY_FIELD
+  [017] CMD-niry... → sent (36ms)  observed=PROPRIETARY_FIELD
+  [018] CMD-niry... → sent (21ms)  observed=PROPRIETARY_FIELD
+  [019] CMD-niry... → sent (11ms)  observed=PROPRIETARY_FIELD
+  [020] CMD-niry... → sent (12ms)  observed=PROPRIETARY_FIELD
+  [021] CMD-niry... → sent (12ms)  observed=PROPRIETARY_FIELD
+  [022] CMD-niry... → sent (25ms)  observed=PROPRIETARY_FIELD
+  [023] CMD-niry... → sent (22ms)  observed=PROPRIETARY_FIELD
+  [024] CMD-niry... → sent (11ms)  observed=PROPRIETARY_FIELD
+  [025] CMD-niry... → sent (20ms)  observed=PROPRIETARY_FIELD
+  [026] CMD-niry... → sent (10ms)  observed=PROPRIETARY_FIELD
+  [027] CMD-niry... → sent (32ms)  observed=PROPRIETARY_FIELD
+  [028] CMD-niry... → sent (10ms)  observed=PROPRIETARY_FIELD
+  [029] CMD-niry... → sent (10ms)  observed=PROPRIETARY_FIELD
+  [030] CMD-niry... → sent (23ms)  observed=PROPRIETARY_FIELD
+  [031] CMD-niry... → sent (26ms)  observed=PROPRIETARY_FIELD
+  [032] CMD-niry... → sent (10ms)  observed=PROPRIETARY_FIELD
+  [033] CMD-niry... → sent (16ms)  observed=PROPRIETARY_FIELD
+  [034] CMD-niry... → sent (12ms)  observed=PROPRIETARY_FIELD
+  [035] CMD-niry... → sent (21ms)  observed=PROPRIETARY_FIELD
+  [036] CMD-niry... → sent (30ms)  observed=PROPRIETARY_FIELD
+  [037] CMD-niry... → sent (10ms)  observed=PROPRIETARY_FIELD
+  [038] CMD-niry... → sent (11ms)  observed=PROPRIETARY_FIELD
+  [039] CMD-niry... → sent (21ms)  observed=PROPRIETARY_FIELD
+  [040] CMD-niry... → sent (26ms)  observed=PROPRIETARY_FIELD
+  [041] CMD-niry... → sent (11ms)  observed=PROPRIETARY_FIELD
+  [042] CMD-niry... → sent (11ms)  observed=PROPRIETARY_FIELD
+  [043] CMD-niry... → sent (23ms)  observed=PROPRIETARY_FIELD
+  [044] CMD-niry... → sent (12ms)  observed=PROPRIETARY_FIELD
+  [045] CMD-niry... → sent (23ms)  observed=PROPRIETARY_FIELD
+  [046] CMD-niry... → sent (18ms)  observed=PROPRIETARY_FIELD
+  [047] CMD-niry... → sent (14ms)  observed=PROPRIETARY_FIELD
+  [048] CMD-niry... → sent (20ms)  observed=PROPRIETARY_FIELD
+  [049] CMD-niry... → sent (22ms)  observed=PROPRIETARY_FIELD
+  [050] CMD-niry... → sent (21ms)  observed=PROPRIETARY_FIELD
+
+============================================================
+Case:              vendor_to_factory_leakage
+Messages sent:     50
+Expected reason:   PROPRIETARY_FIELD
+Reason match:      50/50 messages matched expected reason 'PROPRIETARY_FIELD'
+Verdict:           PASS ✓ (evidence: /shipyard/acl_events + receiver logs)
+Results saved to:  /home/isecapstone/shipyard_pnp_ws/results/experiment_1_boundary_enforcement/physical/vendor_to_factory_leakage.csv

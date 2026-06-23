@@ -1,0 +1,57 @@
+{
+  "experiment": "Experiment 1 - Boundary Enforcement (PHYSICAL ROS2 run)",
+  "date": "2026-06-22T23:07:00",
+  "host": "isecapstone-UM350",
+  "os": "Linux-6.17.0-35-generic-x86_64-with-glibc2.39",
+  "ros2_distro": "jazzy",
+  "execution_mode": "Physical ROS2 DDS transport \u2014 vendor supervisors running as real nodes",
+  "nodes_active": [
+    "factory_supervisor",
+    "niryo_vendor_supervisor",
+    "experiment_1_physical_probe (attacker)"
+  ],
+  "rosbag": "results/bags/experiment_1_physical/",
+  "topics_recorded": [
+    "/niryo_factory/command",
+    "/niryo_factory/ack",
+    "/niryo_factory/status"
+  ],
+  "cases": [
+    "cross_vendor_access",
+    "external_no_token",
+    "external_forged_token",
+    "vendor_to_factory_leakage",
+    "factory_to_vendor_leakage"
+  ],
+  "messages_per_case": 20,
+  "ack_timeout_s": 1.5,
+  "pass_criteria": "acks_received == 0 (cases 1a/1b/1d) + AclGuard REJECTED in node logs (1c)",
+  "physical_actuation": "None \u2014 robots in safe idle state during probe. No movement observed.",
+  "results": {
+    "cross_vendor_access": {
+      "sent": 20,
+      "acks": 0,
+      "verdict": "PASS"
+    },
+    "external_no_token": {
+      "sent": 20,
+      "acks": 0,
+      "verdict": "PASS"
+    },
+    "external_forged_token": {
+      "sent": 20,
+      "acks": 0,
+      "verdict": "PASS"
+    },
+    "vendor_to_factory_leakage": {
+      "sent": 20,
+      "acks": 0,
+      "verdict": "PASS (logs)"
+    },
+    "factory_to_vendor_leakage": {
+      "sent": 20,
+      "acks": 0,
+      "verdict": "PASS"
+    }
+  }
+}

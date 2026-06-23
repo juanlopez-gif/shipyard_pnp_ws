@@ -1,0 +1,111 @@
+# Hardware port configuration — fill values from old config/ files
+# See ARCHITECTURE_PLAN.md C-CONFIG-1
+
+niryo:
+  # Use mode: hardware once the Niryo ROS2 driver is running and the area is safe.
+  mode: hardware
+  robot1_namespace: /robot1
+  robot1_ip: 192.168.0.195
+  robot2_namespace: /robot2
+  robot2_ip: 192.168.0.244
+  service_wait_timeout_sec: 10.0
+  command_timeout_sec: 45.0
+  settle_time_sec: 0.2
+  vacuum_delay_sec: 0.5
+  sensor_poll_interval_sec: 0.2
+  conveyor_run_timeout_sec: 30.0
+  dry_run_conveyor_duration_sec: 1.0
+  vision_default_color: RED
+  vision_capture_timeout_sec: 8.0
+  vision_target_captures: 15
+  vision_detection_threshold: 0.03
+  vision_robot2_topic: /robot2/niryo_robot_vision/compressed_video_stream
+  robot2_vacuum_tool_id: 31
+  conveyor1:
+    robot_namespace: /robot1
+    hardware_id: 9
+    speed: 100
+    direction: 1
+    exit_sensor_id: c1s2
+    sensors:
+      c1s1: {pin: DI5, active_low: true}
+      c1s2: {pin: DI1, active_low: true}
+  conveyor2:
+    robot_namespace: /robot2
+    hardware_id: 9
+    speed: 100
+    direction: 1
+    exit_sensor_id: c2s2
+    sensors:
+      c2s1: {pin: DI5, active_low: true}
+      c2s2: {pin: DI1, active_low: true}
+
+ufactory:
+  mode: dry_run
+  xarm1_namespace: /xarm1
+  xarm2_namespace: /xarm2
+  service_wait_timeout_sec: 10.0
+  command_timeout_sec: 35.0
+  default_speed: 30.0
+  default_acc: 100.0
+  settle_time_sec: 0.5
+  gripper_delay_sec: 0.5
+
+arduino_vacuum:
+  port: /dev/ttyACM1
+  baudrate: 9600
+  open_wait_sec: 2.0
+  read_wait_sec: 1.0
+  reconnect_attempts: 8
+  reconnect_delay_sec: 1.0
+  pick_hold_sec: 0.5
+  release_hold_sec: 0.3
+
+green_conveyors:
+  port: /dev/ttyACM0
+  baudrate: 115200
+  startup_wait_sec: 2.0
+  command_timeout_sec: 2.0
+  reconnect_attempts: 5
+  reconnect_delay_sec: 1.0
+  inter_command_delay_sec: 0.3
+  conveyor3_speed: 9000
+  conveyor4_speed: 9000
+  conveyor3_direction: REV
+  conveyor4_direction: FWD
+
+globalvision:
+  camera_index: 0
+  camera_device: ""
+  config_file: ""
+  color_threshold_pct: 5.0
+  show_window: false
+
+laser:
+  mode: http
+  laser_ip: 192.168.0.173
+  gcode_dir: /home/isecapstone/laser_gcode/
+  default_gcode: happyface.gcode
+  allowed_gcode_files:
+    - happyface.gcode
+  blocked_gcode_fragments:
+    - S25
+  wait_time_before_start_sec: 2.0
+  prepare_delay_sec: 0.2
+  job_duration_sec: 2.0
+  inter_command_delay_sec: 1.0
+  http_timeout_sec: 10.0
+  fail_on_gcode_error: true
+
+bantam:
+  processing_time_sec: 25.0   # simulated machining duration — replace with real timing when CNC serial is wired
+  settle_sec: 1.5
+  door_timeout_sec: 12.0
+  door_cooldown_sec: 2.0
+  door_zmq_address: tcp://192.168.0.171:5555
+
+database:
+  dsn: "postgresql://shipyard:password@localhost:5432/shipyard_pnp"
+
+hmac:
+  secrets_file: config/hmac_secrets.yaml

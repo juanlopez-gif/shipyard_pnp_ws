@@ -1,0 +1,39 @@
+# Vendor registry — see ARCHITECTURE_PLAN.md section 3
+domains:
+  niryo:
+    supervisor_node: niryo_vendor_supervisor
+    resources:
+      robot1: {type: robot, model: niryo_ned2}
+      robot2: {type: robot, model: niryo_ned2, internal_vacuum: robot2_niryo_vacuum}
+      conveyor1: {type: niryo_conveyor, ir_sensors: [c1s1, c1s2]}
+      conveyor2: {type: niryo_conveyor, ir_sensors: [c2s1, c2s2]}
+      vision_robot1: {type: local_camera, owner_robot: robot1}
+      vision_robot2: {type: local_camera, owner_robot: robot2}
+      robot2_niryo_vacuum: {type: niryo_tool, owner_robot: robot2}
+  ufactory:
+    supervisor_node: ufactory_vendor_supervisor
+    resources:
+      xarm1: {type: robot, model: lite6}
+      xarm2: {type: robot, model: lite6}
+  laser:
+    supervisor_node: laser_vendor_supervisor
+    resources:
+      laser: {type: machine}
+  globalvision:
+    supervisor_node: globalvision_vendor_supervisor
+    resources:
+      globalvision_camera: {type: camera}
+  green_conveyors:
+    supervisor_node: green_conveyors_vendor_supervisor
+    resources:
+      conveyor3: {type: arduino_conveyor, channel: B}
+      conveyor4: {type: arduino_conveyor, channel: A}
+  arduino_vacuum:
+    supervisor_node: arduino_vacuum_vendor_supervisor
+    resources:
+      arduino_vacuum: {type: serial_vacuum, owner_robot: robot1}
+  bantam:
+    supervisor_node: bantam_vendor_supervisor
+    resources:
+      bantam: {type: cnc}
+      bantam_door: {type: door}

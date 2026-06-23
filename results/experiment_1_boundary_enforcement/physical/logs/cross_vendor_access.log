@@ -1,0 +1,35 @@
+[INFO] [1782244227.349452879] [experiment_1_physical_probe]: probe ready — publishing to '/niryo_factory/command', monitoring '/niryo_factory/ack'
+[cross_vendor_access] sending 20 messages to /niryo_factory/command ...
+  monitoring acks:   /niryo_factory/ack
+  monitoring events: /shipyard/acl_events
+  expected reason:   SENDER_NOT_AUTHORIZED
+
+  [001] CMD-niry... → no ack (PASS, 1501ms)  (no event yet)
+  [002] CMD-niry... → no ack (PASS, 1509ms)  (no event yet)
+  [003] CMD-niry... → no ack (PASS, 10ms)  observed=SENDER_NOT_AUTHORIZED
+  [004] CMD-niry... → no ack (PASS, 21ms)  observed=SENDER_NOT_AUTHORIZED
+  [005] CMD-niry... → no ack (PASS, 32ms)  observed=SENDER_NOT_AUTHORIZED
+  [006] CMD-niry... → no ack (PASS, 10ms)  observed=SENDER_NOT_AUTHORIZED
+  [007] CMD-niry... → no ack (PASS, 10ms)  observed=SENDER_NOT_AUTHORIZED
+  [008] CMD-niry... → no ack (PASS, 21ms)  observed=SENDER_NOT_AUTHORIZED
+  [009] CMD-niry... → no ack (PASS, 11ms)  observed=SENDER_NOT_AUTHORIZED
+  [010] CMD-niry... → no ack (PASS, 10ms)  observed=SENDER_NOT_AUTHORIZED
+  [011] CMD-niry... → no ack (PASS, 32ms)  observed=SENDER_NOT_AUTHORIZED
+  [012] CMD-niry... → no ack (PASS, 10ms)  observed=SENDER_NOT_AUTHORIZED
+  [013] CMD-niry... → no ack (PASS, 10ms)  observed=SENDER_NOT_AUTHORIZED
+  [014] CMD-niry... → no ack (PASS, 10ms)  observed=SENDER_NOT_AUTHORIZED
+  [015] CMD-niry... → no ack (PASS, 10ms)  observed=SENDER_NOT_AUTHORIZED
+  [016] CMD-niry... → no ack (PASS, 21ms)  observed=SENDER_NOT_AUTHORIZED
+  [017] CMD-niry... → no ack (PASS, 37ms)  observed=SENDER_NOT_AUTHORIZED
+  [018] CMD-niry... → no ack (PASS, 34ms)  observed=SENDER_NOT_AUTHORIZED
+  [019] CMD-niry... → no ack (PASS, 26ms)  observed=SENDER_NOT_AUTHORIZED
+  [020] CMD-niry... → no ack (PASS, 10ms)  observed=SENDER_NOT_AUTHORIZED
+
+============================================================
+Case:              cross_vendor_access
+Messages sent:     20
+ACKs received:     0  (expected: 0)
+Expected reason:   SENDER_NOT_AUTHORIZED
+Reason match:      18/20 messages matched expected reason 'SENDER_NOT_AUTHORIZED'
+Verdict:           PASS ✓
+Results saved to:  /home/isecapstone/shipyard_pnp_ws/results/experiment_1_boundary_enforcement/physical/cross_vendor_access.csv

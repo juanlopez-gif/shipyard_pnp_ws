@@ -1,0 +1,28 @@
+{
+  "experiment": "Experiment 1 - Boundary Enforcement",
+  "date": "2026-06-22T18:45:14.045560",
+  "host": "isecapstone-UM350",
+  "os": "Linux-6.17.0-35-generic-x86_64-with-glibc2.39",
+  "kernel": "6.17.0-35-generic",
+  "python": "3.12.3 (main, Mar 23 2026, 19:04:32) [GCC 13.3.0]",
+  "ros2_distro": "N/A - offline experiment, no ROS2 nodes required",
+  "execution_mode": "Pure Python, AclGuard called directly without ROS2",
+  "branch": "no-git",
+  "commit": "no-git",
+  "acl_config": "config/topic_acl.yaml (snapshot in config/)",
+  "vendor_registry": "config/vendor_registry.yaml (snapshot in config/)",
+  "cases": [
+    "cross_vendor_access",
+    "external_no_token",
+    "external_forged_token",
+    "vendor_to_factory_leakage",
+    "factory_to_vendor_leakage"
+  ],
+  "messages_per_case": 200,
+  "sequential_per_case": 100,
+  "batch_per_case": 100,
+  "total_messages": 1000,
+  "pass_criteria": "messages_acted_upon == 0 AND rejection_reason == expected_reason AND mean_latency_us < 1000",
+  "physical_actuation": "None \u2014 experiment is fully offline. No ROS2 nodes active, no robots connected, no hardware actuation possible.",
+  "notes": "Boundary enforcement is measured at the AclGuard Python layer (check_outbound). This validates the guard logic correctness and latency. For runtime integration with live ROS2 nodes, see base_vendor_supervisor._on_command_raw()."
+}

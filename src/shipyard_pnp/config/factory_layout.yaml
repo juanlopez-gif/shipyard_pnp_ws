@@ -1,0 +1,47 @@
+# Factory layout and color routes
+# See ARCHITECTURE_PLAN.md C-CONFIG-2
+
+locations:
+  - id: initial_stack
+    type: source
+    vendor_domain: globalvision
+  - id: conveyor1
+    type: transit
+    vendor_domain: niryo
+    entry_sensor: c1s1
+    exit_sensor: c1s2
+  - id: laser_bed
+    type: machine
+    vendor_domain: laser
+  - id: conveyor2
+    type: transit
+    vendor_domain: niryo
+    entry_sensor: c2s1
+    exit_sensor: c2s2
+  - id: bantam_bed
+    type: machine
+    vendor_domain: bantam
+  - id: c4_location
+    type: handoff
+    vendor_domain: niryo
+    sensor: c4
+  - id: c3_location
+    type: handoff
+    vendor_domain: niryo
+    sensor: c3
+  - id: final_red_stack
+    type: sink
+  - id: final_green_stack
+    type: sink
+  - id: final_blue_stack
+    type: sink
+  - id: robot1_scrap
+    type: sink
+  - id: robot2_scrap
+    type: sink
+
+color_routes:
+  # GREEN bypasses conveyor1, xarm1, conveyor2, robot2 — direct via C3/conveyor3
+  RED:   ["initial_stack", "conveyor1", "laser_bed", "conveyor2", "c4_location", "final_red_stack"]
+  BLUE:  ["initial_stack", "conveyor1", "conveyor2", "bantam_bed", "c4_location", "final_blue_stack"]
+  GREEN: ["initial_stack", "c3", "final_green_stack"]

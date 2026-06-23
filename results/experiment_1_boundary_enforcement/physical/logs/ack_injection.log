@@ -1,0 +1,33 @@
+[INFO] [1782244242.373097997] [experiment_1_physical_probe]: probe ready — publishing to '/niryo_factory/ack' (evidence via /shipyard/acl_events)
+[ack_injection] sending 20 messages to /niryo_factory/ack ...
+  monitoring events: /shipyard/acl_events
+  expected reason:   SENDER_NOT_AUTHORIZED
+
+  [001] CMD-niry... → sent (1571ms)  (no event yet)
+  [002] CMD-niry... → sent (1824ms)  (no event yet)
+  [003] CMD-niry... → sent (10ms)  observed=SENDER_NOT_AUTHORIZED
+  [004] CMD-niry... → sent (10ms)  observed=SENDER_NOT_AUTHORIZED
+  [005] CMD-niry... → sent (31ms)  observed=SENDER_NOT_AUTHORIZED
+  [006] CMD-niry... → sent (64ms)  observed=SENDER_NOT_AUTHORIZED
+  [007] CMD-niry... → sent (22ms)  observed=SENDER_NOT_AUTHORIZED
+  [008] CMD-niry... → sent (20ms)  observed=SENDER_NOT_AUTHORIZED
+  [009] CMD-niry... → sent (33ms)  observed=SENDER_NOT_AUTHORIZED
+  [010] CMD-niry... → sent (12ms)  observed=SENDER_NOT_AUTHORIZED
+  [011] CMD-niry... → sent (15ms)  observed=SENDER_NOT_AUTHORIZED
+  [012] CMD-niry... → sent (10ms)  observed=SENDER_NOT_AUTHORIZED
+  [013] CMD-niry... → sent (22ms)  observed=SENDER_NOT_AUTHORIZED
+  [014] CMD-niry... → sent (21ms)  observed=SENDER_NOT_AUTHORIZED
+  [015] CMD-niry... → sent (37ms)  observed=SENDER_NOT_AUTHORIZED
+  [016] CMD-niry... → sent (90ms)  observed=SENDER_NOT_AUTHORIZED
+  [017] CMD-niry... → sent (14ms)  observed=SENDER_NOT_AUTHORIZED
+  [018] CMD-niry... → sent (42ms)  observed=SENDER_NOT_AUTHORIZED
+  [019] CMD-niry... → sent (42ms)  observed=SENDER_NOT_AUTHORIZED
+  [020] CMD-niry... → sent (21ms)  observed=SENDER_NOT_AUTHORIZED
+
+============================================================
+Case:              ack_injection
+Messages sent:     20
+Expected reason:   SENDER_NOT_AUTHORIZED
+Reason match:      18/20 messages matched expected reason 'SENDER_NOT_AUTHORIZED'
+Verdict:           PASS ✓ (evidence: /shipyard/acl_events + receiver logs)
+Results saved to:  /home/isecapstone/shipyard_pnp_ws/results/experiment_1_boundary_enforcement/physical/ack_injection.csv

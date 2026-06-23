@@ -1,0 +1,56 @@
+════════════════════════════════════════════════════════
+  Experiment 3 — Coordination Overhead
+  2026-06-23 16:14:56
+  Log: /home/isecapstone/shipyard_pnp_ws/results/experiment_3_coordination_overhead/session_20260623_161456.log
+════════════════════════════════════════════════════════
+
+────────────────────────────────────────────────────────
+  Phase 1: Offline — message serialization overhead
+────────────────────────────────────────────────────────
+
+==================================================================
+  EXPERIMENT 3 — OFFLINE COORDINATION BASELINE
+==================================================================
+  Iterations:  1000  |  Secret: HMAC-SHA256  |  Domain: niryo/GOTO_PICK_POSITION
+
+  Metric                              Mean µs    Std µs    Max µs
+  --------------------------------  ---------  --------  --------
+  command_build_and_sign                39.25     12.96    164.69
+  command_json_serialize                13.71      6.20     93.38
+  command_json_parse                    13.29      5.69     82.20
+  command_hmac_verify                    9.52      3.22     33.38
+  ack_build_and_sign                    24.84      8.28    119.92
+  ack_json_serialize                    12.00      7.20    119.22
+  status_build_and_sign                 26.10      9.40    107.76
+  status_json_serialize                 13.68      6.58     98.41
+  T_coord_total                        152.39     41.85    424.63
+
+  T_coord total — mean: 152.39 µs  max: 424.63 µs
+
+  Overhead vs representative physical task times:
+    GOTO_PICK_POSITION            7s  overhead=0.0022%
+    LIFT_AND_PLACE                5s  overhead=0.0030%
+    RUN_JOB (laser)              60s  overhead=0.0003%
+    INITIALIZE_DOMAIN             3s  overhead=0.0051%
+
+  PASS ✓  T_coord max 424.6 µs < 1000 µs (sub-millisecond)
+
+  Per-cycle CSV: /home/isecapstone/shipyard_pnp_ws/results/experiment_3_coordination_overhead/offline_baseline.csv
+  Summary CSV:   /home/isecapstone/shipyard_pnp_ws/results/experiment_3_coordination_overhead/offline_summary.csv
+
+Offline phase complete.
+  offline_baseline.csv  — 1000 per-cycle measurements
+  offline_summary.csv   — mean/std/min/max per step
+
+────────────────────────────────────────────────────────
+  Phase 2: Physical (skipped — run with --physical)
+────────────────────────────────────────────────────────
+
+  To run the physical bag analysis:
+    1. Record a bag (see script header)
+    2. bash experiments/coordination_overhead/run_experiment_3.sh --physical
+
+════════════════════════════════════════════════════════
+  Experiment 3 complete — 2026-06-23 16:14:56
+  Results: /home/isecapstone/shipyard_pnp_ws/results/experiment_3_coordination_overhead/
+════════════════════════════════════════════════════════

@@ -1,0 +1,22 @@
+# Colcon build artifacts
+build/
+install/
+log/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+
+# Planning / design documents (not for publication)
+**/ARCHITECTURE_PLAN.md
+**/DB_DESIGN.md
+
+# Runtime logs (not experiment data)
+runtime_logs/
+
+# Bag recorder temp files
+*.db3-shm
+*.db3-wal

@@ -1,0 +1,35 @@
+[INFO] [1782244247.734934228] [experiment_1_physical_probe]: probe ready — publishing to '/bantam_factory/command', monitoring '/bantam_factory/ack'
+[bantam_external_no_token] sending 20 messages to /bantam_factory/command ...
+  monitoring acks:   /bantam_factory/ack
+  monitoring events: /shipyard/acl_events
+  expected reason:   NO_TOKEN
+
+  [001] CMD-bant... → no ack (PASS, 21ms)  observed=NO_TOKEN
+  [002] CMD-bant... → no ack (PASS, 11ms)  observed=NO_TOKEN
+  [003] CMD-bant... → no ack (PASS, 13ms)  observed=NO_TOKEN
+  [004] CMD-bant... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [005] CMD-bant... → no ack (PASS, 27ms)  observed=NO_TOKEN
+  [006] CMD-bant... → no ack (PASS, 52ms)  observed=NO_TOKEN
+  [007] CMD-bant... → no ack (PASS, 47ms)  observed=NO_TOKEN
+  [008] CMD-bant... → no ack (PASS, 13ms)  observed=NO_TOKEN
+  [009] CMD-bant... → no ack (PASS, 24ms)  observed=NO_TOKEN
+  [010] CMD-bant... → no ack (PASS, 21ms)  observed=NO_TOKEN
+  [011] CMD-bant... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [012] CMD-bant... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [013] CMD-bant... → no ack (PASS, 23ms)  observed=NO_TOKEN
+  [014] CMD-bant... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [015] CMD-bant... → no ack (PASS, 11ms)  observed=NO_TOKEN
+  [016] CMD-bant... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [017] CMD-bant... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [018] CMD-bant... → no ack (PASS, 334ms)  observed=NO_TOKEN
+  [019] CMD-bant... → no ack (PASS, 12ms)  observed=NO_TOKEN
+  [020] CMD-bant... → no ack (PASS, 11ms)  observed=NO_TOKEN
+
+============================================================
+Case:              bantam_external_no_token
+Messages sent:     20
+ACKs received:     0  (expected: 0)
+Expected reason:   NO_TOKEN
+Reason match:      20/20 messages matched expected reason 'NO_TOKEN'
+Verdict:           PASS ✓
+Results saved to:  /home/isecapstone/shipyard_pnp_ws/results/experiment_1_boundary_enforcement/physical/bantam_external_no_token.csv

@@ -1,0 +1,35 @@
+[INFO] [1782244232.186834192] [experiment_1_physical_probe]: probe ready — publishing to '/niryo_factory/command', monitoring '/niryo_factory/ack'
+[external_no_token] sending 20 messages to /niryo_factory/command ...
+  monitoring acks:   /niryo_factory/ack
+  monitoring events: /shipyard/acl_events
+  expected reason:   NO_TOKEN
+
+  [001] CMD-niry... → no ack (PASS, 27ms)  observed=NO_TOKEN
+  [002] CMD-niry... → no ack (PASS, 21ms)  observed=NO_TOKEN
+  [003] CMD-niry... → no ack (PASS, 12ms)  observed=NO_TOKEN
+  [004] CMD-niry... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [005] CMD-niry... → no ack (PASS, 43ms)  observed=NO_TOKEN
+  [006] CMD-niry... → no ack (PASS, 11ms)  observed=NO_TOKEN
+  [007] CMD-niry... → no ack (PASS, 11ms)  observed=NO_TOKEN
+  [008] CMD-niry... → no ack (PASS, 12ms)  observed=NO_TOKEN
+  [009] CMD-niry... → no ack (PASS, 11ms)  observed=NO_TOKEN
+  [010] CMD-niry... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [011] CMD-niry... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [012] CMD-niry... → no ack (PASS, 51ms)  observed=NO_TOKEN
+  [013] CMD-niry... → no ack (PASS, 60ms)  observed=NO_TOKEN
+  [014] CMD-niry... → no ack (PASS, 44ms)  observed=NO_TOKEN
+  [015] CMD-niry... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [016] CMD-niry... → no ack (PASS, 25ms)  observed=NO_TOKEN
+  [017] CMD-niry... → no ack (PASS, 12ms)  observed=NO_TOKEN
+  [018] CMD-niry... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [019] CMD-niry... → no ack (PASS, 10ms)  observed=NO_TOKEN
+  [020] CMD-niry... → no ack (PASS, 31ms)  observed=NO_TOKEN
+
+============================================================
+Case:              external_no_token
+Messages sent:     20
+ACKs received:     0  (expected: 0)
+Expected reason:   NO_TOKEN
+Reason match:      20/20 messages matched expected reason 'NO_TOKEN'
+Verdict:           PASS ✓
+Results saved to:  /home/isecapstone/shipyard_pnp_ws/results/experiment_1_boundary_enforcement/physical/external_no_token.csv
