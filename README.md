@@ -1,44 +1,44 @@
-# Shipyard Pick & Place — Sistema de Automatización de Fábrica
+# Shipyard Pick & Place — Factory Automation System
 
-**Fecha de este documento:** 19 de junio de 2026  
-**Stack:** ROS 2 Jazzy · Python 3.12 · Ubuntu 24.04  
-**Arquitectura:** Plug-and-Plan (FS → VS · Command / Ack / Status)
-
----
-
-## Índice
-
-1. [Visión general](#1-visión-general)
-2. [Arquitectura del sistema](#2-arquitectura-del-sistema)
-3. [Hardware y red](#3-hardware-y-red)
-4. [Nodos ROS 2](#4-nodos-ros-2)
-5. [Protocolo de comunicación](#5-protocolo-de-comunicación)
-6. [Rutas de producción por color](#6-rutas-de-producción-por-color)
-7. [Factory Supervisor — núcleo de coordinación](#7-factory-supervisor--núcleo-de-coordinación)
-8. [Planificador — reglas por módulo](#8-planificador--reglas-por-módulo)
-9. [Principio de sensores soberanos](#9-principio-de-sensores-soberanos)
-10. [Vendor Supervisors — capa de hardware](#10-vendor-supervisors--capa-de-hardware)
-11. [Trackers internos](#11-trackers-internos)
-12. [Configuración](#12-configuración)
-13. [Arranque del sistema](#13-arranque-del-sistema)
-14. [Base de datos](#14-base-de-datos)
-15. [Bugs resueltos](#15-bugs-resueltos)
-16. [Estado actual y pendientes](#16-estado-actual-y-pendientes)
+**Document date:** 19 June 2026
+**Stack:** ROS 2 Jazzy · Python 3.12 · Ubuntu 24.04
+**Architecture:** Plug-and-Plan (FS → VS · Command / Ack / Status)
 
 ---
 
-## 1. Visión general
+## Table of Contents
 
-Sistema de automatización de fábrica Pick & Place que procesa piezas de tres colores (ROJO, VERDE, AZUL) a través de una línea de producción robotizada. El sistema utiliza una arquitectura de dos capas:
-
-- **Factory Supervisor (FS):** Coordinador MES-level. Toma todas las decisiones de planificación, hace seguimiento de piezas y ciclos, y envía comandos a los dominios de hardware.
-- **Vendor Supervisors (VS):** Un nodo ROS 2 por dominio de hardware. Recibe comandos del FS, ejecuta el trabajo real sobre el hardware y publica estado de vuelta.
-
-El FS no sabe *cómo* mueve un brazo; los VS no saben *por qué* se mueve una pieza. La separación es estricta.
+1. [Overview](#1-overview)
+2. [System Architecture](#2-system-architecture)
+3. [Hardware and Network](#3-hardware-and-network)
+4. [ROS 2 Nodes](#4-ros-2-nodes)
+5. [Communication Protocol](#5-communication-protocol)
+6. [Production Routes by Colour](#6-production-routes-by-colour)
+7. [Factory Supervisor — Coordination Core](#7-factory-supervisor--coordination-core)
+8. [Planner — Rules per Module](#8-planner--rules-per-module)
+9. [Sovereign Sensor Principle](#9-sovereign-sensor-principle)
+10. [Vendor Supervisors — Hardware Layer](#10-vendor-supervisors--hardware-layer)
+11. [Internal Trackers](#11-internal-trackers)
+12. [Configuration](#12-configuration)
+13. [System Startup](#13-system-startup)
+14. [Database](#14-database)
+15. [Resolved Bugs](#15-resolved-bugs)
+16. [Current Status and Pending Work](#16-current-status-and-pending-work)
 
 ---
 
-## 2. Arquitectura del sistema
+## 1. Overview
+
+Pick & Place factory automation system that processes pieces of three colours (RED, GREEN, BLUE) through a robotised production line. The system uses a two-layer architecture:
+
+- **Factory Supervisor (FS):** MES-level coordinator. Makes all planning decisions, tracks pieces and cycles, and sends commands to hardware domains.
+- **Vendor Supervisors (VS):** One ROS 2 node per hardware domain. Receives commands from the FS, executes real work on the hardware, and publishes state back.
+
+The FS does not know *how* an arm moves; the VS does not know *why* a piece moves. The separation is strict.
+
+---
+
+## 2. System Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -47,7 +47,7 @@ El FS no sabe *cómo* mueve un brazo; los VS no saben *por qué* se mueve una pi
 │  │ PieceTracker│  │ StateTracker │  │    CycleTracker       │  │
 │  └─────────────┘  └──────────────┘  └───────────────────────┘  │
 │  ┌────────────────────────────────────────────────────────────┐ │
-│  │                    PLANIFICADOR                            │ │
+│  │                      PLANNER                               │ │
 │  │  initialization · feeding · conveyor · processing         │ │
 │  │  classification · unloading · shutdown                     │ │
 │  └────────────────────────────────────────────────────────────┘ │
@@ -65,135 +65,135 @@ NiryoVS    UFactoryVS    LaserVS   GlobalVisionVS   GreenConveyorsVS
                                    ArduinoVacuumVS   BantamVS
 ```
 
-### Flujo de un comando
+### Command Flow
 
 ```
 FS.send_command()
-   └─► VendorClient.send_command()   ← publica JSON en /{domain}_factory/command
-         └─► VS._on_command_raw()    ← recibe, valida, llama handle_task()
+   └─► VendorClient.send_command()   ← publishes JSON on /{domain}_factory/command
+         └─► VS._on_command_raw()    ← receives, validates, calls handle_task()
                └─► publish_ack()     ← /{domain}_factory/ack
-               └─► TaskRunner.run()  ← hilo de hardware
+               └─► TaskRunner.run()  ← hardware thread
                      └─► publish_status() RUNNING / COMPLETED / FAILED
                                           /{domain}_factory/status
 FS.on_status()
    └─► VendorClient.on_status_received()
-         └─► on_complete callback()  ← siguiente paso de la regla
-   └─► evaluate_rules()              ← si terminal O sensor_updated
+         └─► on_complete callback()  ← next step of the rule
+   └─► evaluate_rules()              ← if terminal OR sensor_updated
 ```
 
 ---
 
-## 3. Hardware y red
+## 3. Hardware and Network
 
-| Equipo | Modelo | IP | Puerto/Conexión |
+| Device | Model | IP | Port / Connection |
 |---|---|---|---|
-| Robot Niryo 1 | Ned2 | 192.168.0.195 | /robot1 namespace |
-| Robot Niryo 2 | Ned2 | 192.168.0.244 | /robot2 namespace |
+| Niryo Robot 1 | Ned2 | 192.168.0.195 | /robot1 namespace |
+| Niryo Robot 2 | Ned2 | 192.168.0.244 | /robot2 namespace |
 | xArm 1 | UFACTORY Lite6 | 192.168.0.254 | /xarm1 namespace |
 | xArm 2 | UFACTORY Lite6 | 192.168.0.168 | /xarm2 namespace |
-| Láser | HTTP API | 192.168.0.173 | HTTP REST |
-| Bantam CNC | Simulado + ZMQ door | 192.168.0.171:5555 | ZMQ REQ/REP |
-| Arduino (vacío) | Serial | /dev/ttyACM1 | 9600 baud |
-| Arduino (cintas verdes) | Serial | /dev/ttyACM0 | 115200 baud |
-| Cámara global | USB OpenCV | /dev/video0 | camera_index=0 |
+| Laser | HTTP API | 192.168.0.173 | HTTP REST |
+| Bantam CNC | Simulated + ZMQ door | 192.168.0.171:5555 | ZMQ REQ/REP |
+| Arduino (vacuum) | Serial | /dev/ttyACM1 | 9600 baud |
+| Arduino (green belts) | Serial | /dev/ttyACM0 | 115200 baud |
+| Global camera | USB OpenCV | /dev/video0 | camera_index=0 |
 
-### Sensores IR físicos (activo a LOW)
+### Physical IR Sensors (active LOW)
 
-| Sensor | Cinta | Pin Niryo | Descripción |
+| Sensor | Belt | Niryo Pin | Description |
 |---|---|---|---|
-| c1s1 | Conveyor 1 | DI5 (robot1) | Entrada cinta 1 — pieza depositada por xArm2 |
-| c1s2 | Conveyor 1 | DI1 (robot1) | Salida cinta 1 — pieza lista para xArm1 |
-| c2s1 | Conveyor 2 | DI5 (robot2) | Entrada cinta 2 — pieza depositada por xArm1 |
-| c2s2 | Conveyor 2 | DI1 (robot2) | Salida cinta 2 — pieza lista para robot2 |
+| c1s1 | Conveyor 1 | DI5 (robot1) | Conveyor 1 entry — piece deposited by xArm2 |
+| c1s2 | Conveyor 1 | DI1 (robot1) | Conveyor 1 exit — piece ready for xArm1 |
+| c2s1 | Conveyor 2 | DI5 (robot2) | Conveyor 2 entry — piece deposited by xArm1 |
+| c2s2 | Conveyor 2 | DI1 (robot2) | Conveyor 2 exit — piece ready for robot2 |
 
-### Sensores virtuales (sin hardware IR)
+### Virtual Sensors (no IR hardware)
 
-| Sensor | Quién escribe | Descripción |
+| Sensor | Written by | Description |
 |---|---|---|
-| c3 | `feeding_rules` | Posición de pickup de robot1 para piezas VERDES |
-| c4 | `classification_rules` | Posición de pickup de robot1 para piezas ROJA/AZUL |
+| c3 | `feeding_rules` | robot1 pickup position for GREEN pieces |
+| c4 | `classification_rules` | robot1 pickup position for RED/BLUE pieces |
 
 ---
 
-## 4. Nodos ROS 2
+## 4. ROS 2 Nodes
 
 ### factory_supervisor
-- **Ejecutable:** `factory_supervisor`
-- **Descripción:** Coordinador principal. Fases: BOOT → RUNNING → SHUTTING_DOWN → STOPPED.
+- **Executable:** `factory_supervisor`
+- **Description:** Main coordinator. Phases: BOOT → RUNNING → SHUTTING_DOWN → STOPPED.
 - **Timers:** planner 0.5 s · watchdog 1.0 s · system_state_pub 2.0 s
 - **Callback groups:** ReentrantCallbackGroup (ack/status) · MutuallyExclusiveCallbackGroup (planner, watchdog, dashboard, order)
 - **Executor:** MultiThreadedExecutor(num_threads=4)
-- **Tópicos suscritos:** `/{domain}_factory/ack`, `/{domain}_factory/status`, `/supervisor/set_optimized_order`
-- **Tópicos publicados:** `/{domain}_factory/command`, `/factory/system_state`
+- **Subscribed topics:** `/{domain}_factory/ack`, `/{domain}_factory/status`, `/supervisor/set_optimized_order`
+- **Published topics:** `/{domain}_factory/command`, `/factory/system_state`
 
 ### niryo_vendor_supervisor
-- **Ejecutable:** `niryo_vendor_supervisor`
-- **Modo:** `hardware` (configurado en hardware_ports.yaml)
-- **Recursos gestionados:** robot1, robot2, conveyor1, conveyor2, vision_robot1, vision_robot2, robot2_niryo_vacuum
-- **Parámetros:** mode, robot1_namespace, robot1_ip, robot2_namespace, robot2_ip, service_wait_timeout_sec (10 s), command_timeout_sec (45 s), settle_time_sec (0.2 s), vacuum_delay_sec (0.5 s), sensor_poll_interval_sec (0.2 s), conveyor_run_timeout_sec (30 s)
-- **TaskRunners independientes:** robot1 · robot2 · conveyor1 · conveyor2 (ejecución concurrente)
-- **Timer de polling de sensores IR:** cada 0.2 s en hardware mode
+- **Executable:** `niryo_vendor_supervisor`
+- **Mode:** `hardware` (configured in hardware_ports.yaml)
+- **Managed resources:** robot1, robot2, conveyor1, conveyor2, vision_robot1, vision_robot2, robot2_niryo_vacuum
+- **Parameters:** mode, robot1_namespace, robot1_ip, robot2_namespace, robot2_ip, service_wait_timeout_sec (10 s), command_timeout_sec (45 s), settle_time_sec (0.2 s), vacuum_delay_sec (0.5 s), sensor_poll_interval_sec (0.2 s), conveyor_run_timeout_sec (30 s)
+- **Independent TaskRunners:** robot1 · robot2 · conveyor1 · conveyor2 (concurrent execution)
+- **IR sensor polling timer:** every 0.2 s in hardware mode
 - **Executor:** MultiThreadedExecutor(num_threads=4)
 
 ### ufactory_vendor_supervisor
-- **Ejecutable:** `ufactory_vendor_supervisor`
-- **Modo:** `dry_run` (actualmente, cambiar a hardware para producción real)
-- **Recursos:** xarm1, xarm2
-- **Parámetros:** mode, xarm1_namespace (/xarm1), xarm2_namespace (/xarm2), command_timeout_sec (35 s), default_speed (30.0), default_acc (100.0), settle_time_sec (0.5 s), gripper_delay_sec (0.5 s)
-- **TaskRunners:** uno por xArm, paralelo
+- **Executable:** `ufactory_vendor_supervisor`
+- **Mode:** `dry_run` (currently; change to hardware for real production)
+- **Resources:** xarm1, xarm2
+- **Parameters:** mode, xarm1_namespace (/xarm1), xarm2_namespace (/xarm2), command_timeout_sec (35 s), default_speed (30.0), default_acc (100.0), settle_time_sec (0.5 s), gripper_delay_sec (0.5 s)
+- **TaskRunners:** one per xArm, parallel
 - **Executor:** MultiThreadedExecutor(num_threads=4)
 
 ### laser_vendor_supervisor
-- **Ejecutable:** `laser_vendor_supervisor`
-- **Modo:** HTTP API
-- **Parámetros:** laser_ip (192.168.0.173), gcode_dir, default_gcode (happyface.gcode), job_duration_sec (2.0), wait_time_before_start_sec (2.0), http_timeout_sec (10.0)
-- **Seguridad:** lista blanca de archivos gcode, lista negra de fragmentos (bloquea S25)
-- **Timeout FS:** 300 s para RUN_JOB
+- **Executable:** `laser_vendor_supervisor`
+- **Mode:** HTTP API
+- **Parameters:** laser_ip (192.168.0.173), gcode_dir, default_gcode (happyface.gcode), job_duration_sec (2.0), wait_time_before_start_sec (2.0), http_timeout_sec (10.0)
+- **Safety:** gcode file whitelist, fragment blacklist (blocks S25)
+- **FS timeout:** 300 s for RUN_JOB
 
 ### globalvision_vendor_supervisor
-- **Ejecutable:** `globalvision_vendor_supervisor`
-- **Descripción:** Cámara USB + OpenCV. Detecta slot_id, color y shape de piezas en el stack inicial.
-- **Parámetros:** camera_index (0), color_threshold_pct (5.0%), show_window (false por defecto)
-- **Tareas soportadas:** INITIALIZE_DOMAIN, SCAN_STACK, LOCATE_NEXT_PIECE, GET_INVENTORY, RESET
-- **Ventana de preview:** activable con `--ros-args -p show_window:=true` (20fps, tecla Q/ESC cierra)
+- **Executable:** `globalvision_vendor_supervisor`
+- **Description:** USB camera + OpenCV. Detects slot_id, colour and shape of pieces in the initial stack.
+- **Parameters:** camera_index (0), color_threshold_pct (5.0%), show_window (false by default)
+- **Supported tasks:** INITIALIZE_DOMAIN, SCAN_STACK, LOCATE_NEXT_PIECE, GET_INVENTORY, RESET
+- **Preview window:** enable with `--ros-args -p show_window:=true` (20 fps, Q/ESC closes)
 
 ### green_conveyors_vendor_supervisor
-- **Ejecutable:** `green_conveyors_vendor_supervisor`
-- **Descripción:** Controla cintas Arduino de salida (conveyor3 canal B, conveyor4 canal A)
-- **Parámetros:** port (/dev/ttyACM0), baudrate (115200), conveyor3_speed (9000), conveyor4_speed (9000), conveyor3_direction (REV), conveyor4_direction (FWD)
-- **Tareas:** RUN_CONVEYOR, STOP_CONVEYOR, SET_SPEED
+- **Executable:** `green_conveyors_vendor_supervisor`
+- **Description:** Controls Arduino output belts (conveyor3 channel B, conveyor4 channel A)
+- **Parameters:** port (/dev/ttyACM0), baudrate (115200), conveyor3_speed (9000), conveyor4_speed (9000), conveyor3_direction (REV), conveyor4_direction (FWD)
+- **Tasks:** RUN_CONVEYOR, STOP_CONVEYOR, SET_SPEED
 
 ### arduino_vacuum_vendor_supervisor
-- **Ejecutable:** `arduino_vacuum_vendor_supervisor`
-- **Descripción:** Control del sistema de vacío Arduino para robot1
-- **Parámetros:** port (/dev/ttyACM1), baudrate (9600), pick_hold_sec (0.5), release_hold_sec (0.3)
-- **Tareas:** PICK, RELEASE, OFF
+- **Executable:** `arduino_vacuum_vendor_supervisor`
+- **Description:** Arduino vacuum system control for robot1
+- **Parameters:** port (/dev/ttyACM1), baudrate (9600), pick_hold_sec (0.5), release_hold_sec (0.3)
+- **Tasks:** PICK, RELEASE, OFF
 
 ### bantam_vendor_supervisor
-- **Ejecutable:** `bantam_vendor_supervisor`
-- **Descripción:** CNC Bantam con control de puerta ZMQ y simulación de mecanizado
-- **Parámetros:** processing_time_sec (25.0 — simulado), door_timeout_sec (12 s), door_zmq_address (tcp://192.168.0.171:5555)
-- **Timeout FS:** 600 s para RUN_JOB
+- **Executable:** `bantam_vendor_supervisor`
+- **Description:** Bantam CNC with ZMQ door control and simulated machining
+- **Parameters:** processing_time_sec (25.0 — simulated), door_timeout_sec (12 s), door_zmq_address (tcp://192.168.0.171:5555)
+- **FS timeout:** 600 s for RUN_JOB
 
 ### dashboard_node
-- **Ejecutable:** `dashboard_node`
-- **Estado:** Nodo en el launch file, desarrollo PENDIENTE (no implementar hasta decisión explícita)
+- **Executable:** `dashboard_node`
+- **Status:** Node present in launch file; implementation PENDING (do not implement until explicit decision)
 
 ---
 
-## 5. Protocolo de comunicación
+## 5. Communication Protocol
 
-### Tópicos por dominio
+### Topics per Domain
 
 ```
-/{domain}_factory/command   →  FS publica, VS suscribe
-/{domain}_factory/ack       →  VS publica, FS suscribe
-/{domain}_factory/status    →  VS publica, FS suscribe
+/{domain}_factory/command   →  FS publishes, VS subscribes
+/{domain}_factory/ack       →  VS publishes, FS subscribes
+/{domain}_factory/status    →  VS publishes, FS subscribes
 ```
 
-Dominos: `niryo`, `ufactory`, `laser`, `globalvision`, `green_conveyors`, `arduino_vacuum`, `bantam`
+Domains: `niryo`, `ufactory`, `laser`, `globalvision`, `green_conveyors`, `arduino_vacuum`, `bantam`
 
-### Estructura de un comando
+### Command Structure
 
 ```json
 {
@@ -211,7 +211,7 @@ Dominos: `niryo`, `ufactory`, `laser`, `globalvision`, `green_conveyors`, `ardui
 }
 ```
 
-### Estructura de un ACK
+### ACK Structure
 
 ```json
 {
@@ -223,7 +223,7 @@ Dominos: `niryo`, `ufactory`, `laser`, `globalvision`, `green_conveyors`, `ardui
 }
 ```
 
-### Estructura de un STATUS
+### STATUS Structure
 
 ```json
 {
@@ -245,15 +245,15 @@ Dominos: `niryo`, `ufactory`, `laser`, `globalvision`, `green_conveyors`, `ardui
 }
 ```
 
-### Estados de tarea (TaskState)
+### Task States
 
 `RECEIVED` → `RUNNING` → `COMPLETED` | `FAILED` | `REJECTED` | `TIMEOUT` | `CANCELED`
 
-Los estados terminales son: COMPLETED, FAILED, REJECTED, TIMEOUT, CANCELED.
+Terminal states: COMPLETED, FAILED, REJECTED, TIMEOUT, CANCELED.
 
-### SENSOR_UPDATE autónomo
+### Autonomous SENSOR_UPDATE
 
-Los VS de Niryo emiten STATUS autónomos con `command_id="AUTO"` cuando el polling de sensores detecta un cambio:
+Niryo VS emits autonomous STATUS messages with `command_id="AUTO"` when sensor polling detects a change:
 
 ```json
 {
@@ -266,15 +266,15 @@ Los VS de Niryo emiten STATUS autónomos con `command_id="AUTO"` cuando el polli
 }
 ```
 
-Estos mensajes son ignorados por `VendorClient.on_status_received()` (no correlacionan con pending commands) pero procesados directamente por `FactorySupervisor._apply_sensor_result()`, que actualiza el StateTracker y dispara `evaluate_rules()` inmediatamente.
+These messages are ignored by `VendorClient.on_status_received()` (no correlation with pending commands) but processed directly by `FactorySupervisor._apply_sensor_result()`, which updates the StateTracker and triggers `evaluate_rules()` immediately.
 
-### HMAC (Phase 1-5: warn-only)
+### HMAC (Phases 1–5: warn-only)
 
-El sistema incluye infraestructura HMAC en `shared/messages.py` y `config/hmac_secrets.yaml`. En las fases actuales (1-5) una fallo de HMAC genera un WARNING pero NO rechaza el comando. Se activará enforcement estricto en fases posteriores.
+The system includes HMAC infrastructure in `shared/messages.py` and `config/hmac_secrets.yaml`. In the current phases (1–5) an HMAC failure generates a WARNING but does NOT reject the command. Strict enforcement will be activated in later phases.
 
 ---
 
-## 6. Rutas de producción por color
+## 6. Production Routes by Colour
 
 ```
 RED:   initial_stack → conveyor1 → laser_bed → conveyor2 → c4_location → final_red_stack
@@ -282,41 +282,41 @@ BLUE:  initial_stack → conveyor1 → conveyor2 → bantam_bed → c4_location 
 GREEN: initial_stack → c3_location → final_green_stack
 ```
 
-### Descripción detallada por color
+### Detailed Description per Colour
 
-**ROJO:**
-1. xArm2 recoge del stack (globalvision da slot_id)
-2. xArm2 deposita en c1s1 (cinta 1 entrada)
-3. Cinta 1 arranca cuando c1s1=OCCUPIED y c1s2=FREE → para cuando c1s2=OCCUPIED
-4. xArm1 recoge de c1s2 → deposita en LASER_BED
-5. Láser graba (happyface.gcode)
-6. xArm1 recoge de LASER_BED → deposita en c2s1 (espera si c2s1=OCCUPIED)
-7. Cinta 2 arranca cuando c2s1=OCCUPIED y (c2s2=FREE ó _c2s2_committed) → para en c2s2
-8. Robot2 hace visión local en c2s2
-9. Robot2 recoge de c2s2 → deposita en c4_location, arranca conveyor4
-10. Robot1 clasifica y recoge de c4 (espera c4_settle_sec=14.5 s) → vacío → deposita en final_red_stack
+**RED:**
+1. xArm2 picks from stack (globalvision provides slot_id)
+2. xArm2 deposits at c1s1 (conveyor 1 entry)
+3. Conveyor 1 starts when c1s1=OCCUPIED and c1s2=FREE → stops when c1s2=OCCUPIED
+4. xArm1 picks from c1s2 → deposits at LASER_BED
+5. Laser engraves (happyface.gcode)
+6. xArm1 picks from LASER_BED → deposits at c2s1 (waits if c2s1=OCCUPIED)
+7. Conveyor 2 starts when c2s1=OCCUPIED and (c2s2=FREE or _c2s2_committed) → stops at c2s2
+8. Robot2 performs local vision at c2s2
+9. Robot2 picks from c2s2 → deposits at c4_location, starts conveyor4
+10. Robot1 classifies and picks from c4 (waits c4_settle_sec=14.5 s) → vacuum → deposits at final_red_stack
 
-**AZUL:**
-1–4. Igual que ROJO hasta c1s2
-4. xArm1 recoge de c1s2 → deposita directamente en c2s1 (sin láser)
-5–7. Igual que ROJO
-8. Robot2 hace visión local → decide BANTAM
-9. Robot2 deposita en bantam_bed, Bantam mecaniza (25 s simulados)
-10. Robot2 recoge de bantam_bed → deposita en c4_location
-11. Robot1 igual que ROJO
+**BLUE:**
+1–4. Same as RED up to c1s2
+4. xArm1 picks from c1s2 → deposits directly at c2s1 (no laser)
+5–7. Same as RED
+8. Robot2 performs local vision → decides BANTAM
+9. Robot2 deposits at bantam_bed, Bantam machines (25 s simulated)
+10. Robot2 picks from bantam_bed → deposits at c4_location
+11. Robot1 same as RED
 
-**VERDE:**
-1. xArm2 recoge del stack → deposita directamente en c3_location
-2. Conveyor3 arranca → para después de c3_settle_sec=10 s
-3. Robot1 clasifica y recoge de c3 → deposita en final_green_stack (bypassa conveyor1, xArm1, conveyor2, robot2 completamente)
+**GREEN:**
+1. xArm2 picks from stack → deposits directly at c3_location
+2. Conveyor3 starts → stops after c3_settle_sec=10 s
+3. Robot1 classifies and picks from c3 → deposits at final_green_stack (bypasses conveyor1, xArm1, conveyor2, robot2 entirely)
 
 ---
 
-## 7. Factory Supervisor — núcleo de coordinación
+## 7. Factory Supervisor — Coordination Core
 
-**Archivo:** `factory/factory_supervisor.py`
+**File:** `factory/factory_supervisor.py`
 
-### Estado del planificador
+### Planner State
 
 ```python
 self.planner_phase         # PlannerPhase: BOOT | RUNNING | SHUTTING_DOWN | STOPPED
@@ -325,21 +325,21 @@ self._processing_state     # "IDLE" | "WAITING_XARM1_TO_LASER" | "WAITING_LASER"
                            # "LASER_DONE_WAITING_C2S1" | "WAITING_XARM1_TO_C2S1" | ...
 self._classification_state # "IDLE" | "WAITING_VISION" | "WAITING_ROBOT2_TO_C4" | ...
 self._unloading_state      # "IDLE" | "WAITING_CLASSIFY_PICK" | "WAITING_VACUUM_PICK" | ...
-self._shutdown_state       # "IDLE" | paso actual de shutdown
+self._shutdown_state       # "IDLE" | current shutdown step
 ```
 
-### Campos de estado críticos
+### Critical State Fields
 
 ```python
-self._c2s2_committed: bool     # True: robot2 va a recoger de c2s2 → conveyor2 puede arrancar
-self._pending_laser_piece_id   # ID de pieza cuando laser termina y c2s1 está ocupado
-self._c3_deposit_time: float   # timestamp de último depósito en c3 (settle guard)
-self._c4_deposit_time: float   # timestamp de último depósito en c4 (settle guard)
-self.c3_settle_sec: float      # 10.0 s — tiempo que robot1 espera antes de recoger de c3
-self.c4_settle_sec: float      # 14.5 s — tiempo que robot1 espera antes de recoger de c4
+self._c2s2_committed: bool     # True: robot2 is committed to picking from c2s2 → conveyor2 can start
+self._pending_laser_piece_id   # piece ID when laser finishes and c2s1 is occupied
+self._c3_deposit_time: float   # timestamp of last deposit at c3 (settle guard)
+self._c4_deposit_time: float   # timestamp of last deposit at c4 (settle guard)
+self.c3_settle_sec: float      # 10.0 s — time robot1 waits before picking from c3
+self.c4_settle_sec: float      # 14.5 s — time robot1 waits before picking from c4
 ```
 
-### Ciclo principal
+### Main Loop
 
 ```
 Timer 0.5 s → evaluate_rules()
@@ -348,19 +348,19 @@ Timer 0.5 s → evaluate_rules()
   SHUTTING_DOWN: shutdown_rules.evaluate()
 ```
 
-Adicionalmente, `evaluate_rules()` se dispara INMEDIATAMENTE cuando `on_status()` recibe:
-- Un mensaje con `task_state` terminal (COMPLETED/FAILED/REJECTED/TIMEOUT/CANCELED)
-- Un `SENSOR_UPDATE` con cambio de estado (`sensor_updated=True`)
+Additionally, `evaluate_rules()` fires IMMEDIATELY when `on_status()` receives:
+- A message with a terminal `task_state` (COMPLETED/FAILED/REJECTED/TIMEOUT/CANCELED)
+- A `SENSOR_UPDATE` with a state change (`sensor_updated=True`)
 
-Esto garantiza que un cambio físico en un sensor IR dispara la evaluación de reglas sin esperar los 500 ms del timer.
+This ensures a physical IR sensor change triggers rule evaluation without waiting for the 500 ms timer.
 
 ### Watchdog (1 s)
 
-Llama `VendorClient.check_timeout()` en todos los dominios. Si un comando supera su timeout (por defecto 120 s, overrides por tarea) se completa con `TIMEOUT`.
+Calls `VendorClient.check_timeout()` on all domains. If a command exceeds its timeout (default 120 s, per-task overrides) it is completed with `TIMEOUT`.
 
-### Timeouts por tarea
+### Per-task Timeouts
 
-| Tarea | Timeout |
+| Task | Timeout |
 |---|---|
 | INITIALIZE_DOMAIN | 30 s |
 | SCAN_STACK | 15 s |
@@ -374,7 +374,7 @@ Llama `VendorClient.check_timeout()` en todos los dominios. Si un comando supera
 | RUN_JOB (bantam) | 600 s |
 | Default | 120 s |
 
-### Log de estado periódico (cada 10 s en RUNNING)
+### Periodic State Log (every 10 s in RUNNING)
 
 ```
 [state] proc=IDLE feed=IDLE class=IDLE unload=IDLE |
@@ -383,7 +383,7 @@ Llama `VendorClient.check_timeout()` en todos los dominios. Si un comando supera
         conv1=1 laser=0 conv2=0
 ```
 
-### Stack inicial (hardcoded en factory_supervisor.py)
+### Initial Stack (hardcoded in factory_supervisor.py)
 
 ```python
 INITIAL_STACK_ORDER = [
@@ -394,82 +394,82 @@ INITIAL_STACK_ORDER = [
 ]
 ```
 
-El color/shape son hints para globalvision. Si se pone `None`, globalvision los detecta automáticamente.
+Colour/shape are hints for globalvision. If set to `None`, globalvision detects them automatically.
 
 ---
 
-## 8. Planificador — reglas por módulo
+## 8. Planner — Rules per Module
 
 ### 8.1 initialization_rules.py
 
-Secuencia de arranque en orden de dependencia:
+Start-up sequence in dependency order:
 
 ```
 arduino_vacuum → green_conveyors → globalvision → ufactory → niryo → laser → bantam → RUNNING
 ```
 
-Cada dominio espera COMPLETED antes de iniciar el siguiente. Si un dominio falla, reintenta en el próximo tick. Si el VS no tiene suscriptor aún (no ha arrancado), espera y avisa sin bloquear.
+Each domain waits for COMPLETED before starting the next. If a domain fails, it retries on the next tick. If the VS has no subscriber yet (not started), it waits and warns without blocking.
 
 ### 8.2 feeding_rules.py
 
-**Precondiciones para arrancar:**
+**Preconditions to start:**
 - `_feeding_state == "IDLE"`
-- `initial_stack` tiene piezas
-- `xarm2 == IDLE` y no busy en ufactory
-- `c1s1 == FREE` (hardware IR — sensor soberano)
-- globalvision no busy
-- Si la próxima pieza es VERDE: `c3 == FREE`
+- `initial_stack` has pieces
+- `xarm2 == IDLE` and not busy in ufactory
+- `c1s1 == FREE` (hardware IR — sovereign sensor)
+- globalvision not busy
+- If next piece is GREEN: `c3 == FREE`
 
-**Flujo:**
-1. `LOCATE_NEXT_PIECE` (globalvision) → obtiene slot_id, color, shape
-2. Si VERDE: `MOVE_PIECE xarm2 → C3` → `c3=OCCUPIED` (virtual), arranca conveyor3, espera HOME
-3. Si no VERDE: `MOVE_PIECE xarm2 → C1S1`
+**Flow:**
+1. `LOCATE_NEXT_PIECE` (globalvision) → obtains slot_id, colour, shape
+2. If GREEN: `MOVE_PIECE xarm2 → C3` → `c3=OCCUPIED` (virtual), starts conveyor3, waits HOME
+3. If not GREEN: `MOVE_PIECE xarm2 → C1S1`
 
 **Callback `_on_xarm2_to_c1_complete`:**
 - `pieces.transfer("initial_stack", "conveyor1")`
 - `cycles.start_cycle(piece_id)`
 - `xarm2 = IDLE`
-- **NO escribe c1s1=OCCUPIED** (el sensor IR de hardware ya lo hizo o lo hará; escribirlo aquí crea una condición de carrera)
+- **Does NOT write c1s1=OCCUPIED** (the hardware IR sensor already did or will; writing it here creates a race condition)
 
 ### 8.3 conveyor_rules.py
 
-**Cinta 1:**
-- Arranca cuando: `c1s1=OCCUPIED`, `conveyor1=STOPPED`, `c1s2=FREE`
-- Para automáticamente cuando el VS detecta que `c1s2=OCCUPIED` (el VS gestiona el loop de polling internamente)
+**Conveyor 1:**
+- Starts when: `c1s1=OCCUPIED`, `conveyor1=STOPPED`, `c1s2=FREE`
+- Stops automatically when the VS detects `c1s2=OCCUPIED` (the VS manages the polling loop internally)
 
-**Cinta 2:**
-- Arranca cuando: `c2s1=OCCUPIED`, `conveyor2=STOPPED`, y (`c2s2=FREE` O `_c2s2_committed=True`)
-- `_c2s2_committed` se activa en `_on_vision_complete` (robot2 se ha comprometido a recoger)
-- Se limpia cuando `_conveyor2_rules` efectivamente arranca la cinta
-- Así conveyor2 arranca ~14 s antes de que el sensor físico detecte la pieza recogida
+**Conveyor 2:**
+- Starts when: `c2s1=OCCUPIED`, `conveyor2=STOPPED`, and (`c2s2=FREE` OR `_c2s2_committed=True`)
+- `_c2s2_committed` is set in `_on_vision_complete` (robot2 has committed to picking)
+- Cleared when `_conveyor2_rules` actually starts the belt
+- This allows conveyor2 to start ~14 s before the physical sensor detects the piece has been picked
 
 **Callback `_on_conveyor_done`:**
-- Solo actualiza `conveyor_id = STOPPED`
-- **No escribe ningún sensor** (sensores soberanos)
+- Only updates `conveyor_id = STOPPED`
+- **Does not write any sensor** (sovereign sensors)
 
 ### 8.4 processing_rules.py
 
-**Precondiciones:**
+**Preconditions:**
 - `_processing_state == "IDLE"`
-- `conveyor1` tiene piezas
+- `conveyor1` has pieces
 - `c1s2 == OCCUPIED`
-- `xarm1 == IDLE` y no busy en ufactory
+- `xarm1 == IDLE` and not busy in ufactory
 
-**Decisión por color:**
+**Decision by colour:**
 
 ```python
 if color == "RED":
-    # c2s1 NO se comprueba aquí — va al láser, no a c2s1
+    # c2s1 NOT checked here — goes to laser, not to c2s1
     _send_xarm1_to_laser(fs, piece_id)
 else:
     if c2s1 != FREE:
-        return  # espera
+        return  # wait
     _send_xarm1_direct_to_c2(fs, piece_id, color)
 ```
 
-**Estado `LASER_DONE_WAITING_C2S1`:**
+**State `LASER_DONE_WAITING_C2S1`:**
 
-Cuando el láser termina pero c2s1 sigue ocupado, el procesador entra en este estado. El siguiente tick de `evaluate_rules()` (disparado cuando c2s1 cambia a FREE por el sensor IR) envía a xArm1 de LASER_BED a C2S1.
+When the laser finishes but c2s1 is still occupied, the processor enters this state. The next `evaluate_rules()` tick (triggered when c2s1 changes to FREE via the IR sensor) sends xArm1 from LASER_BED to C2S1.
 
 ```python
 if fs._processing_state == "LASER_DONE_WAITING_C2S1":
@@ -478,7 +478,7 @@ if fs._processing_state == "LASER_DONE_WAITING_C2S1":
     return
 ```
 
-**Logs de processing:**
+**Processing logs:**
 ```
 [processing] xarm1 → LASER_BED: piece=piece-001
 [processing] xarm1 LASER_BED → C2S1: piece=piece-001
@@ -486,254 +486,253 @@ if fs._processing_state == "LASER_DONE_WAITING_C2S1":
 
 ### 8.5 classification_rules.py
 
-**Precondiciones:**
+**Preconditions:**
 - `_classification_state == "IDLE"`
-- `conveyor2` tiene piezas
+- `conveyor2` has pieces
 - `c2s2 == OCCUPIED`
 - `c4 == FREE`
-- `robot2 == IDLE` y no busy en niryo
+- `robot2 == IDLE` and not busy in niryo
 
-**Flujo:**
-1. `CAPTURE_LOCAL_VISION` (robot2 en C2S2) → obtiene color, shape
-2. En `_on_vision_complete`: establece `_c2s2_committed = True`, log `c2s2_committed=True`
-3. Enruta según color:
+**Flow:**
+1. `CAPTURE_LOCAL_VISION` (robot2 at C2S2) → obtains colour, shape
+2. In `_on_vision_complete`: sets `_c2s2_committed = True`, logs `c2s2_committed=True`
+3. Routes by colour:
    - RED/GREEN → `MOVE_PIECE robot2 C2S2 → C4`
-   - BLUE + bantam libre → `MOVE_PIECE robot2 C2S2 → BANTAM_BED`
-   - BLUE + bantam ocupado, o UNKNOWN → `MOVE_PIECE robot2 C2S2 → SCRAP`
+   - BLUE + bantam free → `MOVE_PIECE robot2 C2S2 → BANTAM_BED`
+   - BLUE + bantam busy, or UNKNOWN → `MOVE_PIECE robot2 C2S2 → SCRAP`
 
 **`_on_robot2_to_c4_complete`:**
 - `pieces.transfer("conveyor2", "c4_location")`
-- `state.update_sensor("c4", OCCUPIED)` ← c4 es virtual, OK
+- `state.update_sensor("c4", OCCUPIED)` ← c4 is virtual, OK
 - `_c4_deposit_time = time.time()`
-- Arranca conveyor4 + auto-stop tras c4_settle_sec
-- Envía robot2 a HOME
+- Starts conveyor4 + auto-stop after c4_settle_sec
+- Sends robot2 to HOME
 
-**No escribe c2s2** en ningún callback (sensor soberano).
+**Does not write c2s2** in any callback (sovereign sensor).
 
 ### 8.6 unloading_rules.py
 
-**Precondiciones:**
+**Preconditions:**
 - `_unloading_state == "IDLE"`
-- `robot1 == IDLE` y no busy
-- arduino_vacuum no busy
+- `robot1 == IDLE` and not busy
+- arduino_vacuum not busy
 
-**Lógica de selección:**
-- Priorita c4 sobre c3
-- Respeta settle time (`c4_settle_sec=14.5 s`, `c3_settle_sec=10 s`)
+**Selection logic:**
+- Prioritises c4 over c3
+- Respects settle time (`c4_settle_sec=14.5 s`, `c3_settle_sec=10 s`)
 
-**Flujo:**
-1. `CLASSIFY_AND_PICK` (robot1 en C4 o C3): robot1 va a posición, hace visión local, pick
-2. `PICK` (arduino_vacuum): activa succión
-3. En `_on_vacuum_pick_complete`: escribe `c3/c4 = FREE` (virtual — la pieza ya está en el aire)
-4. `LIFT_AND_PLACE` (robot1): lleva la pieza al destino final
+**Flow:**
+1. `CLASSIFY_AND_PICK` (robot1 at C4 or C3): robot1 goes to position, performs local vision, picks
+2. `PICK` (arduino_vacuum): activates suction
+3. In `_on_vacuum_pick_complete`: writes `c3/c4 = FREE` (virtual — piece is now in the air)
+4. `LIFT_AND_PLACE` (robot1): carries piece to final destination
 5. `RELEASE` (arduino_vacuum)
 6. `RETURN_HOME` (robot1)
 7. `cycles.complete_cycle()` → `db.insert_cycle_complete()`
 
-**Destinos finales por color y forma:**
+**Final destinations by colour and shape:**
 
-| Color | Forma | Destino |
+| Colour | Shape | Destination |
 |---|---|---|
-| RED | cualquiera | FINAL_RED_STACK |
+| RED | any | FINAL_RED_STACK |
 | RED | CIRCLE | FINAL_RED_CIRCLE |
-| GREEN | cualquiera | FINAL_GREEN_STACK |
+| GREEN | any | FINAL_GREEN_STACK |
 | GREEN | CIRCLE | FINAL_GREEN_CIRCLE |
-| BLUE | cualquiera | FINAL_BLUE_STACK |
+| BLUE | any | FINAL_BLUE_STACK |
 | BLUE | CIRCLE | FINAL_BLUE_CIRCLE |
 | UNKNOWN | — | SCRAP |
 
 ### 8.7 shutdown_rules.py
 
-Se activa cuando `pieces.all_pieces_finished() == True` (initial_stack vacío Y todas las ubicaciones intermedias vacías). Envía STOP/RESET a todos los dominios en orden inverso.
+Activated when `pieces.all_pieces_finished() == True` (initial_stack empty AND all intermediate locations empty). Sends STOP/RESET to all domains in reverse order.
 
 ---
 
-## 9. Principio de sensores soberanos
+## 9. Sovereign Sensor Principle
 
-### Regla fundamental
+### Fundamental Rule
 
-**Los sensores físicos c1s1, c1s2, c2s1, c2s2 son SOBERANOS. Ningún callback de robot, ninguna regla del planificador, ningún VS excepto el de Niryo tiene permitido escribir su estado.**
+**Physical sensors c1s1, c1s2, c2s1, c2s2 are SOVEREIGN. No robot callback, no planner rule, and no VS other than the Niryo VS is permitted to write their state.**
 
-La única fuente de verdad para estos sensores es el hardware IR, leído por `NiryoConveyorAdapter.poll_sensors()` cada 200 ms y publicado como SENSOR_UPDATE autónomo.
+The sole source of truth for these sensors is the IR hardware, read by `NiryoConveyorAdapter.poll_sensors()` every 200 ms and published as an autonomous SENSOR_UPDATE.
 
-### Por qué esta regla existe
+### Why This Rule Exists
 
-Antes de implementarla, los callbacks de los robots escribían manualmente los sensores "para ayudar" al planificador. Esto causaba condiciones de carrera fatales:
+Before implementing it, robot callbacks manually wrote sensor states to "help" the planner. This caused fatal race conditions:
 
-**Ejemplo del bug crítico de c1s1:**
+**Example of the critical c1s1 bug:**
 ```
-t=0:   hardware c1s1 → OCCUPIED  (xArm2 depositó la pieza)
-t=0:   conveyor1 arranca inmediatamente
-t=2:   hardware c1s1 → FREE  (la pieza se movió a c1s2)
-t=3:   _on_xarm2_to_c1_complete() dispara TARDE
-t=3:   ← escribía c1s1=OCCUPIED  (INCORRECTO — pieza ya no está aquí)
-t=3:   conveyor adapter tiene _last_sensor_states["c1s1"]="FREE"
-       nunca re-emite FREE porque ya está en "FREE"
-t=3:   supervisor queda con c1s1=OCCUPIED permanentemente
-t=33:  conveyor1 timeout con 30 s sin pieza
-t=33:  xArm2 nunca puede depositar la siguiente pieza
-RESULTADO: solo 1 de 4 piezas procesadas
+t=0:   hardware c1s1 → OCCUPIED  (xArm2 deposited the piece)
+t=0:   conveyor1 starts immediately
+t=2:   hardware c1s1 → FREE  (piece moved to c1s2)
+t=3:   _on_xarm2_to_c1_complete() fires LATE
+t=3:   ← wrote c1s1=OCCUPIED  (WRONG — piece is no longer here)
+t=3:   conveyor adapter has _last_sensor_states["c1s1"]="FREE"
+       never re-emits FREE because it is already "FREE"
+t=3:   supervisor left with c1s1=OCCUPIED permanently
+t=33:  conveyor1 timeout — 30 s with no piece
+t=33:  xArm2 can never deposit the next piece
+RESULT: only 1 of 4 pieces processed
 ```
 
-### Sensores y quién los escribe
+### Sensors and Who Writes Them
 
-| Sensor | Tipo | Escrito por |
+| Sensor | Type | Written by |
 |---|---|---|
-| c1s1 | Físico IR | `niryo_vendor_supervisor._publish_auto_sensor()` |
-| c1s2 | Físico IR | `niryo_vendor_supervisor._publish_auto_sensor()` |
-| c2s1 | Físico IR | `niryo_vendor_supervisor._publish_auto_sensor()` |
-| c2s2 | Físico IR | `niryo_vendor_supervisor._publish_auto_sensor()` |
-| c3 | Virtual | `feeding_rules._on_xarm2_to_c3_complete()` y `unloading_rules._on_vacuum_pick_complete()` |
-| c4 | Virtual | `classification_rules._on_robot2_to_c4_complete()` y `unloading_rules._on_vacuum_pick_complete()` |
+| c1s1 | Physical IR | `niryo_vendor_supervisor._publish_auto_sensor()` |
+| c1s2 | Physical IR | `niryo_vendor_supervisor._publish_auto_sensor()` |
+| c2s1 | Physical IR | `niryo_vendor_supervisor._publish_auto_sensor()` |
+| c2s2 | Physical IR | `niryo_vendor_supervisor._publish_auto_sensor()` |
+| c3 | Virtual | `feeding_rules._on_xarm2_to_c3_complete()` and `unloading_rules._on_vacuum_pick_complete()` |
+| c4 | Virtual | `classification_rules._on_robot2_to_c4_complete()` and `unloading_rules._on_vacuum_pick_complete()` |
 
-### Verificación
+### Verification
 
 ```bash
 grep -rn 'update_sensor.*c1s1\|update_sensor.*c1s2\|update_sensor.*c2s1\|update_sensor.*c2s2' \
      src/shipyard_pnp/shipyard_pnp/factory/planner/
-# Resultado: cero ocurrencias
+# Result: zero occurrences
 ```
 
-### Mecanismo `_c2s2_committed`
+### `_c2s2_committed` Mechanism
 
-El flag `_c2s2_committed` resuelve el problema del retraso de conveyor2 sin violar los sensores soberanos:
+The `_c2s2_committed` flag resolves the conveyor2 delay problem without violating the sovereign sensors:
 
-**Problema:** El sensor c2s2 pasa de OCCUPIED a FREE cuando robot2 físicamente levanta la pieza. Eso ocurre ~14 s después de que la visión termina. Si conveyor2 espera hasta que el hardware confirme c2s2=FREE, la cinta se retrasa 14 s innecesariamente.
+**Problem:** The c2s2 sensor transitions from OCCUPIED to FREE when robot2 physically lifts the piece. This happens ~14 s after vision completes. If conveyor2 waits until hardware confirms c2s2=FREE, the belt is delayed 14 s unnecessarily.
 
-**Solución:** En `_on_vision_complete`, cuando robot2 confirma que va a recoger la pieza:
+**Solution:** In `_on_vision_complete`, when robot2 confirms it will pick the piece:
 ```python
 fs._c2s2_committed = True
-# NO se escribe c2s2=FREE — el hardware lo hará cuando sea cierto
+# c2s2=FREE is NOT written — the hardware will do it when true
 ```
 
-En `_conveyor2_rules`:
+In `_conveyor2_rules`:
 ```python
 c2s2_clear = c2s2 == SensorState.FREE or fs._c2s2_committed
 if c2s1 == OCCUPIED and conveyor2 == STOPPED and c2s2_clear:
-    fs._c2s2_committed = False  # consumir el flag
-    # arrancar conveyor2
+    fs._c2s2_committed = False  # consume the flag
+    # start conveyor2
 ```
 
 ---
 
-## 10. Vendor Supervisors — capa de hardware
+## 10. Vendor Supervisors — Hardware Layer
 
 ### BaseVendorSupervisor
 
-**Archivo:** `vendors/common/base_vendor_supervisor.py`
+**File:** `vendors/common/base_vendor_supervisor.py`
 
-Clase base abstracta para todos los VS. Proporciona:
-- Wiring ROS 2: `cmd_sub`, `ack_pub`, `status_pub`
-- Parsing y validación JSON de comandos entrantes
-- Verificación HMAC (warn-only en fases 1-5)
-- `publish_ack()` y `publish_status()` helpers
-- `TaskRunner` base para uso opcional por subclases
-- `InternalBus` base (para uso inter-adapter interno)
-- Interfaz abstracta `handle_task(cmd) → (accepted, reason)`
+Abstract base class for all VS. Provides:
+- ROS 2 wiring: `cmd_sub`, `ack_pub`, `status_pub`
+- JSON parsing and validation of incoming commands
+- HMAC verification (warn-only in phases 1–5)
+- `publish_ack()` and `publish_status()` helpers
+- Base `TaskRunner` for optional use by subclasses
+- Base `InternalBus` (for internal inter-adapter use)
+- Abstract interface `handle_task(cmd) → (accepted, reason)`
 
 ### TaskRunner
 
-**Archivo:** `vendors/common/task_runner.py`
+**File:** `vendors/common/task_runner.py`
 
-Ejecuta funciones de hardware en un hilo daemon. No bloquea el hilo ROS 2. Proporciona `is_running()`, `run(task_fn, on_complete, on_error)` y `join()`.
+Executes hardware functions in a daemon thread. Does not block the ROS 2 thread. Provides `is_running()`, `run(task_fn, on_complete, on_error)` and `join()`.
 
 ### NiryoConveyorAdapter
 
-**Archivo:** `vendors/niryo/niryo_conveyor_adapter.py`
+**File:** `vendors/niryo/niryo_conveyor_adapter.py`
 
-Gestiona una cinta Niryo con sensores IR:
-- `run_until_exit_sensor()`: arranca la cinta, hace polling de sensores hasta que el sensor de salida se activa, para la cinta. Si timeout: **para el hardware físico antes de lanzar TimeoutError** (fix importante).
-- `poll_sensors()`: lee todos los pines configurados, compara con `_last_sensor_states`, emite solo cambios. Retorna lista de dicts con `sensor_id, state, raw, pin, active_low`.
-- `initialize()`: inicializa cinta, para, fuerza lectura de sensores con `force=True`.
+Manages a Niryo belt with IR sensors:
+- `run_until_exit_sensor()`: starts the belt, polls sensors until the exit sensor activates, stops the belt. On timeout: **stops the physical hardware before raising TimeoutError** (important fix).
+- `poll_sensors()`: reads all configured pins, compares with `_last_sensor_states`, emits only changes. Returns list of dicts with `sensor_id, state, raw, pin, active_low`.
+- `initialize()`: initialises belt, stops, forces sensor read with `force=True`.
 
 **Pin logic:**
 ```python
 raw_value = driver.read_digital_io(cfg["pin"])
-active_low = cfg.get("active_low", True)   # true para estos sensores
+active_low = cfg.get("active_low", True)   # true for these sensors
 occupied = not raw_value if active_low else raw_value
 ```
 
-### NiryoVendorSupervisor — polling autónomo de sensores
+### NiryoVendorSupervisor — Autonomous Sensor Polling
 
 ```python
-# Timer cada 200 ms (solo en hardware mode)
+# Timer every 200 ms (hardware mode only)
 def _poll_sensors_once(self):
     for conveyor in self.conveyors.values():
         updates = conveyor.poll_sensors(self._publish_auto_sensor)
-        # log raw a DEBUG para diagnóstico
 
 def _publish_auto_sensor(self, sensor_id, state):
     self.get_logger().info(f"[sensor] {sensor_id} → {state}")
     self.publish_status(command_id="AUTO", task="SENSOR_UPDATE", ...)
 ```
 
-Cada cambio de sensor aparece en terminal:
+Each sensor change appears in terminal:
 ```
 [sensor] c1s2 → OCCUPIED
 [sensor] c1s1 → FREE
 ```
 
-Para ver el nivel raw de pin:
+To see the raw pin level:
 ```bash
 ros2 run shipyard_pnp niryo_vendor_supervisor --ros-args \
      --log-level niryo_vendor_supervisor:=DEBUG
 ```
 
-### LocalVisionAdapter (robot1 y robot2)
+### LocalVisionAdapter (robot1 and robot2)
 
-**Archivo:** `vendors/niryo/local_vision_adapter.py`
+**File:** `vendors/niryo/local_vision_adapter.py`
 
-Suscribe al topic de video comprimido del Niryo (`/robot2/niryo_robot_vision/compressed_video_stream`). Realiza N capturas (default: 15) con timeout configurable (8 s), con umbral de detección (0.03). En dry_run retorna el color configurado en `vision_default_color`.
+Subscribes to the Niryo compressed video topic (`/robot2/niryo_robot_vision/compressed_video_stream`). Takes N captures (default: 15) with configurable timeout (8 s) and detection threshold (0.03). In dry_run returns the colour configured in `vision_default_color`.
 
 ### Robot2Adapter
 
-**Archivo:** `vendors/niryo/robot2_adapter.py`
+**File:** `vendors/niryo/robot2_adapter.py`
 
-Implementa `capture_local_vision()` y `move_piece(source, target)`. Internamente orquesta vision_adapter y robot2_niryo_vacuum_adapter en la secuencia correcta. Robot2 y sus recursos (vision_robot2, robot2_niryo_vacuum) comparten el mismo TaskRunner en el VS.
+Implements `capture_local_vision()` and `move_piece(source, target)`. Internally orchestrates vision_adapter and robot2_niryo_vacuum_adapter in the correct sequence. Robot2 and its resources share the same TaskRunner in the VS.
 
 ### Robot1Adapter
 
-**Archivo:** `vendors/niryo/robot1_adapter.py`
+**File:** `vendors/niryo/robot1_adapter.py`
 
-Implementa `classify_and_goto_pick(position)`, `lift_and_place(target)`, `move_home()`. Se coordina con vision_robot1 internamente. Usa el Arduino vacuum externamente (el FS serializa las llamadas).
+Implements `classify_and_goto_pick(position)`, `lift_and_place(target)`, `move_home()`. Coordinates internally with vision_robot1. Uses the Arduino vacuum externally (the FS serialises the calls).
 
 ### XArm1Adapter / XArm2Adapter
 
-**Archivos:** `vendors/ufactory/xarm1_adapter.py`, `vendors/ufactory/xarm2_adapter.py`
+**Files:** `vendors/ufactory/xarm1_adapter.py`, `vendors/ufactory/xarm2_adapter.py`
 
-Wrapping del driver Lite6. XArm1 implementa `move_piece(source, target, route)` para las rutas C1S2→LASER_BED, LASER_BED→C2S1, C1S2→C2S1. XArm2 implementa `move_piece(pick_slot, target)` para INITIAL_STACK→C1S1 y INITIAL_STACK→C3.
+Wrapping of the Lite6 driver. XArm1 implements `move_piece(source, target, route)` for routes C1S2→LASER_BED, LASER_BED→C2S1, C1S2→C2S1. XArm2 implements `move_piece(pick_slot, target)` for INITIAL_STACK→C1S1 and INITIAL_STACK→C3.
 
 ### Lite6ServiceDriver
 
-**Archivo:** `vendors/ufactory/lite6_service_driver.py`
+**File:** `vendors/ufactory/lite6_service_driver.py`
 
-Driver de bajo nivel para UFACTORY Lite6 via ROS 2 service calls (`xarm_api`). En dry_run simula timing realista sin mover hardware.
+Low-level driver for UFACTORY Lite6 via ROS 2 service calls (`xarm_api`). In dry_run simulates realistic timing without moving hardware.
 
 ### GlobalVisionCameraAdapter
 
-**Archivo:** `vendors/globalvision/camera_adapter.py`
+**File:** `vendors/globalvision/camera_adapter.py`
 
-OpenCV + SlotInventory. Detecta piezas en el stack inicial. `LOCATE_NEXT_PIECE` retorna `slot_id`, `color`, `shape` para la siguiente pieza a procesar.
+OpenCV + SlotInventory. Detects pieces in the initial stack. `LOCATE_NEXT_PIECE` returns `slot_id`, `colour`, `shape` for the next piece to be processed.
 
 ---
 
-## 11. Trackers internos
+## 11. Internal Trackers
 
 ### StateTracker
 
-**Archivo:** `factory/state_tracker.py`
+**File:** `factory/state_tracker.py`
 
-Tabla de estado coarse de todos los recursos. No thread-safe — protegido por `FactorySupervisor._state_lock`.
+Coarse state table for all resources. Not thread-safe — protected by `FactorySupervisor._state_lock`.
 
-Categorías: robots, conveyors, sensors, machines, vacuum, vision, domain_online.
+Categories: robots, conveyors, sensors, machines, vacuum, vision, domain_online.
 
-Método `apply_resource_state(resource_id, state_str)`: usado por `on_status()` para despachar actualizaciones de resource_state entrantes.
+Method `apply_resource_state(resource_id, state_str)`: used by `on_status()` to dispatch incoming resource_state updates.
 
 ### PieceTracker
 
-**Archivo:** `factory/piece_tracker.py`
+**File:** `factory/piece_tracker.py`
 
-Single source of truth para la ubicación de todas las piezas. Usa `deque` por ubicación. Ubicaciones:
+Single source of truth for the location of all pieces. Uses `deque` per location. Locations:
 
 ```
 initial_stack → xarm2_gripper → c3_location → conveyor1 → xarm1_gripper →
@@ -743,47 +742,47 @@ robot1_gripper → final_red_stack / final_blue_stack / final_green_stack /
                robot1_scrap / robot2_scrap
 ```
 
-`all_pieces_finished()`: True cuando initial_stack vacío Y todas las ubicaciones intermedias vacías (excluye sinks).
+`all_pieces_finished()`: True when initial_stack is empty AND all intermediate locations are empty (sinks excluded).
 
-Cada `transfer_piece()` llama `db.insert_piece_transfer()`.
+Each `transfer_piece()` calls `db.insert_piece_transfer()`.
 
 ### CycleTracker
 
-**Archivo:** `factory/cycle_tracker.py`
+**File:** `factory/cycle_tracker.py`
 
-Mide tiempo de ciclo por pieza. `start_cycle(piece_id)` cuando xArm2 deposita en c1s1. `complete_cycle(piece_id, color, shape, route)` cuando robot1 completa el depósito final.
+Measures cycle time per piece. `start_cycle(piece_id)` when xArm2 deposits at c1s1. `complete_cycle(piece_id, color, shape, route)` when robot1 completes the final deposit.
 
-Proporciona `get_throughput_last_n(20)` en piezas/hora y `snapshot()` con estadísticas.
+Provides `get_throughput_last_n(20)` in pieces/hour and `snapshot()` with statistics.
 
 ---
 
-## 12. Configuración
+## 12. Configuration
 
 ### hardware_ports.yaml
 
-Archivo principal de configuración de hardware en `src/shipyard_pnp/config/hardware_ports.yaml`.
+Main hardware configuration file at `src/shipyard_pnp/config/hardware_ports.yaml`.
 
-Cada VS carga su sección correspondiente buscando primero en la ruta fuente (`../../../config/hardware_ports.yaml` relativo al VS) y luego en el share de ament.
+Each VS loads its corresponding section, searching first at the source path (`../../../config/hardware_ports.yaml` relative to the VS) and then in the ament share.
 
 ### factory_layout.yaml
 
-Define las ubicaciones del pipeline y las rutas por color. No se carga en runtime (es documentación de arquitectura), pero la lógica del planificador lo implementa fielmente.
+Defines pipeline locations and per-colour routes. Not loaded at runtime (it is architecture documentation), but the planner logic implements it faithfully.
 
 ### vendor_registry.yaml
 
-Define los recursos por dominio. Referencia para entender qué gestiona cada VS.
+Defines the resources per domain. Reference for understanding what each VS manages.
 
 ### topic_acl.yaml
 
-Lista blanca de tópicos permitidos por dominio (para auditoría de seguridad).
+Whitelist of allowed topics per domain (for security auditing).
 
 ### globalvision_rois.yaml
 
-Configuración de Regions of Interest para la cámara global. Ejemplo disponible en `globalvision_rois.example.yaml`.
+Region of Interest configuration for the global camera. Example available in `globalvision_rois.example.yaml`.
 
 ---
 
-## 13. Arranque del sistema
+## 13. System Startup
 
 ### Build
 
@@ -793,7 +792,7 @@ colcon build --packages-select shipyard_pnp
 source install/setup.bash
 ```
 
-### Lanzar el sistema completo (hardware)
+### Launch Full System (hardware)
 
 ```bash
 ros2 launch shipyard_pnp pnp_full_system.launch.py \
@@ -803,7 +802,7 @@ ros2 launch shipyard_pnp pnp_full_system.launch.py \
     globalvision_show_window:=false
 ```
 
-### Lanzar en modo simulación (dry_run)
+### Launch in Simulation Mode (dry_run)
 
 ```bash
 ros2 launch shipyard_pnp pnp_full_system.launch.py \
@@ -811,7 +810,7 @@ ros2 launch shipyard_pnp pnp_full_system.launch.py \
     ufactory_mode:=dry_run
 ```
 
-### Lanzar vendor supervisors individualmente
+### Launch Individual Vendor Supervisors
 
 ```bash
 ros2 launch shipyard_pnp vendor_niryo.launch.py
@@ -820,20 +819,20 @@ ros2 launch shipyard_pnp vendor_globalvision.launch.py
 ros2 launch shipyard_pnp vendor_green_conveyors.launch.py
 ```
 
-### Diagnóstico de sensores IR (nivel raw)
+### IR Sensor Diagnostics (raw level)
 
 ```bash
 ros2 run shipyard_pnp niryo_vendor_supervisor \
     --ros-args --log-level niryo_vendor_supervisor:=DEBUG
 ```
 
-### Monitorizar sensores en tiempo real
+### Monitor Sensors in Real Time
 
 ```bash
 ros2 topic echo /niryo_factory/status | grep SENSOR_UPDATE
 ```
 
-### Enviar orden optimizada externamente
+### Send Optimised Order Externally
 
 ```bash
 ros2 topic pub /supervisor/set_optimized_order std_msgs/msg/String \
@@ -842,23 +841,23 @@ ros2 topic pub /supervisor/set_optimized_order std_msgs/msg/String \
 
 ---
 
-## 14. Base de datos
+## 14. Database
 
-### Estado actual: StubDBWriter
+### Current Status: StubDBWriter
 
-`factory/db_writer.py` contiene `StubDBWriter` (en uso) y `RealDBWriter` (implementado, no activado).
+`factory/db_writer.py` contains `StubDBWriter` (in use) and `RealDBWriter` (implemented, not activated).
 
-`StubDBWriter` loguea a DEBUG todas las transferencias y ciclos completados.
+`StubDBWriter` logs all transfers and completed cycles at DEBUG level.
 
-### RealDBWriter (implementado, pendiente de activar)
+### RealDBWriter (implemented, pending activation)
 
-Requiere `psycopg2`. DSN configurada en `hardware_ports.yaml`:
+Requires `psycopg2`. DSN configured in `hardware_ports.yaml`:
 ```yaml
 database:
   dsn: "postgresql://shipyard:password@localhost:5432/shipyard_pnp"
 ```
 
-Tablas esperadas:
+Expected tables:
 
 ```sql
 CREATE TABLE piece_transfers (
@@ -883,73 +882,73 @@ CREATE TABLE cycle_records (
 );
 ```
 
-Para activar `RealDBWriter`: modificar `factory_supervisor.py` línea `self.db = db_writer.StubDBWriter()` a `self.db = db_writer.RealDBWriter(dsn)`.
+To activate `RealDBWriter`: modify `factory_supervisor.py` line `self.db = db_writer.StubDBWriter()` to `self.db = db_writer.RealDBWriter(dsn)`.
 
 ---
 
-## 15. Bugs resueltos
+## 15. Resolved Bugs
 
-### Bug 1 — xArm1 no recogía la siguiente pieza de c1s2 para piezas ROJAS
+### Bug 1 — xArm1 did not pick the next RED piece from c1s2
 
-**Síntoma:** xArm1 esperaba a que la pieza anterior llegara a c2s2 antes de ir a recoger la siguiente pieza roja en c1s2.
+**Symptom:** xArm1 waited for the previous piece to reach c2s2 before going to pick the next red piece at c1s2.
 
-**Causa:** `processing_rules.evaluate()` comprobaba `c2s1 != FREE → return` antes de evaluar el color. Para piezas ROJAS (que van al láser, no a c2s1), esa comprobación era incorrecta.
+**Cause:** `processing_rules.evaluate()` checked `c2s1 != FREE → return` before evaluating colour. For RED pieces (going to the laser, not c2s1), this check was incorrect.
 
-**Fix:** La comprobación de c2s1 solo se hace para piezas no-ROJAS. Se añadió el estado `LASER_DONE_WAITING_C2S1` para el momento post-láser.
-
----
-
-### Bug 2 — conveyor2 con ~22 s de retraso
-
-**Síntoma:** Conveyor2 no arrancaba hasta ~22 s después de que robot2 recogía la pieza.
-
-**Causa:** El código anterior limpiaba c2s2=FREE solo cuando robot2 completaba el depósito en c4, no cuando recogía de c2s2. El sensor físico tardaba ~14 s más en cambiar.
-
-**Fix:** El flag `_c2s2_committed` permite a conveyor2 arrancar inmediatamente cuando robot2 confirma que va a recoger, sin falsificar el estado del sensor físico.
+**Fix:** The c2s1 check is now only applied to non-RED pieces. The `LASER_DONE_WAITING_C2S1` state was added for the post-laser moment.
 
 ---
 
-### Bug 3 — c1s1=OCCUPIED cuando estaba físicamente FREE (bug crítico)
+### Bug 2 — conveyor2 with ~22 s delay
 
-**Síntoma:** xArm2 solo procesó 1 de 4 piezas. c1s1 quedaba permanentemente OCCUPIED. Timeout de 30 s en conveyor1 sin pieza.
+**Symptom:** Conveyor2 did not start until ~22 s after robot2 picked the piece.
 
-**Causa:** Timeline de la carrera:
+**Cause:** The old code cleared c2s2=FREE only when robot2 completed the deposit at c4, not when it picked from c2s2. The physical sensor took ~14 s more to change.
+
+**Fix:** The `_c2s2_committed` flag allows conveyor2 to start immediately when robot2 confirms it will pick, without falsifying the physical sensor state.
+
+---
+
+### Bug 3 — c1s1=OCCUPIED when physically FREE (critical bug)
+
+**Symptom:** xArm2 only processed 1 of 4 pieces. c1s1 remained permanently OCCUPIED. 30 s timeout on conveyor1 with no piece.
+
+**Cause:** Race condition timeline:
 ```
-t=0:  hardware c1s1 → OCCUPIED  (pieza depositada)
-t=0:  conveyor1 arranca inmediatamente
-t=2:  hardware c1s1 → FREE  (pieza en c1s2)
-t=3:  _on_xarm2_to_c1_complete() dispara (TARDE)
-t=3:  escribía fs.state.update_sensor("c1s1", OCCUPIED)  ← stale!
-t=3:  conveyor adapter _last_sensor_states["c1s1"] ya es "FREE"
-      nunca re-emite la corrección
-t=33: conveyor1 timeout → xArm2 bloqueado para siempre
+t=0:  hardware c1s1 → OCCUPIED  (piece deposited)
+t=0:  conveyor1 starts immediately
+t=2:  hardware c1s1 → FREE  (piece at c1s2)
+t=3:  _on_xarm2_to_c1_complete() fires (LATE)
+t=3:  wrote fs.state.update_sensor("c1s1", OCCUPIED)  ← stale!
+t=3:  conveyor adapter _last_sensor_states["c1s1"] is already "FREE"
+      never re-emits the correction
+t=33: conveyor1 timeout → xArm2 blocked permanently
 ```
 
-**Fix:** Eliminado completamente `fs.state.update_sensor("c1s1", SensorState.OCCUPIED)` de `_on_xarm2_to_c1_complete`. El sensor IR ya se encargó (o se encargará) de reportar el estado correcto.
+**Fix:** Completely removed `fs.state.update_sensor("c1s1", SensorState.OCCUPIED)` from `_on_xarm2_to_c1_complete`. The IR sensor already handles (or will handle) reporting the correct state.
 
 ---
 
-### Bug 4 — timeout de conveyor no paraba el motor físico
+### Bug 4 — conveyor timeout did not stop the physical motor
 
-**Síntoma:** Al producirse un timeout en `run_until_exit_sensor()`, el motor de la cinta seguía girando físicamente.
+**Symptom:** On timeout in `run_until_exit_sensor()`, the belt motor continued running physically.
 
-**Fix:** Añadida llamada a `driver.control_conveyor(control_on=False)` antes de lanzar `TimeoutError`.
-
----
-
-### Bug 5 — c1s1 no aparecía en el log de estado periódico
-
-**Síntoma:** El log `[state]` mostraba c1s2, c2s1, c2s2, c4 pero no c1s1.
-
-**Fix:** Añadido `c1s1={self.state.get_sensor('c1s1').name}` al formato del log.
+**Fix:** Added `driver.control_conveyor(control_on=False)` call before raising `TimeoutError`.
 
 ---
 
-### Bug 6 — evaluate_rules() no se disparaba en cambios de sensor
+### Bug 5 — c1s1 missing from periodic state log
 
-**Síntoma:** El planificador tardaba hasta 500 ms en reaccionar a cambios de sensor IR.
+**Symptom:** The `[state]` log showed c1s2, c2s1, c2s2, c4 but not c1s1.
 
-**Fix:** `on_status()` ahora dispara `evaluate_rules()` inmediatamente si `task_state` es terminal O si `_apply_sensor_result()` detectó un cambio de sensor (`sensor_updated=True`):
+**Fix:** Added `c1s1={self.state.get_sensor('c1s1').name}` to the log format string.
+
+---
+
+### Bug 6 — evaluate_rules() not triggered on sensor changes
+
+**Symptom:** The planner took up to 500 ms to react to IR sensor changes.
+
+**Fix:** `on_status()` now fires `evaluate_rules()` immediately if `task_state` is terminal OR if `_apply_sensor_result()` detected a sensor change (`sensor_updated=True`):
 ```python
 trigger = terminal or sensor_updated
 if trigger:
@@ -958,43 +957,43 @@ if trigger:
 
 ---
 
-## 16. Estado actual y pendientes
+## 16. Current Status and Pending Work
 
-### Implementado y funcional
+### Implemented and Functional
 
-- [x] Arquitectura Plug-and-Plan completa con 7 dominios
-- [x] Protocolo Command/Ack/Status con correlación por command_id
-- [x] HMAC infrastructure (warn-only, Phase 1-5)
-- [x] Inicialización secuencial de dominios con retry
-- [x] Rutas RED, BLUE, GREEN completamente implementadas
-- [x] Sensores soberanos — c1s1/c1s2/c2s1/c2s2 solo hardware
-- [x] Sensores virtuales c3/c4 escritos por lógica
-- [x] Flag `_c2s2_committed` para conveyor2 sin delay
-- [x] Estado `LASER_DONE_WAITING_C2S1` para xArm1 post-láser
-- [x] Disparo inmediato de reglas en cambio de sensor
-- [x] Log `[sensor] {id} → {STATE}` en cada cambio
-- [x] Log de estado periódico cada 10 s (incluye c1s1)
-- [x] Log raw de pin en DEBUG
-- [x] Timeout de conveyor para el motor antes de lanzar error
-- [x] PieceTracker con historial completo de ubicaciones
-- [x] CycleTracker con throughput y estadísticas
-- [x] StubDBWriter (log) + RealDBWriter (psycopg2, pendiente activar)
-- [x] Settle time guards para c3 (10 s) y c4 (14.5 s)
-- [x] Robot1 con visión local y destino por color+shape (incluye CIRCLE)
-- [x] Robot2 con visión local en c2s2
-- [x] Bantam CNC con puerta ZMQ y fallback a SCRAP
-- [x] Conveyor3 y Conveyor4 Arduino con auto-stop por timer
-- [x] GlobalVision con preview opcional
-- [x] xArm2 paralelo a xArm1 (TaskRunners independientes en UFactory VS)
-- [x] Robot1 paralelo a robot2 (TaskRunners independientes en Niryo VS)
-- [x] Watchdog de timeouts en todos los dominios
+- [x] Full Plug-and-Plan architecture with 7 domains
+- [x] Command/Ack/Status protocol with correlation by command_id
+- [x] HMAC infrastructure (warn-only, Phases 1–5)
+- [x] Sequential domain initialisation with retry
+- [x] RED, BLUE, GREEN routes fully implemented
+- [x] Sovereign sensors — c1s1/c1s2/c2s1/c2s2 hardware-only
+- [x] Virtual sensors c3/c4 written by logic
+- [x] `_c2s2_committed` flag for conveyor2 without delay
+- [x] `LASER_DONE_WAITING_C2S1` state for xArm1 post-laser
+- [x] Immediate rule trigger on sensor change
+- [x] `[sensor] {id} → {STATE}` log on every change
+- [x] Periodic state log every 10 s (includes c1s1)
+- [x] Raw pin log at DEBUG
+- [x] Conveyor timeout stops motor before raising error
+- [x] PieceTracker with full location history
+- [x] CycleTracker with throughput and statistics
+- [x] StubDBWriter (log) + RealDBWriter (psycopg2, pending activation)
+- [x] Settle time guards for c3 (10 s) and c4 (14.5 s)
+- [x] Robot1 with local vision and destination by colour+shape (includes CIRCLE)
+- [x] Robot2 with local vision at c2s2
+- [x] Bantam CNC with ZMQ door and fallback to SCRAP
+- [x] Conveyor3 and Conveyor4 Arduino with timer auto-stop
+- [x] GlobalVision with optional preview
+- [x] xArm2 parallel to xArm1 (independent TaskRunners in UFactory VS)
+- [x] Robot1 parallel to robot2 (independent TaskRunners in Niryo VS)
+- [x] Watchdog timeouts on all domains
 
-### Pendientes / no implementado
+### Pending / Not Implemented
 
-- [ ] **RealDBWriter activado** — implementación lista, falta wiring en `factory_supervisor.py` y creación de tablas PostgreSQL
-- [ ] **dashboard_node** — nodo en el launch file pero sin implementación (decisión explícita de diferir)
-- [ ] **Ciclo completo de 4 piezas ROJAS verificado en hardware** — arquitectura lista, pendiente test real
-- [ ] **ufactory_mode:=hardware en producción** — actualmente en dry_run para los xArms
-- [ ] **LASER_DONE_WAITING_C2S1 verificado en hardware** — path nuevo, no probado en real
-- [ ] **Enforcement HMAC estricto** — infraestructura lista, actualmente warn-only
-- [ ] **Ruta BLUE completa con Bantam real** — Bantam simulado (25 s delay), puerta ZMQ pendiente de test
+- [ ] **RealDBWriter activated** — implementation ready, missing wiring in `factory_supervisor.py` and PostgreSQL table creation
+- [ ] **dashboard_node** — node present in launch file but without implementation (explicitly deferred)
+- [ ] **Full 4-piece RED cycle verified on hardware** — architecture ready, pending real test
+- [ ] **ufactory_mode:=hardware in production** — currently dry_run for xArms
+- [ ] **LASER_DONE_WAITING_C2S1 verified on hardware** — new path, not tested on real hardware
+- [ ] **Strict HMAC enforcement** — infrastructure ready, currently warn-only
+- [ ] **Full BLUE route with real Bantam** — Bantam simulated (25 s delay), ZMQ door pending test
