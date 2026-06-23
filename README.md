@@ -22,8 +22,9 @@
 12. [Configuration](#12-configuration)
 13. [System Startup](#13-system-startup)
 14. [Database](#14-database)
-15. [Resolved Bugs](#15-resolved-bugs)
-16. [Current Status and Pending Work](#16-current-status-and-pending-work)
+15. [SimPy Production Order Optimizer](#15-simpy-production-order-optimizer)
+16. [Resolved Bugs](#16-resolved-bugs)
+17. [Current Status and Pending Work](#17-current-status-and-pending-work)
 
 ---
 
@@ -137,7 +138,7 @@ FS.on_status()
 
 ### ufactory_vendor_supervisor
 - **Executable:** `ufactory_vendor_supervisor`
-- **Mode:** `dry_run` (currently; change to hardware for real production)
+- **Mode:** `hardware`
 - **Resources:** xarm1, xarm2
 - **Parameters:** mode, xarm1_namespace (/xarm1), xarm2_namespace (/xarm2), command_timeout_sec (35 s), default_speed (30.0), default_acc (100.0), settle_time_sec (0.5 s), gripper_delay_sec (0.5 s)
 - **TaskRunners:** one per xArm, parallel
@@ -177,7 +178,21 @@ FS.on_status()
 
 ### dashboard_node
 - **Executable:** `dashboard_node`
-- **Status:** Node present in launch file; implementation PENDING (do not implement until explicit decision)
+- **Description:** HTTP server on port 8080. Launched automatically with the full system.
+- **Features:**
+  - Live system topology panel (sourced from `/factory/system_state`)
+  - SimPy production order optimizer (see Section 17)
+  - DB analytics panel (cycle times, throughput — sourced from remote PostgreSQL)
+  - Live camera streams: robot1, robot2, globalvision (`/stream/{key}.jpg`)
+- **API endpoints:**
+  - `GET /` — main dashboard HTML
+  - `GET /camera` — camera view page
+  - `GET /api/state` — current system snapshot (JSON)
+  - `POST /api/optimize` — launch optimizer in background thread
+  - `GET /api/optimize_status` — optimizer progress and result
+  - `POST /api/start_production` — apply optimized order and start production
+  - `GET /stream/{key}.jpg` — MJPEG frame for robot1 / robot2 / globalvision
+- **Parameters:** `port` (default 8080)
 
 ---
 
@@ -843,50 +858,111 @@ ros2 topic pub /supervisor/set_optimized_order std_msgs/msg/String \
 
 ## 14. Database
 
-### Current Status: StubDBWriter
+### Architecture
 
-`factory/db_writer.py` contains `StubDBWriter` (in use) and `RealDBWriter` (implemented, not activated).
+`factory/db_writer.py` provides two writers:
+- `StubDBWriter` — log-only, used in unit tests and offline runs (no DB required)
+- `RealDBWriter` — live PostgreSQL, active in production
 
-`StubDBWriter` logs all transfers and completed cycles at DEBUG level.
+### Remote PostgreSQL Connection
 
-### RealDBWriter (implemented, pending activation)
+Connection via environment variables (defaults shown):
 
-Requires `psycopg2`. DSN configured in `hardware_ports.yaml`:
-```yaml
-database:
-  dsn: "postgresql://shipyard:password@localhost:5432/shipyard_pnp"
+```bash
+PGHOST=100.118.157.20
+PGUSER=juan_lopez
+PGPASSWORD=twin2025
+PGPORT=5432
+PGDATABASE=digital_twin_db
+PGSCHEMA=remote_database_capstone
 ```
 
-Expected tables:
+The `RealDBWriter` bootstraps automatically on first run: creates the schema and all tables with `CREATE … IF NOT EXISTS`. All DB calls are wrapped in `try/except` so a network failure never crashes the factory.
 
-```sql
-CREATE TABLE piece_transfers (
-    piece_id TEXT,
-    color TEXT,
-    shape TEXT,
-    from_location TEXT,
-    to_location TEXT,
-    transferred_at TIMESTAMPTZ,
-    piece_age_sec FLOAT,
-    history_json JSONB
-);
+### Schema Tables
 
-CREATE TABLE cycle_records (
-    piece_id TEXT,
-    color TEXT,
-    shape TEXT,
-    route TEXT,
-    started_at TIMESTAMPTZ,
-    completed_at TIMESTAMPTZ,
-    cycle_time_sec FLOAT
-);
+| Table | Description |
+|---|---|
+| `production_run` | One row per system startup: run_id, initial stack, git commit, start/end timestamps |
+| `piece` | One row per piece: colour, shape, position in initial stack |
+| `piece_transfer` | Every location change: piece_id, from/to, timestamp |
+| `piece_outcome` | Final disposition: route, final location, total time |
+| `cycle_event` | Complete cycle per piece: start/end, cycle_time_s, route, colour, shape |
+| `robot_task` | Every robot command: command_id, robot_id, task, source, target, duration, result |
+| `machine_job` | Laser and Bantam jobs: door times, processing duration, result |
+| `vision_detection` | Every vision call: system, detected colour/shape, slot_id, duration |
+| `resource_state_change` | State transitions for every resource with dwell time |
+| `queue_depth_sample` | Periodic snapshot of pieces per location |
+| `command` / `ack` / `status` | Full DDS message log (every command, ack and status published) |
+| `optimizer_result` | Optimizer runs: original vs best order, time saving, method, permutations evaluated |
+| `alarm` | Raised/resolved alarms with severity and context snapshot |
+| `operator_event` | Manual operator actions (order applied, system start/stop) |
+
+### Activating RealDBWriter
+
+In `factory_supervisor.py`, replace:
+```python
+self.db = StubDBWriter()
+```
+with:
+```python
+self.db = RealDBWriter(initial_stack_order=self._initial_stack)
 ```
 
-To activate `RealDBWriter`: modify `factory_supervisor.py` line `self.db = db_writer.StubDBWriter()` to `self.db = db_writer.RealDBWriter(dsn)`.
+The dashboard reads the same DB for its analytics panel (cycle times, throughput, last N cycles).
 
 ---
 
-## 15. Resolved Bugs
+## 15. SimPy Production Order Optimizer
+
+**File:** `nodes/shipyard_sim.py` (simulation core) + `nodes/dashboard_node.py` (optimizer thread)
+
+### Purpose
+
+Before starting production, the operator can run the optimizer from the dashboard. It finds the piece processing order that minimises total production time by simulating all permutations (or a heuristic subset for large stacks) using a SimPy discrete-event model of the full factory.
+
+### How It Works
+
+1. Operator clicks **Run Optimizer** on the dashboard.
+2. A background thread starts (`_run_optimizer_thread`).
+3. For each candidate permutation of the initial stack:
+   - A full SimPy simulation of the factory is run (xArm2, conveyors, laser, robot2, bantam, robot1 — all modelled with realistic durations from `Config`).
+   - Total production time is recorded.
+4. The best permutation is returned with estimated time saving vs. the original order.
+5. Operator sees the result and clicks **Confirm & Apply** to publish the optimized order to `/supervisor/set_optimized_order`.
+
+### Enumeration Strategy
+
+| Stack size | Method |
+|---|---|
+| ≤ 8 pieces | All permutations (`itertools.permutations`) |
+| > 8 pieces | Heuristic candidates: sort by colour groups (GREEN first, then RED, then BLUE), plus random shuffles |
+
+### SimPy Config Timings (seconds)
+
+| Resource | Key durations |
+|---|---|
+| xArm2 | pick=2.5, place C1S1=6.5, place C3=9.5 |
+| Conveyor 1 | transport=6.0 |
+| Conveyor 2 | transport=9.0 |
+| xArm1 | pick C1S2=2.5+4.0, place laser=10.5, place C2S1=11.0 |
+| Laser | heating=30.0, processing=23.5 |
+| Robot2 | vision=3.0–13.5, pick C2S2=8.0, place C4=16.0 |
+| Bantam | close door=10.0, machining=25.0, open door=14.0 |
+| C3 station | 10.0 |
+| C4 station | 12.0 |
+| Robot1 | vision=13.0, pick=8.5, place final=10.0 |
+
+### Dashboard Integration
+
+- Progress is polled via `GET /api/optimize_status` (returns `status`, `progress`, `total`, `best_so_far`, `result`).
+- On completion the result is shown: best order, estimated time, saving vs. original.
+- `POST /api/start_production` publishes the order to ROS 2 and starts the FS.
+- The optimizer result is also logged to the `optimizer_result` DB table.
+
+---
+
+## 16. Resolved Bugs
 
 ### Bug 1 — xArm1 did not pick the next RED piece from c1s2
 
@@ -957,15 +1033,15 @@ if trigger:
 
 ---
 
-## 16. Current Status and Pending Work
+## 17. Current Status and Pending Work
 
 ### Implemented and Functional
 
 - [x] Full Plug-and-Plan architecture with 7 domains
 - [x] Command/Ack/Status protocol with correlation by command_id
-- [x] HMAC infrastructure (warn-only, Phases 1–5)
+- [x] HMAC infrastructure with strict enforcement (AclGuard, 4-gate check)
 - [x] Sequential domain initialisation with retry
-- [x] RED, BLUE, GREEN routes fully implemented
+- [x] RED, BLUE, GREEN routes fully implemented and verified on hardware
 - [x] Sovereign sensors — c1s1/c1s2/c2s1/c2s2 hardware-only
 - [x] Virtual sensors c3/c4 written by logic
 - [x] `_c2s2_committed` flag for conveyor2 without delay
@@ -977,23 +1053,22 @@ if trigger:
 - [x] Conveyor timeout stops motor before raising error
 - [x] PieceTracker with full location history
 - [x] CycleTracker with throughput and statistics
-- [x] StubDBWriter (log) + RealDBWriter (psycopg2, pending activation)
+- [x] RealDBWriter active — remote PostgreSQL, 14-table schema, auto-bootstrap
 - [x] Settle time guards for c3 (10 s) and c4 (14.5 s)
 - [x] Robot1 with local vision and destination by colour+shape (includes CIRCLE)
 - [x] Robot2 with local vision at c2s2
 - [x] Bantam CNC with ZMQ door and fallback to SCRAP
 - [x] Conveyor3 and Conveyor4 Arduino with timer auto-stop
 - [x] GlobalVision with optional preview
+- [x] xArm1 and xArm2 in hardware mode (UFACTORY Lite6)
 - [x] xArm2 parallel to xArm1 (independent TaskRunners in UFactory VS)
 - [x] Robot1 parallel to robot2 (independent TaskRunners in Niryo VS)
 - [x] Watchdog timeouts on all domains
+- [x] Dashboard node — HTTP port 8080, live topology, camera streams, DB analytics
+- [x] SimPy optimizer — finds optimal piece order before production starts
 
 ### Pending / Not Implemented
 
-- [ ] **RealDBWriter activated** — implementation ready, missing wiring in `factory_supervisor.py` and PostgreSQL table creation
-- [ ] **dashboard_node** — node present in launch file but without implementation (explicitly deferred)
-- [ ] **Full 4-piece RED cycle verified on hardware** — architecture ready, pending real test
-- [ ] **ufactory_mode:=hardware in production** — currently dry_run for xArms
-- [ ] **LASER_DONE_WAITING_C2S1 verified on hardware** — new path, not tested on real hardware
-- [ ] **Strict HMAC enforcement** — infrastructure ready, currently warn-only
-- [ ] **Full BLUE route with real Bantam** — Bantam simulated (25 s delay), ZMQ door pending test
+- [ ] **Full BLUE route with real Bantam** — Bantam door ZMQ tested but full end-to-end run pending
+- [ ] **LASER_DONE_WAITING_C2S1 multi-piece stress test** — path verified in single-piece runs, not yet stress-tested with 4+ RED pieces in parallel pipeline
+- [ ] **dashboard_node — DB analytics panel** — live cycle table functional; historical charts (matplotlib/chart.js) not yet implemented
