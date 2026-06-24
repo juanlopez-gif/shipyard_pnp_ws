@@ -765,9 +765,42 @@ Each `transfer_piece()` calls `db.insert_piece_transfer()`.
 
 **File:** `factory/cycle_tracker.py`
 
-Measures cycle time per piece. `start_cycle(piece_id)` when xArm2 deposits at c1s1. `complete_cycle(piece_id, color, shape, route)` when robot1 completes the final deposit.
+Two tracking layers:
 
-Provides `get_throughput_last_n(20)` in pieces/hour and `snapshot()` with statistics.
+**Entity-level cycles** — one active cycle per robot/machine at a time, with named phases and timing:
+
+```
+start_entity_cycle("xarm1", "C1S2_TO_LASER", piece_id=..., color="RED")
+add_phase("xarm1", "MOVING_C1S2_TO_LASER")
+# ... hardware executes ...
+complete_entity_cycle("xarm1")   →  inserted into cycle_event via insert_entity_cycle()
+```
+
+Entities tracked: `xarm1`, `xarm2`, `robot1`, `robot2`, `laser`, `bantam`
+
+Task names per entity:
+
+| Entity | Tasks |
+|---|---|
+| `xarm2` | `FEED_TO_C1S1`, `FEED_GREEN_TO_C3` |
+| `xarm1` | `C1S2_TO_C2S1`, `C1S2_TO_LASER`, `LASER_TO_C2S1` |
+| `laser` | `PROCESS_RED` |
+| `robot2` | `CLASSIFY_C2S2_TO_C4`, `CLASSIFY_C2S2_TO_BANTAM`, `CLASSIFY_C2S2_TO_IBS`, `CLASSIFY_C2S2_TO_SCRAP`, `IBS_TO_BANTAM`, `BANTAM_TO_C4` |
+| `bantam` | `PROCESS_BLUE` |
+| `robot1` | `UNLOAD_C4`, `UNLOAD_C3` |
+
+Discarded cycles (vision failure, command failure, interrupted) are also written to DB with `is_discarded=TRUE` and `discarded_reason`.
+
+**Piece-level cycles** (backward compat) — total production time per piece:
+
+```
+start_cycle(piece_id)         # when piece leaves initial_stack
+complete_cycle(piece_id, ...)  # when robot1 deposits at final location
+```
+
+Written to `piece_outcome` and increments `production_run.pieces_completed`.
+
+Provides `get_throughput_last_n(20)` in pieces/hour and `snapshot()` with statistics including active entity cycles.
 
 ---
 
@@ -887,7 +920,7 @@ The `RealDBWriter` bootstraps automatically on first run: creates the schema and
 | `piece` | One row per piece: colour, shape, position in initial stack |
 | `piece_transfer` | Every location change: piece_id, from/to, timestamp |
 | `piece_outcome` | Final disposition: route, final location, total time |
-| `cycle_event` | Complete cycle per piece: start/end, cycle_time_s, route, colour, shape |
+| `cycle_event` | Entity-level cycles with phases: entity, task_name, phases (JSONB), duration, is_discarded |
 | `robot_task` | Every robot command: command_id, robot_id, task, source, target, duration, result |
 | `machine_job` | Laser and Bantam jobs: door times, processing duration, result |
 | `vision_detection` | Every vision call: system, detected colour/shape, slot_id, duration |

@@ -105,15 +105,22 @@ def _ddl(schema: str) -> list[str]:
 
         f"""
         CREATE TABLE IF NOT EXISTS {S}.cycle_event (
-            id             BIGSERIAL   PRIMARY KEY,
-            run_id         TEXT        NOT NULL REFERENCES {S}.production_run(run_id),
-            piece_id       TEXT,
-            color          TEXT,
-            shape          TEXT,
-            route          TEXT,
-            started_at     TIMESTAMPTZ,
-            completed_at   TIMESTAMPTZ,
-            cycle_time_s   FLOAT
+            id               BIGSERIAL   PRIMARY KEY,
+            run_id           TEXT        NOT NULL REFERENCES {S}.production_run(run_id),
+            ts               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            entity           TEXT        NOT NULL,
+            task_name        TEXT        NOT NULL,
+            cycle_number     INT,
+            piece_id         TEXT,
+            color            TEXT,
+            route            TEXT,
+            started_at       TIMESTAMPTZ,
+            completed_at     TIMESTAMPTZ,
+            total_duration_s FLOAT,
+            is_discarded     BOOLEAN     NOT NULL DEFAULT FALSE,
+            discarded_reason TEXT,
+            phases           JSONB,
+            metadata         JSONB
         )""",
 
         # ── Robot / Machine ───────────────────────────────────────────────────
@@ -333,6 +340,12 @@ class StubDBWriter:
         _log.debug("DB(stub) cycle_complete: %s %.1fs %s",
                    record.piece_id, record.cycle_time_sec, record.route)
 
+    def insert_entity_cycle(self, cycle: Any) -> None:
+        status = "DISCARDED" if cycle.is_discarded else "OK"
+        _log.debug("DB(stub) entity_cycle: %s/%s #%d %s dur=%.3fs",
+                   cycle.entity, cycle.task_name, cycle.cycle_number,
+                   status, cycle.total_duration_s or 0)
+
     # new methods ─────────────────────────────────────────────────────────────
     def insert_piece(self, piece: dict, position: int) -> None: pass
     def insert_piece_outcome(self, piece_id, route, final_location, completed, completed_at=None, total_time_s=None) -> None: pass
@@ -399,18 +412,35 @@ class RealDBWriter:
         self._conn = psycopg2.connect(**_CONN_DEFAULTS)
         self._conn.autocommit = False
 
-        # Create schema + all tables (idempotent)
+        # Create schema + all tables (idempotent).
+        # _pre_migrate drops tables whose schema changed before DDL recreates them.
         with self._conn.cursor() as cur:
             cur.execute(f"CREATE SCHEMA IF NOT EXISTS {_SCHEMA}")
+            self._pre_migrate(cur)
             for stmt in _ddl(_SCHEMA):
                 cur.execute(stmt)
         self._conn.commit()
         self._migrate()
         _log.info("[db] Schema %s.%s ready", _CONN_DEFAULTS["dbname"], _SCHEMA)
 
+    def _pre_migrate(self, cur) -> None:
+        """Drop tables whose schema changed before DDL recreates them.
+        Called inside _bootstrap with an open cursor (no commit here)."""
+        # cycle_event v1 had cycle_time_s and no entity column — drop it so
+        # DDL recreates it with the entity-level schema.
+        cur.execute("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_schema = %s AND table_name = 'cycle_event'
+        """, (_SCHEMA,))
+        cols = {row[0] for row in cur.fetchall()}
+        if cols and "entity" not in cols:
+            _log.info("[db] dropping legacy cycle_event for entity-level schema upgrade")
+            cur.execute(f"DROP TABLE IF EXISTS {_SCHEMA}.cycle_event")
+
     def _migrate(self) -> None:
-        """Upgrade piece and piece_outcome tables from single-column PK to composite (piece_id, run_id)."""
+        """Column-level migrations that run after DDL."""
         with self._conn.cursor() as cur:
+            # Upgrade piece and piece_outcome from single-column PK to composite (piece_id, run_id).
             for table in ("piece", "piece_outcome"):
                 cur.execute("""
                     SELECT COUNT(*) FROM information_schema.key_column_usage kcu
@@ -520,24 +550,10 @@ class RealDBWriter:
         )
 
     def insert_cycle_complete(self, record: Any) -> None:
+        """Update piece_outcome and increment pieces_completed for a finished piece.
+        Entity-level cycle details are written separately via insert_entity_cycle()."""
         import datetime as _dt
-        started  = _dt.datetime.fromtimestamp(record.started_at,  tz=_dt.timezone.utc)
         finished = _dt.datetime.fromtimestamp(record.completed_at, tz=_dt.timezone.utc)
-        self._exec(
-            f"""INSERT INTO {_SCHEMA}.cycle_event
-                    (run_id, piece_id, color, shape, route, started_at, completed_at, cycle_time_s)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s)""",
-            (
-                self.run_id,
-                record.piece_id,
-                getattr(record, "color",  None),
-                getattr(record, "shape",  None),
-                record.route,
-                started,
-                finished,
-                round(record.cycle_time_sec, 3),
-            ),
-        )
         self._exec(
             f"""INSERT INTO {_SCHEMA}.piece_outcome
                     (piece_id, run_id, route_taken, final_location, total_time_s, completed, completed_at)
@@ -557,10 +573,38 @@ class RealDBWriter:
                 finished,
             ),
         )
-        # Increment pieces_completed counter
         self._exec(
             f"UPDATE {_SCHEMA}.production_run SET pieces_completed=pieces_completed+1 WHERE run_id=%s",
             (self.run_id,),
+        )
+
+    def insert_entity_cycle(self, cycle: Any) -> None:
+        """Insert one entity-level cycle (with phases) into cycle_event."""
+        import datetime as _dt
+        def _ts(t):
+            return _dt.datetime.fromtimestamp(t, tz=_dt.timezone.utc) if t else None
+        self._exec(
+            f"""INSERT INTO {_SCHEMA}.cycle_event
+                    (run_id, ts, entity, task_name, cycle_number, piece_id, color, route,
+                     started_at, completed_at, total_duration_s,
+                     is_discarded, discarded_reason, phases, metadata)
+                VALUES (%s,NOW(),%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+            (
+                self.run_id,
+                cycle.entity,
+                cycle.task_name,
+                cycle.cycle_number,
+                cycle.piece_id,
+                cycle.color,
+                cycle.route,
+                _ts(cycle.started_at),
+                _ts(cycle.completed_at),
+                cycle.total_duration_s,
+                cycle.is_discarded,
+                cycle.discarded_reason,
+                json.dumps(cycle.phases_as_list()),
+                json.dumps(cycle.metadata),
+            ),
         )
 
     # ── Piece ─────────────────────────────────────────────────────────────────
