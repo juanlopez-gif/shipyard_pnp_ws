@@ -1,0 +1,142 @@
+BBRBBRBBRRRR (6 ROJAS + 6 AZULES) - SIMULACION VS REALIDAD
+==============================================================================
+Generated: 2026-07-04
+
+Real DB run:
+  run_id: 20260704_112132_RRRRRRBBBBBB
+  original_order:  RRRRRRBBBBBB
+  optimized_order: BBRBBRBBRRRR
+  status: COMPLETED, pieces_completed = 12/12, is_discarded = 0/77 ciclos
+  optimizer: heuristic, 14 permutaciones evaluadas, saving estimado 21.8s (1.73%)
+
+Comparison origin:
+  t=0 es el primer ciclo real de xarm2 (FEED_TO_C1S1 piece-007) y el
+  MOVE_TO_STACK inicial en SimPy para el orden optimizado.
+  Fin: RETURNING_HOME de robot1 tras depositar la ultima pieza (piece-012).
+
+Main interval:
+  Realidad:        1223.985 s  (11:22:12.076 -> 11:42:36.061)
+  Sim BBRBBRBBRRRR: 1237.700 s
+  Diferencia:         -13.715 s  (la realidad fue 1.11% MAS RAPIDA que la simulacion)
+
+Para referencia:
+  Sim original RRRRRRBBBBBB: 1259.500 s
+  Ahorro real vs sim original: 35.515 s (2.82%) -- coherente con que el orden
+  optimizado sí mejora sobre el original, aunque el ahorro real observado es
+  mayor que el 21.8s que predijo el optimizador.
+
+------------------------------------------------------------------------------
+POR TAREA: promedio real vs modelo (Config de shipyard_sim.py)
+------------------------------------------------------------------------------
+entidad/tarea                    n   real_avg   modelo   diff      %
+xarm2  FEED_TO_C1S1              12    13.61     13.55   +0.06s   +0.4%
+xarm1  C1S2_TO_C2S1               6    15.76     15.75   +0.01s   +0.1%
+xarm1  C1S2_TO_LASER              6    15.26     15.25   +0.01s   +0.1%
+xarm1  LASER_TO_C2S1              6    14.99     14.95   +0.04s   +0.3%
+laser  PROCESS_RED                6    22.40     22.80   -0.40s   -1.8%
+robot2 CLASSIFY_C2S2_TO_C4        6    33.56     33.60   -0.04s   -0.1%
+robot2 BANTAM_TO_C4               6    36.44     36.40   +0.04s   +0.1%
+robot2 IBS_TO_BANTAM              5    37.05     36.90   +0.15s   +0.4%
+bantam PROCESS_BLUE               6    48.75     48.50   +0.25s   +0.5%
+robot1 UNLOAD_C4                 12    37.26     38.78*  -1.52s   -3.9%
+robot2 CLASSIFY_C2S2_TO_BANTAM     1    42.42     36.30   +6.12s  +16.9%
+robot2 CLASSIFY_C2S2_TO_IBS        5    30.61     24.20   +6.41s  +26.5%
+
+* usa la curva de vision de robot1 recalibrada el 2026-07-03 (13.0/7.0/6.4 +
+  fallback 4.9s); ver "VISION DE ROBOT1" abajo, el dato real de esta corrida
+  sugiere que esa curva quedo demasiado alta.
+
+------------------------------------------------------------------------------
+HALLAZGO PRINCIPAL: la colocacion en BANTAM/IBS de robot2 tarda ~6.5s mas
+de lo que modela el simulador -- CONFIRMADO POR SEGUNDA VEZ
+------------------------------------------------------------------------------
+Bajando a la fase real (jsonb "phases"), el hueco esta concentrado en el
+movimiento fisico de colocar la pieza, no en la vision:
+
+  robot2 CLASSIFY_C2S2_TO_BANTAM piece-007:
+    VISION_C2S2:            13.31 s  (modelo idx0 curva ROBOT2_VISION_1=13.8, OK)
+    MOVING_C2S2_TO_BANTAM:  29.11 s  (modelo PICK_C2S2+PLACE_BANTAM+CLEAR_BANTAM
+                                       = 3.5+14.0+2.5 = 20.0s -> real +9.11s)
+
+  robot2 CLASSIFY_C2S2_TO_IBS (5 muestras, piece-008..012):
+    VISION_C2S2 avg:         5.93 s  (modelo ROBOT2_VISION=6.2, real -0.27s, OK)
+    MOVING_C2S2_TO_IBS avg: 24.68 s  (modelo MOVE_TO_C2S2+PICK_C2S2+PLACE_IBS
+                                       = 2.5+3.5+12.0 = 18.0s -> real +6.68s)
+
+La vision de robot2 esta bien calibrada (diferencias de -0.27s a +0.12s segun
+el indice de la curva). El error esta 100% en el movimiento fisico hacia
+bantam/IBS -- el mismo patron que ya se vio en la corrida anterior
+(20260703_184658, CLASSIFY_C2S2_TO_BANTAM +6.2s). Con dos corridas
+independientes mostrando +6.1s a +9.1s en el mismo tramo, esto ya no parece
+ruido: ROBOT2_PLACE_BANTAM (14.0) y ROBOT2_PLACE_IBS (12.0) en
+shipyard_sim.py estan subestimados, o falta tiempo de aproximacion adicional
+hacia ese lado del workspace de robot2 que el modelo no captura.
+
+Por que no afecta al total: robot2 no es el cuello de botella del sistema en
+este layout (RED puro por xarm1/laser, BLUE puro por bantam en serie) --
+mientras el bantam procesa una pieza 48.7s, robot2 tiene margen de sobra para
+absorber el retraso de la colocacion sin alargar la cola. Por eso el total
+general sale MAS RAPIDO que la simulacion pese a este hueco reproducible.
+
+------------------------------------------------------------------------------
+VISION DE ROBOT1: la recalibracion del 2026-07-03 quedo alta -- revisar
+------------------------------------------------------------------------------
+Las 12 piezas de esta corrida pasan por UNLOAD_C4 (no hay verdes, no se toca
+la ruta C3). Esto da la muestra mas grande hasta ahora de VISION_C4 real:
+
+  piece-001: 5.59s   piece-005: 5.12s   piece-009: 5.02s
+  piece-002: 5.16s   piece-006: 5.50s   piece-010: 5.01s
+  piece-003: 5.65s   piece-007: 5.13s   piece-011: 4.95s
+  piece-004: 5.38s   piece-008: 5.36s   piece-012: 6.06s
+
+  media: 5.33s, min 4.95s, max 6.06s -- SIN arranque en frio visible.
+
+Esto contradice la curva que calibre el 2026-07-03 en base a solo 2 corridas
+pequenas (ROBOT1_VISION_1=13.0 "en frio" / VISION_2=7.0 / VISION_3=6.4 /
+fallback ROBOT1_VISION_C4=4.9). Con esta muestra mas grande y limpia, la
+vision de robot1 parece plana en ~5.3s desde la primera pieza, sin penalizacion
+de arranque en frio real. Los 13.0s que vi antes probablemente eran ruido de
+otro tipo (arranque del proceso/ROS, no de la vision en si) confundido con
+"primera llamada de vision".
+
+Recomendacion: bajar ROBOT1_VISION_1/2/3 y el fallback C3/C4 a algo mas cercano
+a 5.3s plano, en vez de la curva escalonada actual. No lo he tocado -- lo dejo
+para que lo confirmes, porque la ultima vez que ajuste esto solo con 2 muestras
+resulto ser prematuro.
+
+------------------------------------------------------------------------------
+VALIDACION DEL DRENAJE IBS -> BANTAM (fix del 2026-07-03/04)
+------------------------------------------------------------------------------
+Confirmado en produccion: las 5 piezas azules que no cupieron en el bantam
+directamente (008,009,010,011,012) pasaron TODAS por IBS_TO_BANTAM y
+PROCESS_BLUE sin quedarse atascadas -- el fix de _pending_bantam_piece +
+prioridad C2S2 > bantam sigue funcionando correctamente en una corrida de
+12 piezas real:
+
+  bantam PROCESS_BLUE piece-007:   t=   78.3s
+  bantam PROCESS_BLUE piece-008:   t=  608.4s
+  bantam PROCESS_BLUE piece-009:   t=  730.5s
+  bantam PROCESS_BLUE piece-010:   t=  852.7s
+  bantam PROCESS_BLUE piece-011:   t=  974.8s
+  bantam PROCESS_BLUE piece-012:   t= 1096.7s
+
+  Cadencia entre trabajos consecutivos del bantam: ~122s cada uno
+  (48.7s de proceso + ~73s de robot2 haciendo BANTAM_TO_C4 + IBS_TO_BANTAM
+  + UNLOAD_C4 de robot1 en paralelo) -- serializado correctamente, sin huecos
+  ni piezas saltadas.
+
+------------------------------------------------------------------------------
+CONCLUSION
+------------------------------------------------------------------------------
+- El total real (1223.99s) queda un 1.1% POR DEBAJO de lo simulado (1237.70s)
+  -- el sistema fisico va mas rapido que el modelo en esta configuracion.
+- xarm1, xarm2, laser, bantam y las rutas robot2->C4 y bantam<->IBS estan
+  calibrados con precision menor al 1%.
+- Hallazgo reproducible (2 corridas, 2026-07-03 y 2026-07-04): la colocacion
+  de robot2 en BANTAM/IBS tarda sistematicamente ~6.5s mas de lo modelado.
+  No afecta el total porque robot2 no es el cuello de botella aqui, pero si
+  se prueba un mix con mas piezas azules o menos margen, podria empezar a
+  importar.
+- La curva de vision de robot1 calibrada el 2026-07-03 (con solo 2 muestras)
+  parece haber quedado demasiado alta frente a esta muestra de 12 piezas
+  limpias -- candidata a revisar antes de confiar en ella para el optimizador.

@@ -46,12 +46,24 @@ from shipyard_pnp.shared.contracts import (
 # color/shape son opcionales: si se especifican, se usan como hint para globalvision.
 # Si se omiten (None), globalvision los detecta automáticamente con visión.
 INITIAL_STACK_ORDER = [
-    {"id": "piece-001", "color": "BLUE",  "shape": None},
+    {"id": "piece-001", "color": "GREEN", "shape": None},
     {"id": "piece-002", "color": "GREEN", "shape": None},
     {"id": "piece-003", "color": "GREEN", "shape": None},
-    {"id": "piece-004", "color": "BLUE",  "shape": None},
+    {"id": "piece-004", "color": "GREEN", "shape": None},
     {"id": "piece-005", "color": "GREEN", "shape": None},
-    {"id": "piece-006", "color": "RED",   "shape": None},
+    {"id": "piece-006", "color": "GREEN", "shape": None},
+    {"id": "piece-007", "color": "RED",   "shape": None},
+    {"id": "piece-008", "color": "RED",   "shape": None},
+    {"id": "piece-009", "color": "RED",   "shape": None},
+    {"id": "piece-010", "color": "RED",   "shape": None},
+    {"id": "piece-011", "color": "RED",   "shape": None},
+    {"id": "piece-012", "color": "RED",   "shape": None},
+    {"id": "piece-013", "color": "BLUE",  "shape": None},
+    {"id": "piece-014", "color": "BLUE",  "shape": None},
+    {"id": "piece-015", "color": "BLUE",  "shape": None},
+    {"id": "piece-016", "color": "BLUE",  "shape": None},
+    {"id": "piece-017", "color": "BLUE",  "shape": None},
+    {"id": "piece-018", "color": "BLUE",  "shape": None},
 ]
 
 
@@ -107,9 +119,6 @@ class FactorySupervisor(Node):
         self._pending_laser_piece_id: Optional[str] = None
         self._pending_bantam_piece: Optional[str] = None
         self._last_state_log: float = 0.0
-        # True from robot2 vision-complete until conveyor2 starts running.
-        # Allows conveyor2 to start even while c2s2 physically still reads OCCUPIED.
-        self._c2s2_committed: bool = False
 
         # Timestamps of the last C3/C4 deposit; robot1 waits until settle_sec has elapsed.
         self._c3_deposit_time: float = 0.0
@@ -480,6 +489,10 @@ class FactorySupervisor(Node):
             return
         rtype = _TYPE_MAP.get(resource_id, "unknown")
         self.db.insert_resource_state_change(resource_id, rtype, prev_state, resource_state)
+        if resource_id == "robot1":
+            unloading_rules.sync_robot1_vision_phase(
+                self, prev_state or "", resource_state
+            )
 
     def _apply_sensor_result(self, result: dict) -> bool:
         sensor_id = result.get("sensor_id")
@@ -632,11 +645,24 @@ class FactorySupervisor(Node):
                 self.get_logger().info(
                     f"Optimized order updated ({len(order)} pieces): {order}"
                 )
+
+        saving_s = payload.get("saving_s", 0.0)
         self.db.insert_operator_event("APPLY_ORDER", f"order={order}")
-        self.db.update_production_run_optimized_order(
-            order,
-            getattr(self, "_optimizer_savings_s", 0.0),
-        )
+        self.db.update_production_run_optimized_order(order, saving_s)
+
+        # Log optimizer result if the dashboard sent stats alongside the order.
+        if "original_time_s" in payload:
+            self.db.insert_optimizer_result(
+                original_order        = payload.get("original_order", list(order)),
+                best_order            = list(order),
+                original_time_s       = payload["original_time_s"],
+                best_time_s           = payload.get("best_time_s", payload["original_time_s"]),
+                saving_s              = saving_s,
+                saving_pct            = payload.get("saving_pct", 0.0),
+                method                = payload.get("method", "unknown"),
+                permutations_evaluated= payload.get("permutations_evaluated", 0),
+                optimizer_runtime_s   = payload.get("optimizer_runtime_s", 0.0),
+            )
 
     # ------------------------------------------------------------------
     # DB support timers
@@ -657,8 +683,15 @@ class FactorySupervisor(Node):
 
     def destroy_node(self) -> None:
         try:
+            # shutdown_rules.py advances SHUTTING_DOWN -> STOPPED once the full
+            # shutdown sequence finishes, so by the time destroy_node() runs
+            # after a clean shutdown the phase is already STOPPED, not
+            # SHUTTING_DOWN. Accept both — STOPPED is only ever set there.
+            clean_shutdown = self.planner_phase in (
+                PlannerPhase.SHUTTING_DOWN, PlannerPhase.STOPPED,
+            )
             self.db.update_production_run_finished(
-                status="COMPLETED" if self.planner_phase == PlannerPhase.SHUTTING_DOWN else "ABORTED",
+                status="COMPLETED" if clean_shutdown else "ABORTED",
             )
         except Exception:
             pass

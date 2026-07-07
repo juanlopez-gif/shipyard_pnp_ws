@@ -48,7 +48,9 @@ source /opt/ros/jazzy/setup.bash
 source /home/isecapstone/ros2_ws/install/setup.bash         # conveyor3_driver, door_controller
 source /home/isecapstone/dev_ws/install/setup.bash          # xarm_msgs, xarm_api, uf_ros_lib
 source /home/isecapstone/ros2_drivers_ws/install/setup.bash # niryo_ned_ros2_interfaces
-source "$REPO_ROOT/install/setup.bash"                       # shipyard_pnp
+if [ -f "$REPO_ROOT/install/setup.bash" ]; then
+    source "$REPO_ROOT/install/setup.bash"                   # shipyard_pnp (ya compilado)
+fi
 set -u
 
 cd "$REPO_ROOT"

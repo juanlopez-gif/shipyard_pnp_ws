@@ -1,0 +1,300 @@
+BBGGGR / SIX-PIECE RUN - SIMULATION VS REALITY COMPONENT STATES
+==============================================================================
+Generated: 2026-06-28
+
+Real DB run used:
+  run_id: 20260627_215029_BGGBGR
+  status: ABORTED, but pieces_completed = 6/6
+  production elapsed: 377.301 s (includes boot/shutdown)
+  original_order:  BGGBGR = ["BLUE", "GREEN", "GREEN", "BLUE", "GREEN", "RED"]
+  optimized_order: BBGGRG = ["BLUE", "BLUE", "GREEN", "GREEN", "RED", "GREEN"]
+
+Important note:
+  I did not find an exact DB production_run with original_order BBGGGR.
+  The latest 6-piece run in the DB is the one above. Its executed order in the
+  command/cycle logs is BBGGRG, because the optimizer feeds piece-001, piece-004,
+  piece-002, piece-003, piece-006, piece-005.
+
+Comparison origin:
+  t=0 is the first xArm2 cycle start in reality, and SimPy xArm2 MOVE_TO_STACK.
+  Real origin from production_run start: 30.700 s.
+
+Main interval:
+  Reality:    326.288 s  (first xArm2 cycle start -> final robot1 cycle end)
+  Sim BBGGRG: 325.200 s  (same executed order as DB)
+  Difference: -1.088 s   (simulation is 0.33% faster)
+
+Other SimPy orders:
+  Literal requested BBGGGR: 325.200 s
+  DB original BGGBGR:       334.500 s
+
+Adjustment made after checking IBS/Bantam logs:
+  src/shipyard_pnp/shipyard_pnp/nodes/shipyard_sim.py
+  ROBOT2_CLEAR_BANTAM_FROM_IBS = 9.6
+
+Reason:
+  In reality, the IBS->Bantam MOVE_PIECE for the second blue piece includes the
+  post-place clear/return before Bantam RUN_JOB starts. With the old 2.5 s clear,
+  SimPy released Bantam about 7.3 s too early.
+
+
+REALITY CYCLES BY COMPONENT (relative to xArm2 first cycle start)
+==============================================================================
+
+[bantam]
+  start_s  end_s    dur_s    task                  piece      route
+   77.113  125.594  48.481   PROCESS_BLUE          piece-001  BLUE
+  199.027  247.723  48.696   PROCESS_BLUE          piece-004  BLUE
+
+[laser]
+  start_s  end_s    dur_s    task                  piece      route
+  107.757  134.950  27.194   PROCESS_RED           piece-006  RED
+
+[robot1]
+  start_s  end_s    dur_s    task                  piece      route
+   48.289   89.545  41.256   UNLOAD_C3             piece-002  GREEN
+   89.549  129.461  39.912   UNLOAD_C3             piece-003  GREEN
+  129.465  170.914  41.449   UNLOAD_C3             piece-005  GREEN
+  170.918  206.803  35.885   UNLOAD_C4             piece-001  BLUE
+  237.503  276.613  39.110   UNLOAD_C4             piece-006  RED
+  291.000  326.288  35.288   UNLOAD_C4             piece-004  BLUE
+
+[robot2]
+  start_s  end_s    dur_s    task                  piece      route
+   35.043   77.102  42.059   CLASSIFY_C2S2_TO_BANTAM piece-001 BANTAM
+   77.121  107.705  30.583   CLASSIFY_C2S2_TO_IBS    piece-004 IBS
+  125.599  162.123  36.524   BANTA4M_TO_C            piece-001 BLUE
+  162.128  199.022  36.894   IBS_TO_BANTAM           piece-004 BLUE
+  199.032  232.469  33.438   CLASSIFY_C2S2_TO_C4     piece-006 C4
+  249.551  286.033  36.482   BANTAM_TO_C4            piece-004 BLUE
+
+[xarm1]
+  start_s  end_s    dur_s    task                  piece      route
+   15.082   30.766  15.684   C1S2_TO_C2S1          piece-001  BLUE
+   30.770   46.493  15.723   C1S2_TO_C2S1          piece-004  BLUE
+   92.479  107.754  15.276   C1S2_TO_LASER         piece-006  RED
+  134.955  150.003  15.048   LASER_TO_C2S1         piece-006  RED
+
+[xarm2]
+  start_s  end_s    dur_s    task                  piece      color
+    0.000   13.368  13.368   FEED_TO_C1S1          piece-001  BLUE
+   13.371   26.840  13.469   FEED_TO_C1S1          piece-004  BLUE
+   26.843   42.110  15.266   FEED_GREEN_TO_C3      piece-002  GREEN
+   61.587   77.208  15.621   FEED_GREEN_TO_C3      piece-003  GREEN
+   77.215   90.705  13.491   FEED_TO_C1S1          piece-006  RED
+  102.000  117.397  15.396   FEED_GREEN_TO_C3      piece-005  GREEN
+
+
+REALITY TRANSFERS (IBS/Bantam relevant)
+==============================================================================
+  t_s      piece      from_loc                  to_loc
+   77.102  piece-001  conveyor2                 bantam_bed
+  107.704  piece-004  conveyor2                 intermediate_blue_stack
+  152.524  piece-001  bantam_bed                c4_location
+  198.007  piece-001  c4_location               final_blue_circle
+  199.025  piece-004  intermediate_blue_stack   bantam_bed
+  276.486  piece-004  bantam_bed                c4_location
+  317.637  piece-004  c4_location               final_blue_circle
+
+
+IBS -> BANTAM CHECK
+==============================================================================
+
+Reality, second blue piece (piece-004):
+  Robot2 CLASSIFY_C2S2_TO_IBS:  77.121 -> 107.705 s
+  piece-004 enters IBS:                 107.704 s
+  Robot2 IBS_TO_BANTAM:        162.128 -> 199.022 s
+  piece-004 enters Bantam bed:          199.025 s
+  Bantam PROCESS_BLUE starts:           199.027 s
+  Bantam machining begins/status:       ~210.666 s
+
+SimPy after adjustment, second blue piece (P02):
+  Robot2 MOVE_TO_IBS:           161.950 -> 170.950 s
+  Robot2 PICK_IBS:              170.950 -> 173.950 s
+  Robot2 PLACE_BANTAM:          173.950 -> 189.250 s
+  Robot2 CLEAR_BANTAM:          189.250 -> 198.850 s
+  Bantam DOOR_CLOSING starts:            198.850 s
+  Bantam PROCESSING starts:              210.250 s
+
+IBS/Bantam deltas:
+  Bantam start from IBS:
+    reality 199.027 s vs sim 198.850 s -> sim is 0.177 s early
+  Bantam processing/machining:
+    reality ~210.666 s vs sim 210.250 s -> sim is ~0.416 s early
+
+Conclusion:
+  The IBS->Bantam logic now matches the real logs closely. The important fix was
+  not a Bantam door duration change; it was delaying Bantam release on the IBS
+  path until Robot2 has effectively cleared/returned, as the real MOVE_PIECE
+  command does.
+
+
+SIMULATION STATES BY COMPONENT (BBGGRG executed order)
+==============================================================================
+
+[bantam]
+  t_s      dur_s    state                         piece color
+    0.000   12.100  DOOR_OPENING_INIT
+   12.100   62.500  IDLE
+   74.600    2.400  WAITING_ROBOT2                P01   BLUE
+   77.000    0.000  WORKING                       P01   BLUE
+   77.000   11.400  DOOR_CLOSING                  P01   BLUE
+   88.400   25.000  PROCESSING                    P01   BLUE
+  113.400   12.100  DOOR_OPENING                  P01   BLUE
+  125.500   12.050  FINISHED                      P01   BLUE
+  137.550   51.750  IDLE
+  189.300    9.550  WAITING_ROBOT2                P02   BLUE
+  198.850    0.000  WORKING                       P02   BLUE
+  198.850   11.400  DOOR_CLOSING                  P02   BLUE
+  210.250   25.000  PROCESSING                    P02   BLUE
+  235.250   12.100  DOOR_OPENING                  P02   BLUE
+  247.350   12.500  FINISHED                      P02   BLUE
+  259.850   65.350  IDLE
+
+[laser]
+  t_s      dur_s    state                         piece color
+   93.100   22.800  PROCESSING                    P05   RED
+  115.900    4.600  FINISHED                      P05   RED
+  120.500  204.700  IDLE
+
+[robot1]
+  t_s      dur_s    state                         piece color
+    0.000   48.600  IDLE
+   48.600    3.000  MOVE_TO_C3                    P03   GREEN
+   51.600    3.000  VISION                        P03   GREEN
+   54.600    5.600  PICK_C3                       P03   GREEN
+   60.200   19.800  PLACE_FINAL_GREEN             P03   GREEN
+   80.000    9.800  RETURN_HOME                   P03   GREEN
+   89.800    0.000  IDLE
+   89.800    3.000  MOVE_TO_C3                    P04   GREEN
+   92.800    3.000  VISION                        P04   GREEN
+   95.800    5.600  PICK_C3                       P04   GREEN
+  101.400   19.800  PLACE_FINAL_GREEN             P04   GREEN
+  121.200    9.800  RETURN_HOME                   P04   GREEN
+  131.000    0.000  IDLE
+  131.000    3.000  MOVE_TO_C3                    P06   GREEN
+  134.000    3.000  VISION                        P06   GREEN
+  137.000    5.600  PICK_C3                       P06   GREEN
+  142.600   19.800  PLACE_FINAL_GREEN             P06   GREEN
+  162.400    9.800  RETURN_HOME                   P06   GREEN
+  172.200    0.000  IDLE
+  172.200    2.200  MOVE_TO_C4                    P01   BLUE
+  174.400    3.000  VISION                        P01   BLUE
+  177.400    5.100  PICK_C4                       P01   BLUE
+  182.500   15.800  PLACE_FINAL_BLUE              P01   BLUE
+  198.300    9.800  RETURN_HOME                   P01   BLUE
+  208.100   29.400  IDLE
+  237.500    2.200  MOVE_TO_C4                    P05   RED
+  239.700    3.000  VISION                        P05   RED
+  242.700    5.100  PICK_C4                       P05   RED
+  247.800   15.800  PLACE_FINAL_RED               P05   RED
+  263.600    9.800  RETURN_HOME                   P05   RED
+  273.400   15.900  IDLE
+  289.300    2.200  MOVE_TO_C4                    P02   BLUE
+  291.500    3.000  VISION                        P02   BLUE
+  294.500    5.100  PICK_C4                       P02   BLUE
+  299.600   15.800  PLACE_FINAL_BLUE              P02   BLUE
+  315.400    9.800  RETURN_HOME                   P02   BLUE
+  325.200    0.000  IDLE
+
+[robot2]
+  t_s      dur_s    state                         piece color
+    0.000   40.700  IDLE
+   40.700    2.500  MOVE_TO_C2S2                  P01   BLUE
+   43.200   13.800  VISION                        P01   BLUE
+   57.000    3.500  PICK_C2S2                     P01   BLUE
+   60.500   14.000  PLACE_BANTAM                  P01   BLUE
+   74.500    2.500  CLEAR_BANTAM                  P01   BLUE
+   77.000    0.000  IDLE
+   77.000    2.500  MOVE_TO_C2S2                  P02   BLUE
+   79.500    7.200  VISION                        P02   BLUE
+   86.700    3.500  PICK_C2S2                     P02   BLUE
+   90.200   12.000  PLACE_IBS                     P02   BLUE
+  102.200    6.650  RETURN_HOME                   P02   BLUE
+  108.850   16.700  IDLE
+  125.550    8.900  MOVE_TO_BANTAM                P01   BLUE
+  134.450    3.100  PICK_BANTAM                   P01   BLUE
+  137.550   14.900  PLACE_C4                      P01   BLUE
+  152.450    9.500  RETURN_HOME                   P01   BLUE
+  161.950    0.000  IDLE
+  161.950    9.000  MOVE_TO_IBS                   P02   BLUE
+  170.950    3.000  PICK_IBS                      P02   BLUE
+  173.950   15.300  PLACE_BANTAM                  P02   BLUE
+  189.250    9.600  CLEAR_BANTAM                  P02   BLUE
+  198.850    0.000  IDLE
+  198.850    2.500  MOVE_TO_C2S2                  P05   RED
+  201.350    6.200  VISION                        P05   RED
+  207.550    3.500  PICK_C2S2                     P05   RED
+  211.050   11.900  PLACE_C4                      P05   RED
+  222.950    9.500  RETURN_HOME                   P05   RED
+  232.450   15.400  IDLE
+  247.850    8.900  MOVE_TO_BANTAM                P02   BLUE
+  256.750    3.100  PICK_BANTAM                   P02   BLUE
+  259.850   14.900  PLACE_C4                      P02   BLUE
+  274.750    9.500  RETURN_HOME                   P02   BLUE
+  284.250   40.950  IDLE
+
+[xarm1]
+  t_s      dur_s    state                         piece color
+    0.000   17.500  IDLE
+   17.500    4.000  MOVE_TO_C1S2                  P01   BLUE
+   21.500    0.550  PICK_C1S2                     P01   BLUE
+   22.050    9.400  PLACE_C2S1                    P01   BLUE
+   31.450    1.800  RETURN_HOME                   P01   BLUE
+   33.250    0.000  IDLE
+   33.250    4.000  MOVE_TO_C1S2                  P02   BLUE
+   37.250    0.550  PICK_C1S2                     P02   BLUE
+   37.800    9.400  PLACE_C2S1                    P02   BLUE
+   47.200    1.800  RETURN_HOME                   P02   BLUE
+   49.000   44.100  IDLE
+   93.100    4.000  MOVE_TO_C1S2                  P05   RED
+   97.100    0.550  PICK_C1S2                     P05   RED
+   97.650    8.900  PLACE_LASER_BED               P05   RED
+  106.550    1.800  RETURN_HOME                   P05   RED
+  108.350    7.600  IDLE
+  115.950    4.000  MOVE_TO_LASER                 P05   RED
+  119.950    0.550  PICK_LASER                    P05   RED
+  120.500    8.600  PLACE_C2S1                    P05   RED
+  129.100    1.800  RETURN_HOME                   P05   RED
+  130.900  194.300  IDLE
+
+[xarm2]
+  t_s      dur_s    state                         piece color
+    0.000    0.000  IDLE
+    0.000    3.800  MOVE_TO_STACK                 P01   BLUE
+    3.800    0.050  VISION                        P01   BLUE
+    3.850    2.500  PICK_STACK                    P01   BLUE
+    6.350    5.200  PLACE_C1S1                    P01   BLUE
+   11.550    2.000  RETURN_HOME                   P01   BLUE
+   13.550    0.000  IDLE
+   13.550    3.800  MOVE_TO_STACK                 P02   BLUE
+   17.350    0.050  VISION                        P02   BLUE
+   17.400    2.500  PICK_STACK                    P02   BLUE
+   19.900    5.200  PLACE_C1S1                    P02   BLUE
+   25.100    2.000  RETURN_HOME                   P02   BLUE
+   27.100    0.000  IDLE
+   27.100    3.800  MOVE_TO_STACK                 P03   GREEN
+   30.900    0.050  VISION                        P03   GREEN
+   30.950    2.500  PICK_STACK                    P03   GREEN
+   33.450    5.150  PLACE_C3                      P03   GREEN
+   38.600    3.930  RETURN_HOME                   P03   GREEN
+   42.530   17.700  IDLE
+   60.230    3.800  MOVE_TO_STACK                 P04   GREEN
+   64.030    0.050  VISION                        P04   GREEN
+   64.080    2.500  PICK_STACK                    P04   GREEN
+   66.580    5.150  PLACE_C3                      P04   GREEN
+   71.730    3.930  RETURN_HOME                   P04   GREEN
+   75.660    0.000  IDLE
+   75.660    3.800  MOVE_TO_STACK                 P05   RED
+   79.460    0.050  VISION                        P05   RED
+   79.510    2.500  PICK_STACK                    P05   RED
+   82.010    5.200  PLACE_C1S1                    P05   RED
+   87.210    2.000  RETURN_HOME                   P05   RED
+   89.210   12.200  IDLE
+  101.410    3.800  MOVE_TO_STACK                 P06   GREEN
+  105.210    0.050  VISION                        P06   GREEN
+  105.260    2.500  PICK_STACK                    P06   GREEN
+  107.760    5.150  PLACE_C3                      P06   GREEN
+  112.910    3.930  RETURN_HOME                   P06   GREEN
+  116.840  208.360  IDLE
+

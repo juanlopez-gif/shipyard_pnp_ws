@@ -1,0 +1,110 @@
+BLUE SINGLE PIECE - DIFFERENCE BREAKDOWN
+==============================================================================
+
+Run real DB: 20260628_134129_B
+Origin used for both timelines:
+  t = 0 when xArm2 starts MOVE_PIECE from INITIAL_STACK.
+
+Main interval:
+  Reality:    202.946 s
+  Simulation: 203.000 s
+  Difference: +0.054 s simulation slower
+
+
+KEY FINDING AFTER SIMULATION LOGIC FIX
+------------------------------------------------------------------------------
+The previous difference was caused by Bantam starting late in simulation.
+After the BLUE Bantam path fix, the Bantam start aligns with reality.
+
+The Bantam durations match very closely:
+
+Reality Bantam:
+  CLOSING_DOOR start:          77.009 s
+  MACHINING_SIMULATED start:   88.413 s
+  OPENING_DOOR_AFTER_JOB:     113.418 s
+  JOB_COMPLETE:               125.439 s
+
+  close door duration:  88.413 - 77.009  = 11.404 s
+  machining duration:  113.418 - 88.413  = 25.005 s
+  open door duration:  125.431 - 113.418 = 12.013 s approx
+  RUN_JOB total:       125.439 - 76.988  = 48.451 s
+
+Simulation Bantam:
+  WAITING_ROBOT2 start:         74.600 s
+  DOOR_CLOSING start:           77.000 s
+  PROCESSING start:             88.400 s
+  DOOR_OPENING start:          113.400 s
+  FINISHED:                    125.500 s
+
+  close door duration:  88.400 - 77.000  = 11.400 s
+  processing duration: 113.400 - 88.400  = 25.000 s
+  open door duration:  125.500 - 113.400 = 12.100 s
+  close+process+open:  125.500 - 77.000  = 48.500 s
+
+
+WHERE THE PREVIOUS 6.5 SECONDS CAME FROM
+------------------------------------------------------------------------------
+Before the fix, the whole Bantam close/process/open block started late in
+simulation because Bantam waited for Robot2 RETURN_HOME:
+
+  Reality CLOSING_DOOR starts at:   77.009 s
+  Old simulation DOOR_CLOSING:       83.500 s
+  Delay:                              6.491 s
+
+After the fix:
+
+  Reality CLOSING_DOOR starts at:   77.009 s
+  New simulation DOOR_CLOSING:       77.000 s
+  Difference:                        -0.009 s
+
+
+WHY
+------------------------------------------------------------------------------
+Reality:
+  robot2 MOVE_PIECE C2S2 -> BANTAM_BED runs from 48.339 s to 76.950 s.
+  Bantam RUN_JOB starts at 76.988 s, immediately after robot2 completes the
+  place-at-Bantam command.
+
+Simulation:
+  robot2 sequence is:
+    PICK_C2S2       57.000 -> 60.500
+    PLACE_BANTAM    60.500 -> 74.500
+    CLEAR_BANTAM    74.500 -> 77.000
+
+  Bantam waits only for CLEAR_BANTAM.
+  Therefore Bantam door closing now starts at 77.000 s.
+
+The model mismatch was:
+  Simulation included a full Robot2 RETURN_HOME before Bantam could close.
+  Reality starts Bantam RUN_JOB immediately after Robot2 completes the
+  place-at-Bantam command.
+
+
+OTHER SMALL DIFFERENCES
+------------------------------------------------------------------------------
+xArm2 feed:
+  Reality MOVE_PIECE: 0.000 -> 13.325 s
+  Simulation feed:   0.000 -> 13.550 s
+  Difference: +0.225 s simulation slower
+
+xArm1 C1S2 -> C2S1:
+  Reality:    15.236 -> 31.003 s, duration 15.768 s
+  Simulation: 17.500 -> 33.250 s, duration 15.750 s
+  Duration matches; simulation starts later because the simplified conveyor
+  timing does not trigger from the exact physical sensor edge.
+
+Robot1 unload C4:
+  Reality command chain starts at 166.748 s and ends at 202.946 s.
+  Simulation starts at 167.100 s and ends at 203.000 s.
+  This is now aligned with the real C4 arrival.
+
+
+CONCLUSION
+------------------------------------------------------------------------------
+The user's suspicion was correct in location: the issue was in the Bantam
+section. It was not the door duration itself; it was the gating before the door
+was allowed to close.
+
+The open/close/machining times are calibrated well.
+The simulation now uses CLEAR_BANTAM instead of a full Robot2 RETURN_HOME before
+Bantam starts, matching the real BLUE path much more closely.

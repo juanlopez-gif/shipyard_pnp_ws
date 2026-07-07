@@ -49,6 +49,12 @@ setup(
             'green_conveyors_vendor_supervisor = shipyard_pnp.vendors.green_conveyors.green_conveyors_vendor_supervisor:main',
             'arduino_vacuum_vendor_supervisor = shipyard_pnp.vendors.arduino_vacuum.arduino_vacuum_vendor_supervisor:main',
             'bantam_vendor_supervisor = shipyard_pnp.vendors.bantam.bantam_vendor_supervisor:main',
+            # Digital twin bridge
+            'twin_bridge_node = shipyard_pnp.nodes.twin_bridge_node:main',
+            # MES dashboard
+            'mes_dashboard = shipyard_pnp.nodes.MES_dashboard:main',
+            'mes_analytics_worker = shipyard_pnp.nodes.mes_analytics_worker:main',
+            'joint_telemetry_writer = shipyard_pnp.nodes.joint_telemetry_writer:main',
             # Testing / simulation
             'mock_vendor_supervisor = shipyard_pnp.vendors.common.mock_vendor_supervisor:main',
         ],

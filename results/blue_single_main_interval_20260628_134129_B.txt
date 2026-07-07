@@ -1,0 +1,59 @@
+BLUE SINGLE PIECE - MAIN INTERVAL
+==============================================================================
+
+Metric requested:
+from xArm2 starting to pick/move the first piece
+to robot1 completing RETURN_HOME.
+
+REALITY DB
+------------------------------------------------------------------------------
+Run ID: 20260628_134129_B
+
+Start used:
+  xarm2 MOVE_PIECE command start
+  t = 35.950 s from production_run start
+
+End used:
+  robot1 RETURN_HOME terminal status / IDLE
+  t = 238.896 s from production_run start
+
+Main interval:
+  238.896 - 35.950 = 202.946 s
+
+Extra reference:
+  xarm2 cycle start, including WAITING_GLOBALVISION: t = 35.920 s
+  robot1 RETURNING_HOME phase start: t = 230.034 s
+  interval until robot1 starts RETURN_HOME: 194.084 s
+  interval from xarm2 cycle start to robot1 home done: 202.976 s
+
+
+SIMULATION
+------------------------------------------------------------------------------
+Order: [BLUE]
+
+Start used:
+  xarm2 MOVE_TO_STACK
+  t = 0.000 s
+
+End used:
+  robot1 IDLE after RETURN_HOME
+  t = 203.000 s
+
+Main interval:
+  203.000 - 0.000 = 203.000 s
+
+Extra reference:
+  robot1 RETURN_HOME phase start: t = 193.200 s
+  interval until robot1 starts RETURN_HOME: 193.200 s
+
+
+COMPARISON
+------------------------------------------------------------------------------
+Main interval reality:    202.946 s
+Main interval simulation: 203.000 s
+Difference:                 0.054 s
+Simulation error:           0.03% high
+
+Conclusion:
+After adjusting the BLUE Bantam path, the calibrated simulation is effectively
+aligned with the latest real BLUE run for the requested interval.

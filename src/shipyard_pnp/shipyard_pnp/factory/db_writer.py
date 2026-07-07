@@ -874,6 +874,12 @@ class RealDBWriter:
             (self.run_id, domain_id, resource_id, topic, resource_state,
              task_state, code, json.dumps(result or {}), command_id),
         )
+        # Terminal states arrive via STATUS (not ACK) in this architecture.
+        # Trigger robot_task / machine_job auto-logging here.
+        if task_state in ("COMPLETED", "FAILED", "TIMEOUT", "CANCELED", "REJECTED") and command_id:
+            cmd = self._pending_commands.pop(command_id, None)
+            if cmd:
+                self._auto_log_task(command_id, cmd, task_state, time.time())
 
     # ── Optimizer ─────────────────────────────────────────────────────────────
 

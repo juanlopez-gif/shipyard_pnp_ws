@@ -1,0 +1,1192 @@
+{
+  "xarm2": [
+    {
+      "ciclo": 1,
+      "real": {
+        "piece": "piece-001",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 0.0,
+        "dur": 15.605
+      },
+      "sim": {
+        "piece": "P01",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 0,
+        "dur": 15.43
+      },
+      "diff_t_start": 0.0,
+      "diff_dur": -0.1750000000000007
+    },
+    {
+      "ciclo": 2,
+      "real": {
+        "piece": "piece-003",
+        "task": "FEED_TO_C1S1",
+        "color": "RED",
+        "t_start": 15.60974,
+        "dur": 13.289
+      },
+      "sim": {
+        "piece": "P02",
+        "task": "FEED_TO_C1S1",
+        "color": "RED",
+        "t_start": 15.43,
+        "dur": 13.55
+      },
+      "diff_t_start": -0.17974000000000068,
+      "diff_dur": 0.261000000000001
+    },
+    {
+      "ciclo": 3,
+      "real": {
+        "piece": "piece-005",
+        "task": "FEED_TO_C1S1",
+        "color": "BLUE",
+        "t_start": 28.902387,
+        "dur": 13.637
+      },
+      "sim": {
+        "piece": "P03",
+        "task": "FEED_TO_C1S1",
+        "color": "BLUE",
+        "t_start": 28.98,
+        "dur": 13.55
+      },
+      "diff_t_start": 0.07761299999999949,
+      "diff_dur": -0.08699999999999974
+    },
+    {
+      "ciclo": 4,
+      "real": {
+        "piece": "piece-002",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 42.543129,
+        "dur": 15.512
+      },
+      "sim": {
+        "piece": "P04",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 42.53,
+        "dur": 15.429999999999993
+      },
+      "diff_t_start": -0.01312899999999928,
+      "diff_dur": -0.08200000000000784
+    },
+    {
+      "ciclo": 5,
+      "real": {
+        "piece": "piece-016",
+        "task": "FEED_TO_C1S1",
+        "color": "RED",
+        "t_start": 58.059322,
+        "dur": 13.543
+      },
+      "sim": {
+        "piece": "P05",
+        "task": "FEED_TO_C1S1",
+        "color": "RED",
+        "t_start": 57.959999999999994,
+        "dur": 13.549999999999997
+      },
+      "diff_t_start": -0.0993220000000079,
+      "diff_dur": 0.006999999999997897
+    },
+    {
+      "ciclo": 6,
+      "real": {
+        "piece": "piece-010",
+        "task": "FEED_TO_C1S1",
+        "color": "BLUE",
+        "t_start": 71.619639,
+        "dur": 13.478
+      },
+      "sim": {
+        "piece": "P06",
+        "task": "FEED_TO_C1S1",
+        "color": "BLUE",
+        "t_start": 71.50999999999999,
+        "dur": 13.549999999999997
+      },
+      "diff_t_start": -0.10963900000001559,
+      "diff_dur": 0.0719999999999974
+    },
+    {
+      "ciclo": 7,
+      "real": {
+        "piece": "piece-004",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 85.100862,
+        "dur": 15.526
+      },
+      "sim": {
+        "piece": "P07",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 85.05999999999999,
+        "dur": 15.430000000000007
+      },
+      "diff_t_start": -0.040862000000018384,
+      "diff_dur": -0.09599999999999298
+    },
+    {
+      "ciclo": 8,
+      "real": {
+        "piece": "piece-017",
+        "task": "FEED_TO_C1S1",
+        "color": "RED",
+        "t_start": 100.62957,
+        "dur": 13.599
+      },
+      "sim": {
+        "piece": "P08",
+        "task": "FEED_TO_C1S1",
+        "color": "RED",
+        "t_start": 100.49,
+        "dur": 13.549999999999997
+      },
+      "diff_t_start": -0.1395700000000062,
+      "diff_dur": -0.04900000000000304
+    },
+    {
+      "ciclo": 9,
+      "real": {
+        "piece": "piece-013",
+        "task": "FEED_TO_C1S1",
+        "color": "BLUE",
+        "t_start": 114.233733,
+        "dur": 13.401
+      },
+      "sim": {
+        "piece": "P09",
+        "task": "FEED_TO_C1S1",
+        "color": "BLUE",
+        "t_start": 114.03999999999999,
+        "dur": 13.549999999999997
+      },
+      "diff_t_start": -0.19373300000000881,
+      "diff_dur": 0.14899999999999736
+    },
+    {
+      "ciclo": 10,
+      "real": {
+        "piece": "piece-006",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 127.638094,
+        "dur": 15.47
+      },
+      "sim": {
+        "piece": "P10",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 127.58999999999999,
+        "dur": 15.430000000000021
+      },
+      "diff_t_start": -0.048094000000006076,
+      "diff_dur": -0.03999999999997961
+    },
+    {
+      "ciclo": 11,
+      "real": {
+        "piece": "piece-007",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 201.895008,
+        "dur": 15.366
+      },
+      "sim": {
+        "piece": "P11",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 200.91999999999672,
+        "dur": 15.430000000000035
+      },
+      "diff_t_start": -0.975008000003271,
+      "diff_dur": 0.06400000000003558
+    },
+    {
+      "ciclo": 12,
+      "real": {
+        "piece": "piece-008",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 242.451048,
+        "dur": 15.436
+      },
+      "sim": {
+        "piece": "P12",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 242.0499999999953,
+        "dur": 15.430000000000007
+      },
+      "diff_t_start": -0.40104800000469254,
+      "diff_dur": -0.005999999999993122
+    },
+    {
+      "ciclo": 13,
+      "real": {
+        "piece": "piece-009",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 322.557402,
+        "dur": 15.409
+      },
+      "sim": {
+        "piece": "P13",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 321.38000000000983,
+        "dur": 15.430000000000007
+      },
+      "diff_t_start": -1.1774019999901952,
+      "diff_dur": 0.021000000000006125
+    },
+    {
+      "ciclo": 14,
+      "real": {
+        "piece": "piece-011",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 403.711788,
+        "dur": 15.475
+      },
+      "sim": {
+        "piece": "P14",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 400.61000000002434,
+        "dur": 15.430000000000007
+      },
+      "diff_t_start": -3.10178799997567,
+      "diff_dur": -0.044999999999992824
+    },
+    {
+      "ciclo": 15,
+      "real": {
+        "piece": "piece-012",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 445.061774,
+        "dur": 15.675
+      },
+      "sim": {
+        "piece": "P15",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 441.7400000000302,
+        "dur": 15.430000000000007
+      },
+      "diff_t_start": -3.321773999969821,
+      "diff_dur": -0.2449999999999939
+    },
+    {
+      "ciclo": 16,
+      "real": {
+        "piece": "piece-014",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 523.005193,
+        "dur": 15.776
+      },
+      "sim": {
+        "piece": "P16",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 521.0700000000447,
+        "dur": 15.429999999999836
+      },
+      "diff_t_start": -1.935192999955234,
+      "diff_dur": -0.3460000000001635
+    },
+    {
+      "ciclo": 17,
+      "real": {
+        "piece": "piece-015",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 565.987293,
+        "dur": 15.863
+      },
+      "sim": {
+        "piece": "P17",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 562.1000000000504,
+        "dur": 15.429999999999836
+      },
+      "diff_t_start": -3.8872929999496364,
+      "diff_dur": -0.43300000000016325
+    },
+    {
+      "ciclo": 18,
+      "real": {
+        "piece": "piece-018",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 644.471309,
+        "dur": 15.833
+      },
+      "sim": {
+        "piece": "P18",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 641.4300000000648,
+        "dur": 15.429999999999836
+      },
+      "diff_t_start": -3.041308999935268,
+      "diff_dur": -0.4030000000001639
+    }
+  ],
+  "xarm1": [
+    {
+      "ciclo": 1,
+      "real": {
+        "piece": "piece-003",
+        "task": "C1S2_TO_LASER",
+        "color": "RED",
+        "t_start": 30.689706,
+        "dur": 15.293
+      },
+      "sim": {
+        "piece": "P02",
+        "task": "C1S2_TO_LASER",
+        "color": "RED",
+        "t_start": 32.9000000000002,
+        "dur": 15.249999999999993
+      },
+      "diff_t_start": 2.2102940000001965,
+      "diff_dur": -0.043000000000006366
+    },
+    {
+      "ciclo": 2,
+      "real": {
+        "piece": "piece-005",
+        "task": "C1S2_TO_C2S1",
+        "color": "BLUE",
+        "t_start": 45.993139,
+        "dur": 15.793
+      },
+      "sim": {
+        "piece": "P03",
+        "task": "C1S2_TO_C2S1",
+        "color": "BLUE",
+        "t_start": 48.15000000000019,
+        "dur": 15.749999999999993
+      },
+      "diff_t_start": 2.156861000000191,
+      "diff_dur": -0.043000000000006366
+    },
+    {
+      "ciclo": 3,
+      "real": {
+        "piece": "piece-003",
+        "task": "LASER_TO_C2S1",
+        "color": "RED",
+        "t_start": 68.824804,
+        "dur": 14.992
+      },
+      "sim": {
+        "piece": "P02",
+        "task": "LASER_TO_C2S1",
+        "color": "RED",
+        "t_start": 69.19999999999989,
+        "dur": 14.949999999999989
+      },
+      "diff_t_start": 0.37519599999988884,
+      "diff_dur": -0.04200000000001225
+    },
+    {
+      "ciclo": 4,
+      "real": {
+        "piece": "piece-016",
+        "task": "C1S2_TO_LASER",
+        "color": "RED",
+        "t_start": 83.82123,
+        "dur": 15.144
+      },
+      "sim": {
+        "piece": "P05",
+        "task": "C1S2_TO_LASER",
+        "color": "RED",
+        "t_start": 84.14999999999988,
+        "dur": 15.25
+      },
+      "diff_t_start": 0.3287699999998779,
+      "diff_dur": 0.10599999999999987
+    },
+    {
+      "ciclo": 5,
+      "real": {
+        "piece": "piece-010",
+        "task": "C1S2_TO_C2S1",
+        "color": "BLUE",
+        "t_start": 98.976249,
+        "dur": 15.696
+      },
+      "sim": {
+        "piece": "P06",
+        "task": "C1S2_TO_C2S1",
+        "color": "BLUE",
+        "t_start": 99.39999999999988,
+        "dur": 15.75
+      },
+      "diff_t_start": 0.4237509999998821,
+      "diff_dur": 0.05400000000000027
+    },
+    {
+      "ciclo": 6,
+      "real": {
+        "piece": "piece-016",
+        "task": "LASER_TO_C2S1",
+        "color": "RED",
+        "t_start": 121.530788,
+        "dur": 14.888
+      },
+      "sim": {
+        "piece": "P05",
+        "task": "LASER_TO_C2S1",
+        "color": "RED",
+        "t_start": 121.04999999999954,
+        "dur": 14.950000000000003
+      },
+      "diff_t_start": -0.48078800000045874,
+      "diff_dur": 0.06200000000000294
+    },
+    {
+      "ciclo": 7,
+      "real": {
+        "piece": "piece-017",
+        "task": "C1S2_TO_LASER",
+        "color": "RED",
+        "t_start": 136.422853,
+        "dur": 15.273
+      },
+      "sim": {
+        "piece": "P08",
+        "task": "C1S2_TO_LASER",
+        "color": "RED",
+        "t_start": 135.99999999999955,
+        "dur": 15.250000000000028
+      },
+      "diff_t_start": -0.4228530000004582,
+      "diff_dur": -0.022999999999971266
+    },
+    {
+      "ciclo": 8,
+      "real": {
+        "piece": "piece-017",
+        "task": "LASER_TO_C2S1",
+        "color": "RED",
+        "t_start": 175.202473,
+        "dur": 14.952
+      },
+      "sim": {
+        "piece": "P08",
+        "task": "LASER_TO_C2S1",
+        "color": "RED",
+        "t_start": 172.34999999999837,
+        "dur": 14.950000000000017
+      },
+      "diff_t_start": -2.8524730000016234,
+      "diff_dur": -0.0019999999999829043
+    },
+    {
+      "ciclo": 9,
+      "real": {
+        "piece": "piece-013",
+        "task": "C1S2_TO_C2S1",
+        "color": "BLUE",
+        "t_start": 205.516594,
+        "dur": 15.715
+      },
+      "sim": {
+        "piece": "P09",
+        "task": "C1S2_TO_C2S1",
+        "color": "BLUE",
+        "t_start": 203.1999999999975,
+        "dur": 15.750000000000028
+      },
+      "diff_t_start": -2.3165940000025103,
+      "diff_dur": 0.035000000000028564
+    }
+  ],
+  "laser": [
+    {
+      "ciclo": 1,
+      "real": {
+        "piece": "piece-003",
+        "task": "PROCESS_RED",
+        "color": "RED",
+        "t_start": 45.985833,
+        "dur": 22.834
+      },
+      "sim": {
+        "piece": "P02",
+        "task": "PROCESS_RED",
+        "color": "RED",
+        "t_start": 46.35000000000019,
+        "dur": 22.799999999999997
+      },
+      "diff_t_start": 0.36416700000019375,
+      "diff_dur": -0.03400000000000247
+    },
+    {
+      "ciclo": 2,
+      "real": {
+        "piece": "piece-016",
+        "task": "PROCESS_RED",
+        "color": "RED",
+        "t_start": 98.968923,
+        "dur": 22.558
+      },
+      "sim": {
+        "piece": "P05",
+        "task": "PROCESS_RED",
+        "color": "RED",
+        "t_start": 97.59999999999988,
+        "dur": 22.799999999999997
+      },
+      "diff_t_start": -1.3689230000001231,
+      "diff_dur": 0.24199999999999733
+    },
+    {
+      "ciclo": 3,
+      "real": {
+        "piece": "piece-017",
+        "task": "PROCESS_RED",
+        "color": "RED",
+        "t_start": 151.698888,
+        "dur": 22.337
+      },
+      "sim": {
+        "piece": "P08",
+        "task": "PROCESS_RED",
+        "color": "RED",
+        "t_start": 149.44999999999956,
+        "dur": 22.80000000000001
+      },
+      "diff_t_start": -2.2488880000004485,
+      "diff_dur": 0.4630000000000116
+    }
+  ],
+  "robot2": [
+    {
+      "ciclo": 1,
+      "real": {
+        "piece": "piece-005",
+        "task": "CLASSIFY_C2S2_TO_BANTAM",
+        "color": "BLUE",
+        "t_start": 66.168645,
+        "dur": 35.844
+      },
+      "sim": {
+        "piece": "P03",
+        "task": "CLASSIFY_C2S2_TO_BANTAM",
+        "color": "BLUE",
+        "t_start": 71.30000000000022,
+        "dur": 36.3
+      },
+      "diff_t_start": 5.131355000000227,
+      "diff_dur": 0.45599999999999596
+    },
+    {
+      "ciclo": 2,
+      "real": {
+        "piece": "piece-003",
+        "task": "CLASSIFY_C2S2_TO_C4",
+        "color": "RED",
+        "t_start": 102.021345,
+        "dur": 33.65
+      },
+      "sim": {
+        "piece": "P02",
+        "task": "CLASSIFY_C2S2_TO_C4",
+        "color": "RED",
+        "t_start": 107.60000000000022,
+        "dur": 34.599999999999994
+      },
+      "diff_t_start": 5.578655000000225,
+      "diff_dur": 0.9499999999999957
+    },
+    {
+      "ciclo": 3,
+      "real": {
+        "piece": "piece-010",
+        "task": "CLASSIFY_C2S2_TO_IBS",
+        "color": "BLUE",
+        "t_start": 161.982948,
+        "dur": 30.907
+      },
+      "sim": {
+        "piece": "P06",
+        "task": "CLASSIFY_C2S2_TO_IBS",
+        "color": "BLUE",
+        "t_start": 159.9999999999992,
+        "dur": 30.849999999999994
+      },
+      "diff_t_start": -1.982948000000789,
+      "diff_dur": -0.05700000000000571
+    },
+    {
+      "ciclo": 4,
+      "real": {
+        "piece": "piece-016",
+        "task": "CLASSIFY_C2S2_TO_C4",
+        "color": "RED",
+        "t_start": 192.896431,
+        "dur": 32.527
+      },
+      "sim": {
+        "piece": "P05",
+        "task": "CLASSIFY_C2S2_TO_C4",
+        "color": "RED",
+        "t_start": 190.8499999999992,
+        "dur": 33.599999999999994
+      },
+      "diff_t_start": -2.0464310000008084,
+      "diff_dur": 1.0729999999999933
+    },
+    {
+      "ciclo": 5,
+      "real": {
+        "piece": "piece-017",
+        "task": "CLASSIFY_C2S2_TO_C4",
+        "color": "RED",
+        "t_start": 282.29329,
+        "dur": 34.802
+      },
+      "sim": {
+        "piece": "P08",
+        "task": "CLASSIFY_C2S2_TO_C4",
+        "color": "RED",
+        "t_start": 280.3500000000029,
+        "dur": 33.599999999999966
+      },
+      "diff_t_start": -1.9432899999970914,
+      "diff_dur": -1.2020000000000337
+    },
+    {
+      "ciclo": 6,
+      "real": {
+        "piece": "piece-013",
+        "task": "CLASSIFY_C2S2_TO_IBS",
+        "color": "BLUE",
+        "t_start": 363.167558,
+        "dur": 31.499
+      },
+      "sim": {
+        "piece": "P09",
+        "task": "CLASSIFY_C2S2_TO_IBS",
+        "color": "BLUE",
+        "t_start": 359.6500000000133,
+        "dur": 30.849999999999966
+      },
+      "diff_t_start": -3.517557999986707,
+      "diff_dur": -0.6490000000000329
+    },
+    {
+      "ciclo": 7,
+      "real": {
+        "piece": "piece-005",
+        "task": "BANTAM_TO_C4",
+        "color": "BLUE",
+        "t_start": 394.672132,
+        "dur": 36.305
+      },
+      "sim": {
+        "piece": "P03",
+        "task": "BANTAM_TO_C4",
+        "color": "BLUE",
+        "t_start": 390.50000000001324,
+        "dur": 36.39999999999998
+      },
+      "diff_t_start": -4.172131999986732,
+      "diff_dur": 0.09499999999997755
+    },
+    {
+      "ciclo": 8,
+      "real": {
+        "piece": "piece-010",
+        "task": "IBS_TO_BANTAM",
+        "color": "BLUE",
+        "t_start": 430.981279,
+        "dur": 36.899
+      },
+      "sim": {
+        "piece": "P06",
+        "task": "IBS_TO_BANTAM",
+        "color": "BLUE",
+        "t_start": 426.9000000000132,
+        "dur": 36.900000000000034
+      },
+      "diff_t_start": -4.0812789999867505,
+      "diff_dur": 0.0010000000000331966
+    },
+    {
+      "ciclo": 9,
+      "real": {
+        "piece": "piece-010",
+        "task": "BANTAM_TO_C4",
+        "color": "BLUE",
+        "t_start": 516.996849,
+        "dur": 36.779
+      },
+      "sim": {
+        "piece": "P06",
+        "task": "BANTAM_TO_C4",
+        "color": "BLUE",
+        "t_start": 512.3000000000243,
+        "dur": 36.39999999999998
+      },
+      "diff_t_start": -4.696848999975714,
+      "diff_dur": -0.3790000000000262
+    },
+    {
+      "ciclo": 10,
+      "real": {
+        "piece": "piece-013",
+        "task": "IBS_TO_BANTAM",
+        "color": "BLUE",
+        "t_start": 553.781838,
+        "dur": 37.131
+      },
+      "sim": {
+        "piece": "P09",
+        "task": "IBS_TO_BANTAM",
+        "color": "BLUE",
+        "t_start": 548.7000000000243,
+        "dur": 36.89999999999998
+      },
+      "diff_t_start": -5.081837999975733,
+      "diff_dur": -0.23100000000002296
+    },
+    {
+      "ciclo": 11,
+      "real": {
+        "piece": "piece-013",
+        "task": "BANTAM_TO_C4",
+        "color": "BLUE",
+        "t_start": 639.225952,
+        "dur": 36.546
+      },
+      "sim": {
+        "piece": "P09",
+        "task": "BANTAM_TO_C4",
+        "color": "BLUE",
+        "t_start": 634.1000000000353,
+        "dur": 36.39999999999998
+      },
+      "diff_t_start": -5.125951999964741,
+      "diff_dur": -0.1460000000000221
+    }
+  ],
+  "bantam": [
+    {
+      "ciclo": 1,
+      "real": {
+        "piece": "piece-005",
+        "task": "PROCESS_BLUE",
+        "color": "BLUE",
+        "t_start": 102.017383,
+        "dur": 48.472
+      },
+      "sim": {
+        "piece": "P03",
+        "task": "PROCESS_BLUE",
+        "color": "BLUE",
+        "t_start": 107.60000000000022,
+        "dur": 48.5
+      },
+      "diff_t_start": 5.582617000000226,
+      "diff_dur": 0.027999999999998693
+    },
+    {
+      "ciclo": 2,
+      "real": {
+        "piece": "piece-010",
+        "task": "PROCESS_BLUE",
+        "color": "BLUE",
+        "t_start": 467.886024,
+        "dur": 49.1
+      },
+      "sim": {
+        "piece": "P06",
+        "task": "PROCESS_BLUE",
+        "color": "BLUE",
+        "t_start": 463.80000000001326,
+        "dur": 48.5
+      },
+      "diff_t_start": -4.0860239999867645,
+      "diff_dur": -0.6000000000000014
+    },
+    {
+      "ciclo": 3,
+      "real": {
+        "piece": "piece-013",
+        "task": "PROCESS_BLUE",
+        "color": "BLUE",
+        "t_start": 590.918027,
+        "dur": 48.301
+      },
+      "sim": {
+        "piece": "P09",
+        "task": "PROCESS_BLUE",
+        "color": "BLUE",
+        "t_start": 585.6000000000242,
+        "dur": 48.5
+      },
+      "diff_t_start": -5.318026999975814,
+      "diff_dur": 0.19899999999999807
+    }
+  ],
+  "robot1": [
+    {
+      "ciclo": 1,
+      "real": {
+        "piece": "piece-001",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 21.701547,
+        "dur": 47.747
+      },
+      "sim": {
+        "piece": "P01",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 21.500000000000036,
+        "dur": 39.6
+      },
+      "diff_t_start": -0.20154699999996595,
+      "diff_dur": -8.146999999999998
+    },
+    {
+      "ciclo": 2,
+      "real": {
+        "piece": "piece-002",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 69.451604,
+        "dur": 40.446
+      },
+      "sim": {
+        "piece": "P04",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 64.10000000000007,
+        "dur": 39.599999999999994
+      },
+      "diff_t_start": -5.351603999999938,
+      "diff_dur": -0.8460000000000036
+    },
+    {
+      "ciclo": 3,
+      "real": {
+        "piece": "piece-004",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 109.900967,
+        "dur": 40.495
+      },
+      "sim": {
+        "piece": "P07",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 106.5999999999999,
+        "dur": 39.60000000000001
+      },
+      "diff_t_start": -3.3009670000000995,
+      "diff_dur": -0.8949999999999889
+    },
+    {
+      "ciclo": 4,
+      "real": {
+        "piece": "piece-003",
+        "task": "UNLOAD_C4",
+        "color": "RED",
+        "t_start": 150.399152,
+        "dur": 39.029
+      },
+      "sim": {
+        "piece": "P02",
+        "task": "UNLOAD_C4",
+        "color": "RED",
+        "t_start": 147.29999999999984,
+        "dur": 38.20000000000002
+      },
+      "diff_t_start": -3.099152000000146,
+      "diff_dur": -0.8289999999999864
+    },
+    {
+      "ciclo": 5,
+      "real": {
+        "piece": "piece-006",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 189.43201,
+        "dur": 40.484
+      },
+      "sim": {
+        "piece": "P10",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 185.49999999999986,
+        "dur": 41.10000000000002
+      },
+      "diff_t_start": -3.9320100000001332,
+      "diff_dur": 0.616000000000021
+    },
+    {
+      "ciclo": 6,
+      "real": {
+        "piece": "piece-007",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 229.919455,
+        "dur": 40.743
+      },
+      "sim": {
+        "piece": "P11",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 226.59999999999988,
+        "dur": 41.099999999999994
+      },
+      "diff_t_start": -3.3194550000001186,
+      "diff_dur": 0.3569999999999922
+    },
+    {
+      "ciclo": 7,
+      "real": {
+        "piece": "piece-016",
+        "task": "UNLOAD_C4",
+        "color": "RED",
+        "t_start": 270.667681,
+        "dur": 38.966
+      },
+      "sim": {
+        "piece": "P05",
+        "task": "UNLOAD_C4",
+        "color": "RED",
+        "t_start": 267.6999999999999,
+        "dur": 38.200000000000045
+      },
+      "diff_t_start": -2.967681000000141,
+      "diff_dur": -0.7659999999999556
+    },
+    {
+      "ciclo": 8,
+      "real": {
+        "piece": "piece-008",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 309.636486,
+        "dur": 41.174
+      },
+      "sim": {
+        "piece": "P12",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 305.8999999999999,
+        "dur": 41.10000000000002
+      },
+      "diff_t_start": -3.7364860000000704,
+      "diff_dur": -0.07399999999997675
+    },
+    {
+      "ciclo": 9,
+      "real": {
+        "piece": "piece-017",
+        "task": "UNLOAD_C4",
+        "color": "RED",
+        "t_start": 350.81397,
+        "dur": 39.905
+      },
+      "sim": {
+        "piece": "P08",
+        "task": "UNLOAD_C4",
+        "color": "RED",
+        "t_start": 346.99999999999994,
+        "dur": 38.200000000000045
+      },
+      "diff_t_start": -3.8139700000000403,
+      "diff_dur": -1.7049999999999557
+    },
+    {
+      "ciclo": 10,
+      "real": {
+        "piece": "piece-009",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 390.7225,
+        "dur": 41.261
+      },
+      "sim": {
+        "piece": "P13",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 385.2,
+        "dur": 41.10000000000002
+      },
+      "diff_t_start": -5.522500000000036,
+      "diff_dur": -0.16099999999998005
+    },
+    {
+      "ciclo": 11,
+      "real": {
+        "piece": "piece-011",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 431.990901,
+        "dur": 40.964
+      },
+      "sim": {
+        "piece": "P14",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 426.3,
+        "dur": 41.10000000000002
+      },
+      "diff_t_start": -5.690900999999997,
+      "diff_dur": 0.1360000000000241
+    },
+    {
+      "ciclo": 12,
+      "real": {
+        "piece": "piece-005",
+        "task": "UNLOAD_C4",
+        "color": "BLUE",
+        "t_start": 472.958759,
+        "dur": 36.843
+      },
+      "sim": {
+        "piece": "P03",
+        "task": "UNLOAD_C4",
+        "color": "BLUE",
+        "t_start": 467.40000000000003,
+        "dur": 38.200000000000045
+      },
+      "diff_t_start": -5.558758999999952,
+      "diff_dur": 1.357000000000042
+    },
+    {
+      "ciclo": 13,
+      "real": {
+        "piece": "piece-012",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 509.80655,
+        "dur": 41.758
+      },
+      "sim": {
+        "piece": "P15",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 505.6000000000001,
+        "dur": 41.099999999999966
+      },
+      "diff_t_start": -4.206549999999936,
+      "diff_dur": -0.6580000000000368
+    },
+    {
+      "ciclo": 14,
+      "real": {
+        "piece": "piece-014",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 551.56842,
+        "dur": 42.432
+      },
+      "sim": {
+        "piece": "P16",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 546.7,
+        "dur": 41.09999999999991
+      },
+      "diff_t_start": -4.868419999999901,
+      "diff_dur": -1.332000000000093
+    },
+    {
+      "ciclo": 15,
+      "real": {
+        "piece": "piece-010",
+        "task": "UNLOAD_C4",
+        "color": "BLUE",
+        "t_start": 594.004296,
+        "dur": 37.188
+      },
+      "sim": {
+        "piece": "P06",
+        "task": "UNLOAD_C4",
+        "color": "BLUE",
+        "t_start": 587.8,
+        "dur": 38.19999999999993
+      },
+      "diff_t_start": -6.204295999999999,
+      "diff_dur": 1.0119999999999294
+    },
+    {
+      "ciclo": 16,
+      "real": {
+        "piece": "piece-015",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 631.196802,
+        "dur": 41.249
+      },
+      "sim": {
+        "piece": "P17",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 625.9999999999999,
+        "dur": 41.09999999999991
+      },
+      "diff_t_start": -5.196802000000162,
+      "diff_dur": -0.14900000000009328
+    },
+    {
+      "ciclo": 17,
+      "real": {
+        "piece": "piece-018",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 672.449595,
+        "dur": 41.352
+      },
+      "sim": {
+        "piece": "P18",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 667.0999999999998,
+        "dur": 41.09999999999991
+      },
+      "diff_t_start": -5.3495950000002495,
+      "diff_dur": -0.2520000000000877
+    },
+    {
+      "ciclo": 18,
+      "real": {
+        "piece": "piece-013",
+        "task": "UNLOAD_C4",
+        "color": "BLUE",
+        "t_start": 713.805702,
+        "dur": 37.507
+      },
+      "sim": {
+        "piece": "P09",
+        "task": "UNLOAD_C4",
+        "color": "BLUE",
+        "t_start": 708.1999999999997,
+        "dur": 38.19999999999993
+      },
+      "diff_t_start": -5.605702000000292,
+      "diff_dur": 0.6929999999999339
+    }
+  ]
+}

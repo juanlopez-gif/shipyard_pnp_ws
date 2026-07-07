@@ -44,17 +44,18 @@ def _conveyor2_rules(fs) -> None:
     c2s1 = fs.state.get_sensor("c2s1")
     c2s2 = fs.state.get_sensor("c2s2")
     conv2 = fs.state.get_conveyor("conveyor2")
-    c2s2_clear = c2s2 == SensorState.FREE or fs._c2s2_committed
+    # c2s2 must be physically FREE — the piece must already be picked up,
+    # not just photographed/classified. Robot2's CAPTURE_LOCAL_VISION only
+    # takes a picture from a fixed camera pose; the piece stays sitting on
+    # the belt at c2s2 until the later MOVE_PIECE command actually picks it
+    # up. Starting the belt any earlier would push the next piece into one
+    # that's still physically there.
     if (
         c2s1 == SensorState.OCCUPIED
         and conv2 == ConveyorState.STOPPED
-        and c2s2_clear
+        and c2s2 == SensorState.FREE
     ):
-        fs.get_logger().info(
-            f"[conveyor2] RUN c2s1={c2s1.name} c2s2={c2s2.name} "
-            f"committed={fs._c2s2_committed}"
-        )
-        fs._c2s2_committed = False
+        fs.get_logger().info(f"[conveyor2] RUN c2s1={c2s1.name} c2s2={c2s2.name}")
         fs.send_command(
             "niryo", "conveyor2", "RUN_NIRYO_CONVEYOR",
             parameters={"conveyor_id": "conveyor2"},

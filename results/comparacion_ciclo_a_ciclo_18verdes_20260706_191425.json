@@ -1,0 +1,694 @@
+{
+  "xarm2": [
+    {
+      "ciclo": 1,
+      "real": {
+        "piece": "piece-001",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 0.0,
+        "dur": 16.922
+      },
+      "sim": {
+        "piece": "P01",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 0,
+        "dur": 15.43
+      },
+      "diff_t_start": 0.0,
+      "diff_dur": -1.4920000000000009
+    },
+    {
+      "ciclo": 2,
+      "real": {
+        "piece": "piece-002",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 38.255264,
+        "dur": 16.531
+      },
+      "sim": {
+        "piece": "P02",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 39.43000000000033,
+        "dur": 15.429999999999993
+      },
+      "diff_t_start": 1.1747360000003297,
+      "diff_dur": -1.1010000000000062
+    },
+    {
+      "ciclo": 3,
+      "real": {
+        "piece": "piece-003",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 77.413282,
+        "dur": 16.62
+      },
+      "sim": {
+        "piece": "P03",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 77.95999999999965,
+        "dur": 15.430000000000007
+      },
+      "diff_t_start": 0.5467179999996574,
+      "diff_dur": -1.1899999999999942
+    },
+    {
+      "ciclo": 4,
+      "real": {
+        "piece": "piece-004",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 116.641405,
+        "dur": 16.944
+      },
+      "sim": {
+        "piece": "P04",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 116.48999999999835,
+        "dur": 15.429999999999993
+      },
+      "diff_t_start": -0.15140500000165957,
+      "diff_dur": -1.5140000000000065
+    },
+    {
+      "ciclo": 5,
+      "real": {
+        "piece": "piece-005",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 156.653554,
+        "dur": 16.52
+      },
+      "sim": {
+        "piece": "P05",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 156.41999999999695,
+        "dur": 15.430000000000035
+      },
+      "diff_t_start": -0.23355400000306759,
+      "diff_dur": -1.0899999999999643
+    },
+    {
+      "ciclo": 6,
+      "real": {
+        "piece": "piece-006",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 195.404434,
+        "dur": 16.97
+      },
+      "sim": {
+        "piece": "P06",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 196.44999999999558,
+        "dur": 15.430000000000035
+      },
+      "diff_t_start": 1.0455659999955742,
+      "diff_dur": -1.5399999999999636
+    },
+    {
+      "ciclo": 7,
+      "real": {
+        "piece": "piece-007",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 234.158745,
+        "dur": 16.797
+      },
+      "sim": {
+        "piece": "P07",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 236.47999999999422,
+        "dur": 15.430000000000035
+      },
+      "diff_t_start": 2.32125499999421,
+      "diff_dur": -1.3669999999999654
+    },
+    {
+      "ciclo": 8,
+      "real": {
+        "piece": "piece-008",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 273.549689,
+        "dur": 16.415
+      },
+      "sim": {
+        "piece": "P08",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 276.40999999999866,
+        "dur": 15.430000000000007
+      },
+      "diff_t_start": 2.86031099999866,
+      "diff_dur": -0.9849999999999923
+    },
+    {
+      "ciclo": 9,
+      "real": {
+        "piece": "piece-009",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 312.861482,
+        "dur": 16.989
+      },
+      "sim": {
+        "piece": "P09",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 316.44000000000426,
+        "dur": 15.430000000000007
+      },
+      "diff_t_start": 3.5785180000042374,
+      "diff_dur": -1.558999999999994
+    },
+    {
+      "ciclo": 10,
+      "real": {
+        "piece": "piece-010",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 352.283536,
+        "dur": 16.499
+      },
+      "sim": {
+        "piece": "P10",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 356.47000000000986,
+        "dur": 15.430000000000007
+      },
+      "diff_t_start": 4.186464000009835,
+      "diff_dur": -1.068999999999992
+    },
+    {
+      "ciclo": 11,
+      "real": {
+        "piece": "piece-011",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 391.626193,
+        "dur": 16.748
+      },
+      "sim": {
+        "piece": "P11",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 396.40000000001544,
+        "dur": 15.430000000000007
+      },
+      "diff_t_start": 4.773807000015438,
+      "diff_dur": -1.3179999999999943
+    },
+    {
+      "ciclo": 12,
+      "real": {
+        "piece": "piece-012",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 431.2146,
+        "dur": 16.883
+      },
+      "sim": {
+        "piece": "P12",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 436.43000000002104,
+        "dur": 15.430000000000007
+      },
+      "diff_t_start": 5.21540000002102,
+      "diff_dur": -1.4529999999999923
+    },
+    {
+      "ciclo": 13,
+      "real": {
+        "piece": "piece-013",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 470.316949,
+        "dur": 16.825
+      },
+      "sim": {
+        "piece": "P13",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 476.46000000002664,
+        "dur": 15.430000000000007
+      },
+      "diff_t_start": 6.143051000026617,
+      "diff_dur": -1.3949999999999925
+    },
+    {
+      "ciclo": 14,
+      "real": {
+        "piece": "piece-014",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 509.526566,
+        "dur": 17.167
+      },
+      "sim": {
+        "piece": "P14",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 516.4900000000322,
+        "dur": 15.429999999999836
+      },
+      "diff_t_start": 6.96343400003218,
+      "diff_dur": -1.7370000000001653
+    },
+    {
+      "ciclo": 15,
+      "real": {
+        "piece": "piece-015",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 549.037218,
+        "dur": 16.741
+      },
+      "sim": {
+        "piece": "P15",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 556.4200000000376,
+        "dur": 15.429999999999836
+      },
+      "diff_t_start": 7.382782000037537,
+      "diff_dur": -1.3110000000001634
+    },
+    {
+      "ciclo": 16,
+      "real": {
+        "piece": "piece-016",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 588.468452,
+        "dur": 17.022
+      },
+      "sim": {
+        "piece": "P16",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 596.450000000043,
+        "dur": 15.429999999999836
+      },
+      "diff_t_start": 7.9815480000430625,
+      "diff_dur": -1.5920000000001622
+    },
+    {
+      "ciclo": 17,
+      "real": {
+        "piece": "piece-017",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 628.686982,
+        "dur": 16.953
+      },
+      "sim": {
+        "piece": "P17",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 636.4800000000484,
+        "dur": 15.429999999999836
+      },
+      "diff_t_start": 7.793018000048505,
+      "diff_dur": -1.5230000000001631
+    },
+    {
+      "ciclo": 18,
+      "real": {
+        "piece": "piece-018",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 667.628191,
+        "dur": 17.033
+      },
+      "sim": {
+        "piece": "P18",
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "t_start": 676.4100000000539,
+        "dur": 15.429999999999836
+      },
+      "diff_t_start": 8.78180900005384,
+      "diff_dur": -1.603000000000165
+    }
+  ],
+  "xarm1": [],
+  "laser": [],
+  "robot2": [],
+  "bantam": [],
+  "robot1": [
+    {
+      "ciclo": 1,
+      "real": {
+        "piece": "piece-001",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 22.988989,
+        "dur": 43.434
+      },
+      "sim": {
+        "piece": "P01",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 21.500000000000036,
+        "dur": 42.50000000000001
+      },
+      "diff_t_start": -1.4889889999999646,
+      "diff_dur": -0.9339999999999904
+    },
+    {
+      "ciclo": 2,
+      "real": {
+        "piece": "piece-002",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 66.426877,
+        "dur": 39.182
+      },
+      "sim": {
+        "piece": "P02",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 64.00000000000004,
+        "dur": 38.499999999999986
+      },
+      "diff_t_start": -2.426876999999962,
+      "diff_dur": -0.6820000000000164
+    },
+    {
+      "ciclo": 3,
+      "real": {
+        "piece": "piece-003",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 105.612308,
+        "dur": 39.098
+      },
+      "sim": {
+        "piece": "P03",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 102.50000000000003,
+        "dur": 38.5
+      },
+      "diff_t_start": -3.1123079999999703,
+      "diff_dur": -0.597999999999999
+    },
+    {
+      "ciclo": 4,
+      "real": {
+        "piece": "piece-004",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 144.713469,
+        "dur": 39.518
+      },
+      "sim": {
+        "piece": "P04",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 141.00000000000003,
+        "dur": 40.00000000000003
+      },
+      "diff_t_start": -3.713468999999975,
+      "diff_dur": 0.48200000000002774
+    },
+    {
+      "ciclo": 5,
+      "real": {
+        "piece": "piece-005",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 184.234362,
+        "dur": 38.767
+      },
+      "sim": {
+        "piece": "P05",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 181.00000000000006,
+        "dur": 40.00000000000003
+      },
+      "diff_t_start": -3.2343619999999476,
+      "diff_dur": 1.2330000000000254
+    },
+    {
+      "ciclo": 6,
+      "real": {
+        "piece": "piece-006",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 223.004661,
+        "dur": 38.885
+      },
+      "sim": {
+        "piece": "P06",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 221.00000000000009,
+        "dur": 40.00000000000003
+      },
+      "diff_t_start": -2.0046609999999134,
+      "diff_dur": 1.1150000000000304
+    },
+    {
+      "ciclo": 7,
+      "real": {
+        "piece": "piece-007",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 261.892919,
+        "dur": 39.684
+      },
+      "sim": {
+        "piece": "P07",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 261.0000000000001,
+        "dur": 40.00000000000006
+      },
+      "diff_t_start": -0.8929189999998925,
+      "diff_dur": 0.31600000000005934
+    },
+    {
+      "ciclo": 8,
+      "real": {
+        "piece": "piece-008",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 301.579723,
+        "dur": 39.544
+      },
+      "sim": {
+        "piece": "P08",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 301.00000000000017,
+        "dur": 40.00000000000006
+      },
+      "diff_t_start": -0.5797229999998308,
+      "diff_dur": 0.4560000000000599
+    },
+    {
+      "ciclo": 9,
+      "real": {
+        "piece": "piece-009",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 341.126437,
+        "dur": 39.228
+      },
+      "sim": {
+        "piece": "P09",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 341.0000000000002,
+        "dur": 40.00000000000006
+      },
+      "diff_t_start": -0.12643699999978253,
+      "diff_dur": 0.7720000000000553
+    },
+    {
+      "ciclo": 10,
+      "real": {
+        "piece": "piece-010",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 380.358152,
+        "dur": 39.74
+      },
+      "sim": {
+        "piece": "P10",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 381.0000000000003,
+        "dur": 40.00000000000006
+      },
+      "diff_t_start": 0.641848000000266,
+      "diff_dur": 0.26000000000005485
+    },
+    {
+      "ciclo": 11,
+      "real": {
+        "piece": "piece-011",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 420.101962,
+        "dur": 39.089
+      },
+      "sim": {
+        "piece": "P11",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 421.00000000000034,
+        "dur": 40.00000000000006
+      },
+      "diff_t_start": 0.8980380000003265,
+      "diff_dur": 0.9110000000000582
+    },
+    {
+      "ciclo": 12,
+      "real": {
+        "piece": "piece-012",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 459.194826,
+        "dur": 39.177
+      },
+      "sim": {
+        "piece": "P12",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 461.0000000000004,
+        "dur": 40.00000000000006
+      },
+      "diff_t_start": 1.8051740000004202,
+      "diff_dur": 0.8230000000000572
+    },
+    {
+      "ciclo": 13,
+      "real": {
+        "piece": "piece-013",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 498.374872,
+        "dur": 38.835
+      },
+      "sim": {
+        "piece": "P13",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 501.00000000000045,
+        "dur": 39.999999999999886
+      },
+      "diff_t_start": 2.6251280000004726,
+      "diff_dur": 1.1649999999998855
+    },
+    {
+      "ciclo": 14,
+      "real": {
+        "piece": "piece-014",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 537.212329,
+        "dur": 40.067
+      },
+      "sim": {
+        "piece": "P14",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 541.0000000000003,
+        "dur": 39.999999999999886
+      },
+      "diff_t_start": 3.787671000000387,
+      "diff_dur": -0.06700000000011386
+    },
+    {
+      "ciclo": 15,
+      "real": {
+        "piece": "piece-015",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 577.283328,
+        "dur": 39.257
+      },
+      "sim": {
+        "piece": "P15",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 581.0000000000002,
+        "dur": 39.999999999999886
+      },
+      "diff_t_start": 3.7166720000002442,
+      "diff_dur": 0.7429999999998884
+    },
+    {
+      "ciclo": 16,
+      "real": {
+        "piece": "piece-016",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 616.544536,
+        "dur": 39.938
+      },
+      "sim": {
+        "piece": "P16",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 621.0000000000001,
+        "dur": 39.999999999999886
+      },
+      "diff_t_start": 4.45546400000012,
+      "diff_dur": 0.061999999999883926
+    },
+    {
+      "ciclo": 17,
+      "real": {
+        "piece": "piece-017",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 656.485375,
+        "dur": 38.759
+      },
+      "sim": {
+        "piece": "P17",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 661.0,
+        "dur": 39.999999999999886
+      },
+      "diff_t_start": 4.514625000000024,
+      "diff_dur": 1.240999999999886
+    },
+    {
+      "ciclo": 18,
+      "real": {
+        "piece": "piece-018",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 695.247395,
+        "dur": 39.606
+      },
+      "sim": {
+        "piece": "P18",
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "t_start": 700.9999999999999,
+        "dur": 39.999999999999886
+      },
+      "diff_t_start": 5.752604999999903,
+      "diff_dur": 0.39399999999988466
+    }
+  ]
+}

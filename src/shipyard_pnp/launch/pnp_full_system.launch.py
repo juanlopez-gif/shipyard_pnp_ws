@@ -2,7 +2,7 @@ import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PythonExpression
@@ -76,4 +76,33 @@ def generate_launch_description():
         # ── factory layer ────────────────────────────────────────────────────
         Node(package='shipyard_pnp', executable='factory_supervisor', name='factory_supervisor'),
         Node(package='shipyard_pnp', executable='dashboard_node',     name='dashboard_node'),
+
+        # ── digital twin bridge ──────────────────────────────────────────────
+        # Translates P&P status topics into the topics expected by mujoco_pkg
+        # (twin_node_5). No effect if the digital twin is not running.
+        Node(package='shipyard_pnp', executable='twin_bridge_node', name='twin_bridge_node'),
+
+        # ── joint telemetry writer ───────────────────────────────────────────
+        # Subscribes to each robot's real /joint_states and writes it into
+        # mes_pnp_v2.{robot}_joint_telemetry so the MES dashboard's robot
+        # viewer/history pages have live data. No effect if a robot's driver
+        # isn't publishing (e.g. mock mode).
+        Node(package='shipyard_pnp', executable='joint_telemetry_writer', name='joint_telemetry_writer'),
+
+        # ── MES analytics worker ─────────────────────────────────────────────
+        # Computes wc_metrics_history and mirrors production cycle/transfer
+        # events into the MES analytics tables with current cycle names.
+        ExecuteProcess(
+            cmd=['ros2', 'run', 'shipyard_pnp', 'mes_analytics_worker'],
+            name='mes_analytics_worker',
+            output='screen',
+        ),
+
+        # ── MES web dashboard ────────────────────────────────────────────────
+        # Standalone HTTP dashboard on port 8082, reading the MES schema.
+        ExecuteProcess(
+            cmd=['ros2', 'run', 'shipyard_pnp', 'mes_dashboard'],
+            name='mes_dashboard',
+            output='screen',
+        ),
     ])

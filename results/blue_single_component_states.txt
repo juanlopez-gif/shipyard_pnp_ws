@@ -1,0 +1,125 @@
+BLUE SINGLE PIECE - COMPONENT STATES AFTER BANTAM LOGIC FIX
+==============================================================================
+Run real DB: 20260628_134129_B
+Origin for comparison: t=0 when xArm2 starts MOVE_PIECE / SimPy starts xArm2 MOVE_TO_STACK
+Simulation main interval: 203.000 s
+Reality main interval:    202.946 s
+Difference:               0.054 s
+
+SIMULATION STATES BY COMPONENT
+==============================================================================
+
+[bantam]
+  t_s      dur_s    state                         piece color
+  -------  -------  ----------------------------  ----- -----
+    0.000   12.100  DOOR_OPENING_INIT                        
+   12.100   62.500  IDLE                                     
+   74.600    2.400  WAITING_ROBOT2                P01   BLUE 
+   77.000    0.000  WORKING                       P01   BLUE 
+   77.000   11.400  DOOR_CLOSING                  P01   BLUE 
+   88.400   25.000  PROCESSING                    P01   BLUE 
+  113.400   12.100  DOOR_OPENING                  P01   BLUE 
+  125.500   12.100  FINISHED                      P01   BLUE 
+  137.600   65.400  IDLE                                     
+
+[c4_station]
+  t_s      dur_s    state                         piece color
+  -------  -------  ----------------------------  ----- -----
+  152.500   14.500  PROCESSING                    P01   BLUE 
+  167.000   36.000  FINISHED                      P01   BLUE 
+
+[robot1]
+  t_s      dur_s    state                         piece color
+  -------  -------  ----------------------------  ----- -----
+    0.000  167.100  IDLE                                     
+  167.100    2.200  MOVE_TO_C4                    P01   BLUE 
+  169.300    3.000  VISION                        P01   BLUE 
+  172.300    5.100  PICK_C4                       P01   BLUE 
+  177.400   15.800  PLACE_FINAL_BLUE              P01   BLUE 
+  193.200    9.800  RETURN_HOME                   P01   BLUE 
+  203.000    0.000  IDLE                                     
+
+[robot2]
+  t_s      dur_s    state                         piece color
+  -------  -------  ----------------------------  ----- -----
+    0.000   40.700  IDLE                                     
+   40.700    2.500  MOVE_TO_C2S2                  P01   BLUE 
+   43.200   13.800  VISION                        P01   BLUE 
+   57.000    3.500  PICK_C2S2                     P01   BLUE 
+   60.500   14.000  PLACE_BANTAM                  P01   BLUE 
+   74.500    2.500  CLEAR_BANTAM                  P01   BLUE 
+   77.000   48.600  IDLE                                     
+  125.600    8.900  MOVE_TO_BANTAM                P01   BLUE 
+  134.500    3.100  PICK_BANTAM                   P01   BLUE 
+  137.600   14.900  PLACE_C4                      P01   BLUE 
+  152.500    9.500  RETURN_HOME                   P01   BLUE 
+  162.000   41.000  IDLE                                     
+
+[xarm1]
+  t_s      dur_s    state                         piece color
+  -------  -------  ----------------------------  ----- -----
+    0.000   17.500  IDLE                                     
+   17.500    4.000  MOVE_TO_C1S2                  P01   BLUE 
+   21.500    0.550  PICK_C1S2                     P01   BLUE 
+   22.050    9.400  PLACE_C2S1                    P01   BLUE 
+   31.450    1.800  RETURN_HOME                   P01   BLUE 
+   33.250  169.750  IDLE                                     
+
+[xarm2]
+  t_s      dur_s    state                         piece color
+  -------  -------  ----------------------------  ----- -----
+    0.000    0.000  IDLE                                     
+    0.000    3.800  MOVE_TO_STACK                 P01   BLUE 
+    3.800    0.050  VISION                        P01   BLUE 
+    3.850    2.500  PICK_STACK                    P01   BLUE 
+    6.350    5.200  PLACE_C1S1                    P01   BLUE 
+   11.550    2.000  RETURN_HOME                   P01   BLUE 
+   13.550  189.450  IDLE                                     
+
+REALITY COMMANDS BY COMPONENT (relative to xArm2 MOVE_PIECE start)
+==============================================================================
+ -33.499 ->  -29.297  dur=  4.202  arduino_vacuum     INITIALIZE_DOMAIN                    ->                  IDLE           INITIALIZED
+ -29.275 ->  -24.510  dur=  4.766  conveyor3          INITIALIZE_DOMAIN                    ->                  STOPPED        INITIALIZED
+ -24.493 ->  -24.465  dur=  0.027  globalvision_camera INITIALIZE_DOMAIN                    ->                  IDLE           INITIALIZED
+ -24.455 ->  -21.899  dur=  2.556  xarm1              INITIALIZE_DOMAIN                    ->                  IDLE           INITIALIZED
+ -21.886 ->  -14.995  dur=  6.892  robot1             INITIALIZE_DOMAIN                    ->                  IDLE           INITIALIZED
+ -14.979 ->  -14.962  dur=  0.017  laser              INITIALIZE_DOMAIN                    ->                  IDLE           INITIALIZED
+ -14.944 ->  -14.920  dur=  0.023  bantam             INITIALIZE_DOMAIN                    ->                  IDLE           INITIALIZED
+  -0.499 ->   -0.014  dur=  0.485  globalvision_camera LOCATE_NEXT_PIECE      INITIAL_STACK ->                  IDLE           SLOT_FOUND
+   0.000 ->   13.325  dur= 13.325  xarm2              MOVE_PIECE             INITIAL_STACK ->C1S1              IDLE           MOVE_DONE
+   9.479 ->   15.445  dur=  5.966  conveyor1          RUN_NIRYO_CONVEYOR                   ->                  STOPPED        STOPPED_AT_EXIT_SENSOR
+  15.236 ->   31.003  dur= 15.768  xarm1              MOVE_PIECE             C1S2          ->C2S1              IDLE           MOVE_DONE
+  26.386 ->   35.505  dur=  9.119  conveyor2          RUN_NIRYO_CONVEYOR                   ->                  STOPPED        STOPPED_AT_EXIT_SENSOR
+  35.382 ->   48.314  dur= 12.932  robot2             CAPTURE_LOCAL_VISION   C2S2          ->                  IDLE           VISION_RESULT_READY
+  48.339 ->   76.950  dur= 28.611  robot2             MOVE_PIECE             C2S2          ->BANTAM_BED        IDLE           MOVE_DONE
+  76.988 ->  125.439  dur= 48.451  bantam             RUN_JOB                BANTAM_BED    ->BANTAM_BED        FINISHED       JOB_COMPLETE
+ 125.463 ->  152.114  dur= 26.651  robot2             MOVE_PIECE             BANTAM_BED    ->C4                PLACE_DONE     PLACED_C4
+ 152.140 ->  152.999  dur=  0.859  conveyor4          RUN_CONVEYOR           C4_ENTRY      ->C4                RUNNING        OK
+ 152.147 ->  161.535  dur=  9.388  robot2             RETURN_HOME                          ->                  IDLE           HOME
+ 166.648 ->  166.737  dur=  0.089  conveyor4          STOP_CONVEYOR                        ->                  STOPPED        OK
+ 166.748 ->  177.316  dur= 10.568  robot1             CLASSIFY_AND_PICK      C4            ->FINAL_BLUE_CIRCLE AT_PICK_POSITION AT_PICK_POSITION
+ 177.336 ->  178.898  dur=  1.562  arduino_vacuum     PICK                   C4            ->FINAL_BLUE_CIRCLE PICK_DONE      OK
+ 178.909 ->  192.683  dur= 13.775  robot1             LIFT_AND_PLACE         C4            ->FINAL_BLUE_CIRCLE AT_PLACE_POSITION AT_PLACE_POSITION
+ 192.699 ->  194.060  dur=  1.361  arduino_vacuum     RELEASE                C4            ->FINAL_BLUE_CIRCLE RELEASE_DONE   OK
+ 194.080 ->  202.946  dur=  8.866  robot1             RETURN_HOME                          ->                  IDLE           HOME
+ 202.975 ->  203.087  dur=  0.113  conveyor1          STOP_NIRYO_CONVEYOR                  ->                  STOPPED        STOPPED
+ 203.096 ->  203.156  dur=  0.060  conveyor2          STOP_NIRYO_CONVEYOR                  ->                  STOPPED        STOPPED
+ 203.168 ->  203.260  dur=  0.092  conveyor3          STOP_CONVEYOR                        ->                  STOPPED        OK
+ 203.270 ->  203.362  dur=  0.092  conveyor4          STOP_CONVEYOR                        ->                  STOPPED        OK
+ 203.372 ->  214.590  dur= 11.218  bantam             CLOSE_DOOR                           ->                  IDLE           DOOR_CLOSED
+ 214.600 ->  215.661  dur=  1.062  arduino_vacuum     OFF                                  ->                  IDLE           OK
+ 215.675 ->  216.802  dur=  1.127  xarm1              MOVE_XARM_HOME                       ->                  IDLE           HOME
+ 216.816 ->  217.924  dur=  1.107  xarm2              MOVE_XARM_HOME                       ->                  IDLE           HOME
+
+REALITY BANTAM STATUS (relative to xArm2 MOVE_PIECE start)
+==============================================================================
+ -14.933  IDLE         INITIALIZING
+ -14.920  IDLE         INITIALIZED
+ -14.917  IDLE         INITIALIZED
+  77.009  PREPARING    CLOSING_DOOR
+  88.413  WORKING      MACHINING_SIMULATED
+ 113.418  FINISHED     OPENING_DOOR_AFTER_JOB
+ 125.431  FINISHED     DOOR_OPEN_TIMEOUT_CONTINUING
+ 125.435  FINISHED     JOB_COMPLETE
+ 125.439  FINISHED     JOB_COMPLETE
+ 214.590  IDLE         DOOR_CLOSED

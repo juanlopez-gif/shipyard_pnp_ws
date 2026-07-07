@@ -18,16 +18,21 @@ def evaluate(fs) -> None:
         return
     if fs.state.get_robot("xarm2") != RobotState.IDLE:
         return
-    if fs.state.get_sensor("c1s1") != SensorState.FREE:
-        return
     if fs.vendor_clients["globalvision"].is_busy():
         return
     if fs.vendor_clients["ufactory"].is_busy("xarm2"):
         return
 
-    # If next piece is GREEN and C3 is already occupied, wait.
+    # GREEN goes to C3, not C1S1 -- only check the sensor the piece will
+    # actually land on. Checking c1s1 unconditionally here blocked GREEN
+    # pieces from feeding whenever c1s1 happened to be occupied by an
+    # unrelated BLUE/RED piece still waiting on conveyor1, even though c3
+    # was already free and GREEN never touches c1s1 at all.
     requested_color = fs.pieces.peek_first_piece_color("initial_stack")
-    if requested_color == "GREEN" and fs.state.get_sensor("c3") != SensorState.FREE:
+    if requested_color == "GREEN":
+        if fs.state.get_sensor("c3") != SensorState.FREE:
+            return
+    elif fs.state.get_sensor("c1s1") != SensorState.FREE:
         return
 
     piece_id = fs.pieces.peek_first_piece_id("initial_stack")
@@ -72,10 +77,21 @@ def _on_locate_complete(fs, piece_id: str):
 
         if not slot_id:
             fs.get_logger().warning(f"LOCATE_NEXT_PIECE returned no slot: {result}")
+            fs.db.insert_vision_detection(
+                "globalvision", piece_id=piece_id, success=False,
+            )
             _discard_and_insert(fs, "xarm2", "globalvision_no_slot")
             fs._feeding_state = "IDLE"
             return
 
+        fs.db.insert_vision_detection(
+            "globalvision",
+            piece_id=piece_id,
+            detected_color=color,
+            detected_shape=shape,
+            slot_id=slot_id,
+            success=True,
+        )
         if slot_id:
             fs.pieces.assign_slot(slot_id)
         if color and shape:
@@ -205,14 +221,30 @@ def _on_xarm2_c3_home_complete(fs):
 
 
 def _schedule_conveyor_stop(fs, conveyor_id: str, piece_id: str, route: str, delay_sec: float) -> None:
-    def _stop():
+    # green_conveyors is a single shared-Arduino domain (concurrent_resources=
+    # False) -- conveyor3 and conveyor4 commands compete for the one pending
+    # slot, so this stop can be rejected while the other conveyor's RUN/STOP
+    # is still in flight. Retry with a short backoff instead of dropping the
+    # stop silently (a swallowed stop leaves the conveyor running past its
+    # intended point).
+    def _stop(attempt=0):
         try:
             fs.send_command(
                 "green_conveyors", conveyor_id, "STOP_CONVEYOR",
                 piece_id=piece_id, route=route,
             )
         except Exception as exc:
-            fs.get_logger().warning(f"Auto-stop {conveyor_id} failed: {exc}")
+            if attempt >= 10:
+                fs.get_logger().error(
+                    f"Auto-stop {conveyor_id} failed after {attempt} retries: {exc} — giving up"
+                )
+                return
+            fs.get_logger().warning(
+                f"Auto-stop {conveyor_id} failed (retry {attempt + 1}/10): {exc}"
+            )
+            t_retry = threading.Timer(0.5, _stop, args=(attempt + 1,))
+            t_retry.daemon = True
+            t_retry.start()
     t = threading.Timer(delay_sec, _stop)
     t.daemon = True
     t.start()

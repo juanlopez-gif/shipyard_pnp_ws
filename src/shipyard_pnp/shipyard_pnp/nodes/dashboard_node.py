@@ -41,12 +41,180 @@ DB_PORT     = int(os.environ.get("PGPORT", "5432"))
 DB_NAME     = os.environ.get("PGDATABASE", "digital_twin_db")
 DB_SCHEMA   = os.environ.get("PGSCHEMA",   "remote_database_capstone")
 
+# ── DB connection for cycle-tracking alarms (production DB, NOT the
+# possibly-stale DB_HOST/DB_NAME below used only by _refresh_analytics) --
+# same env vars and defaults as factory/db_writer.py so alarms land in the
+# same database as cycle_event/production_run/alarm_event. ─────────────
+_ALARM_DB_DEFAULTS = dict(
+    host     = os.environ.get("PGHOST",     "100.115.213.16"),
+    port     = int(os.environ.get("PGPORT", "5432")),
+    user     = os.environ.get("PGUSER",     "twin_mes_db"),
+    password = os.environ.get("PGPASSWORD", "postgres"),
+    dbname   = os.environ.get("PGDATABASE", "twin_mes_db"),
+)
+
+
+def _find_expected_now(cycle_list: list, elapsed: float):
+    """Mirrors the frontend's _ctFindExpected() -- what should this entity
+    be doing right now, given elapsed seconds since production start."""
+    if not cycle_list:
+        return None
+    if elapsed < cycle_list[0]["t_start"]:
+        return {"status": "not_started"}
+    for c in cycle_list:
+        if c["t_start"] <= elapsed < c["t_start"] + c["dur"]:
+            d = dict(c)
+            d["status"] = "active"
+            return d
+    return {"status": "finished_all"}
+
+
 # ── Optimizer global state ────────────────────────────────────────
 _OPT_STATE = {
     "status": "idle", "progress": 0, "total": 0,
     "best_so_far": None, "result": None, "error": None,
 }
 _OPT_LOCK = threading.Lock()
+
+# ── Expected-schedule (sim) vs live (real) cycle tracking ──────────
+_SCHED_LOCK = threading.Lock()
+_EXPECTED_SCHEDULE = {"ready": False, "cycles": {}, "order": [], "computed_at": None, "error": None}
+_PRODUCTION_START_TIME = {"t0": None}
+
+_SCHEDULE_ENTITIES = ["xarm2", "xarm1", "laser", "robot2", "bantam", "robot1"]
+_SCHEDULE_CYCLE_START = {
+    "xarm2":  {"MOVE_TO_STACK"},
+    "xarm1":  {"MOVE_TO_C1S2", "MOVE_TO_LASER"},
+    "robot2": {"MOVE_TO_C2S2", "MOVE_TO_BANTAM", "MOVE_TO_IBS"},
+    "robot1": {"MOVE_TO_C4", "MOVE_TO_C3"},
+    "laser":  {"PROCESSING", "HEATING"},
+    "bantam": {"DOOR_CLOSING"},
+}
+
+
+def _schedule_infer_task(entity: str, states: set, color: str) -> str:
+    if entity == "xarm2":
+        return "FEED_GREEN_TO_C3" if color == "GREEN" else "FEED_TO_C1S1"
+    if entity == "xarm1":
+        if "MOVE_TO_LASER" in states:
+            return "LASER_TO_C2S1"
+        if "MOVE_TO_C1S2" in states and color == "RED":
+            return "C1S2_TO_LASER"
+        return "C1S2_TO_C2S1"
+    if entity == "robot1":
+        return "UNLOAD_C3" if "MOVE_TO_C3" in states else "UNLOAD_C4"
+    if entity == "robot2":
+        if "MOVE_TO_BANTAM" in states:
+            return "BANTAM_TO_C4"
+        if "MOVE_TO_IBS" in states and "PLACE_BANTAM" in states:
+            return "IBS_TO_BANTAM"
+        if "PLACE_BANTAM" in states:
+            return "CLASSIFY_C2S2_TO_BANTAM"
+        if "PLACE_IBS" in states:
+            return "CLASSIFY_C2S2_TO_IBS"
+        return "CLASSIFY_C2S2_TO_C4"
+    if entity == "laser":
+        return "PROCESS_RED"
+    if entity == "bantam":
+        return "PROCESS_BLUE"
+    return entity
+
+
+def _compute_expected_schedule(order: list) -> dict:
+    """Run the SimPy model for the confirmed order and group its raw
+    state_changes into per-entity cycles (task, color, cycle_number,
+    t_start, dur) -- same grouping used for the offline sim-vs-real
+    analyses, kept simple here since only order/timing matter for the
+    live comparison, not exact sub-phase duration accounting."""
+    import io
+    import contextlib
+    from collections import defaultdict
+    import simpy
+    from shipyard_pnp.nodes.shipyard_sim import (
+        System, bantam_machine_process, xarm2_process,
+        conveyor1_process, conveyor1_control,
+        conveyor2_process, conveyor2_control,
+        xarm1_process, robot2_process, robot1_process,
+    )
+
+    env = simpy.Environment()
+    system = System(env, list(order))
+    env.process(bantam_machine_process(env, system))
+    env.process(xarm2_process(env, system))
+    env.process(conveyor1_process(env, system))
+    env.process(conveyor1_control(env, system))
+    env.process(conveyor2_process(env, system))
+    env.process(conveyor2_control(env, system))
+    env.process(xarm1_process(env, system))
+    env.process(robot2_process(env, system))
+    env.process(robot1_process(env, system))
+    with contextlib.redirect_stdout(io.StringIO()):
+        env.run(until=2500)
+
+    entity_stream = defaultdict(list)
+    for c in sorted(system.state_changes, key=lambda x: x["time"]):
+        if c["piece"] is None:
+            continue
+        entity_stream[c["entity"]].append(c)
+
+    schedule = {}
+    for entity in _SCHEDULE_ENTITIES:
+        markers = _SCHEDULE_CYCLE_START[entity]
+        groups = []
+        current = None
+        for c in entity_stream[entity]:
+            if c["state"] in markers or current is None or current["piece"] != c["piece"]:
+                if current is not None:
+                    groups.append(current)
+                current = {"piece": c["piece"], "color": c["color"], "events": [c]}
+            else:
+                current["events"].append(c)
+        if current is not None:
+            groups.append(current)
+        groups = [g for g in groups if g["events"][0]["state"] in markers]
+
+        task_counts = defaultdict(int)
+        entity_cycles = []
+        for g in groups:
+            states = {e["state"] for e in g["events"]}
+            t_start = g["events"][0]["time"]
+            t_end = g["events"][-1]["time"]
+            task = _schedule_infer_task(entity, states, g["color"])
+            # classification_rules.py creates the robot2 cycle as generic
+            # "CLASSIFY_C2S2" (cycle_number assigned then) and only renames
+            # it to CLASSIFY_C2S2_TO_{C4,BANTAM,IBS,SCRAP} once vision
+            # confirms the color -- so real cycle_number for all four is one
+            # SHARED counter, not one per final route. Match that here so
+            # comparisons against the live cycle_number (read straight from
+            # cycle_tracker) aren't spuriously flagged.
+            if entity == "robot2" and task.startswith("CLASSIFY_C2S2_TO_"):
+                counter_key = "CLASSIFY_C2S2"
+            else:
+                counter_key = task
+            task_counts[counter_key] += 1
+            entity_cycles.append({
+                "task": task, "color": g["color"],
+                "cycle_number": task_counts[counter_key],
+                "t_start": round(t_start, 1),
+                "dur": round(max(t_end - t_start, 0.1), 1),
+            })
+        entity_cycles.sort(key=lambda d: d["t_start"])
+        schedule[entity] = entity_cycles
+
+    return schedule
+
+
+def _build_expected_schedule_async(order: list) -> None:
+    try:
+        sched = _compute_expected_schedule(order)
+        with _SCHED_LOCK:
+            _EXPECTED_SCHEDULE.update({
+                "ready": True, "cycles": sched, "order": order,
+                "computed_at": time.time(), "error": None,
+            })
+    except Exception as exc:
+        with _SCHED_LOCK:
+            _EXPECTED_SCHEDULE.update({"ready": False, "error": str(exc)})
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -105,11 +273,31 @@ def _run_optimizer_thread(order: list) -> None:
         return total // denom
 
     def unique_permutations(items):
-        seen = set()
-        for p in permutations(items):
-            if p not in seen:
-                seen.add(p)
-                yield p
+        # itertools.permutations(items) always generates n! raw tuples even
+        # when most are duplicates (e.g. an all-GREEN order of 18 pieces has
+        # only 1 truly distinct permutation but 18! = 6.4e15 raw ones) --
+        # de-duping via a `seen` set after the fact still pays that full
+        # O(n!) cost, which never finishes in practice for skewed orders and
+        # left the dashboard's optimizer stuck at "1/1 (100%)" forever
+        # (progress logged, but the loop never returned to flip status to
+        # "done", so Confirm & Apply stayed disabled). Generate the
+        # n!/prod(counts!) distinct permutations directly instead.
+        counts = Counter(items)
+        keys = sorted(counts)
+
+        def backtrack(path, remaining):
+            if len(path) == len(items):
+                yield tuple(path)
+                return
+            for k in keys:
+                if remaining[k] > 0:
+                    remaining[k] -= 1
+                    path.append(k)
+                    yield from backtrack(path, remaining)
+                    path.pop()
+                    remaining[k] += 1
+
+        yield from backtrack([], dict(counts))
 
     def generate_heuristic_candidates(items):
         counts = Counter(items)
@@ -170,11 +358,14 @@ def _run_optimizer_thread(order: list) -> None:
 
     BRUTE_FORCE_THRESHOLD = 100
 
+    import time as _t
     try:
+        _opt_start = _t.time()
         orig_time = run_silent(order)
         n_perms   = count_unique(order)
 
         if n_perms <= BRUTE_FORCE_THRESHOLD:
+            method = "brute_force"
             with _OPT_LOCK:
                 _OPT_STATE.update({"status": "running", "total": n_perms,
                                    "progress": 0, "best_so_far": orig_time})
@@ -185,7 +376,9 @@ def _run_optimizer_thread(order: list) -> None:
                     best_time, best_order = t, list(perm)
                 with _OPT_LOCK:
                     _OPT_STATE.update({"progress": i + 1, "best_so_far": best_time})
+            n_evaluated = n_perms
         else:
+            method = "heuristic"
             candidates = generate_heuristic_candidates(order)
             with _OPT_LOCK:
                 _OPT_STATE.update({"status": "running", "total": len(candidates),
@@ -197,12 +390,20 @@ def _run_optimizer_thread(order: list) -> None:
                     best_time, best_order = t, list(cand)
                 with _OPT_LOCK:
                     _OPT_STATE.update({"progress": i + 1, "best_so_far": best_time})
+            n_evaluated = len(candidates)
 
+        saving_s   = round(orig_time - best_time, 3)
+        saving_pct = round(100 * saving_s / orig_time, 2) if orig_time > 0 else 0.0
         result = {
-            "original_order": list(order),
-            "original_time":  orig_time,
-            "best_order":     best_order,
-            "best_time":      best_time,
+            "original_order":          list(order),
+            "original_time":           orig_time,
+            "best_order":              best_order,
+            "best_time":               best_time,
+            "saving_s":                saving_s,
+            "saving_pct":              saving_pct,
+            "method":                  method,
+            "permutations_evaluated":  n_evaluated,
+            "optimizer_runtime_s":     round(_t.time() - _opt_start, 3),
         }
         with _OPT_LOCK:
             _OPT_STATE.update({"status": "done", "result": result})
@@ -301,6 +502,14 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
 .opt-btn-confirm { background: linear-gradient(135deg,#27ae60,#2ecc71); color: white; }
 .opt-btn-confirm:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(39,174,96,.4); }
 .opt-btn-confirm:disabled { opacity: .5; cursor: not-allowed; }
+.ct-counter { background: #f8f9fa; border: 1.5px solid #e0e6ed; border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; font-size: 1.0rem; font-weight: 600; color: #2c3e50; display: flex; gap: 24px; flex-wrap: wrap; }
+.ct-counter span.ct-label { color: #607284; font-weight: 500; margin-right: 6px; }
+.ct-drift-ahead  { color: #2980b9; }
+.ct-drift-behind { color: #c0392b; }
+.ct-alert { background: linear-gradient(135deg,#c0392b,#e74c3c); color: white; font-weight: 700; padding: 12px 16px; border-radius: 8px; margin-bottom: 12px; letter-spacing: .02em; animation: ct-pulse 1.4s ease-in-out infinite; }
+@keyframes ct-pulse { 0%,100% { opacity: 1; } 50% { opacity: .78; } }
+.ct-row-bad  td { background: #fdecea !important; color: #c0392b; font-weight: 600; }
+.ct-row-warn td { background: #fef6e6 !important; color: #b9770e; font-weight: 600; }
 .opt-progress-bar-wrap { background: #eef3f8; border-radius: 6px; height: 9px; margin: 9px 0; overflow: hidden; }
 .opt-progress-bar { height: 100%; background: linear-gradient(90deg,#8e44ad,#3498db); border-radius: 6px; transition: width .35s ease; }
 .opt-result-box { background: #f4f9f4; border: 1.5px solid #27ae60; border-radius: 9px; padding: 12px 14px; margin-top: 10px; }
@@ -481,6 +690,28 @@ _HTML = r"""<!DOCTYPE html>
             </div>
           </div>
 
+          <!-- SLIDE 3: Cycle Tracking (sim vs real) -->
+          <div class="carousel-slide">
+            <div class="data-section" style="flex:1 1 100%">
+              <div class="section-header">
+                <h3>Cycle Tracking — Simulación vs Realidad</h3>
+                <span class="status-indicator" id="ct-badge">—</span>
+              </div>
+              <div class="data-content">
+                <div id="ct-counter" class="ct-counter">Esperando a que arranque la producción...</div>
+                <div id="ct-alert" class="ct-alert" style="display:none"></div>
+                <div class="subpanel">
+                  <table class="card-table">
+                    <thead><tr><th>Entidad</th><th>Esperado (simulación)</th><th>Real (planta)</th><th>Desfase</th><th>Estado</th></tr></thead>
+                    <tbody id="cycle-tracking-table">
+                      <tr><td colspan="5" style="color:#aaa;padding:12px">Esperando a que se confirme el orden de producción...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div><!-- /carousel-track -->
       </div><!-- /carousel -->
       <button class="carousel-arrow carousel-arrow-right" id="btn-next">&#8250;</button>
@@ -504,6 +735,133 @@ function nextSlide(dir) {
 
 document.getElementById("btn-prev").addEventListener("click", () => nextSlide(-1));
 document.getElementById("btn-next").addEventListener("click", () => nextSlide(1));
+
+// ── Cycle Tracking: simulación (esperado) vs realidad ──────────────
+const CT_ENTITIES = ["xarm2","xarm1","laser","robot2","bantam","robot1"];
+const CT_DELAY_THRESHOLD_S = 15;
+let _expectedSchedule = null;
+let _productionStartTime = null;
+
+async function fetchExpectedSchedule() {
+  try {
+    const resp = await fetch("/api/expected_schedule", {cache:"no-store"});
+    const j = await resp.json();
+    _productionStartTime = j.production_start_time;
+    if (j.ready) _expectedSchedule = j.cycles;
+  } catch(e) {}
+}
+
+function _ctFindExpected(entity, elapsed) {
+  const list = (_expectedSchedule && _expectedSchedule[entity]) || [];
+  if (!list.length) return null;
+  if (elapsed < list[0].t_start) return {status: "not_started"};
+  for (const c of list) {
+    if (elapsed >= c.t_start && elapsed < c.t_start + c.dur) {
+      return Object.assign({status: "active"}, c);
+    }
+  }
+  return {status: "finished_all"};
+}
+
+function fmtMMSS(v) {
+  if (v === null || v === undefined || isNaN(v)) return "—:—";
+  const s = Math.max(0, Math.round(v));
+  const m = Math.floor(s/60), r = s%60;
+  return String(m).padStart(2,"0") + ":" + String(r).padStart(2,"0");
+}
+
+function renderCycleTracking(data) {
+  const tbody = document.getElementById("cycle-tracking-table");
+  const alertBox = document.getElementById("ct-alert");
+  const badge = document.getElementById("ct-badge");
+  const counterBox = document.getElementById("ct-counter");
+  if (!tbody) return;
+
+  if (_productionStartTime === null || !_expectedSchedule) {
+    tbody.innerHTML = '<tr><td colspan="5" style="color:#aaa;padding:12px">Esperando a que se confirme el orden de producción...</td></tr>';
+    alertBox.style.display = "none";
+    if (badge) { badge.textContent = "—"; badge.style.background = "rgba(255,255,255,.2)"; }
+    if (counterBox) counterBox.textContent = "Esperando a que arranque la producción...";
+    return;
+  }
+
+  const elapsed = (Date.now()/1000) - _productionStartTime;
+  const real = (data.cycles && data.cycles.active_entity_cycles) || {};
+  const mismatches = [];
+  const drifts = [];
+  let rows = "";
+
+  for (const entity of CT_ENTITIES) {
+    const exp = _ctFindExpected(entity, elapsed);
+    const r = real[entity];
+
+    let expLabel = "—";
+    if (!exp || exp.status === "not_started") expLabel = "(aún no le toca)";
+    else if (exp.status === "finished_all")   expLabel = "(ya no tiene más ciclos)";
+    else expLabel = `${exp.task} #${exp.cycle_number} · ${exp.color}`;
+
+    let realLabel = r
+      ? `${r.task_name} #${r.cycle_number} · ${r.color || "?"} (${fmtS(r.elapsed_s)})`
+      : "IDLE";
+
+    let rowClass = "", statusLabel = "OK", driftLabel = "—";
+    const matched = exp && exp.status === "active" && r &&
+                    r.task_name === exp.task && r.cycle_number === exp.cycle_number;
+    if (matched) {
+      // real_start_elapsed: when THIS real cycle actually started, in the
+      // same "seconds since production start" basis as exp.t_start.
+      const realStartElapsed = elapsed - r.elapsed_s;
+      const drift = realStartElapsed - exp.t_start;
+      drifts.push(drift);
+      const cls = drift > 0 ? "ct-drift-behind" : "ct-drift-ahead";
+      const arrow = drift > 0 ? "realidad tarde" : "realidad pronto";
+      driftLabel = `<span class="${cls}">${drift>=0?"+":""}${drift.toFixed(1)}s (${arrow})</span>`;
+    }
+
+    // robot2's cycle starts as generic "CLASSIFY_C2S2" and only gets
+    // renamed to CLASSIFY_C2S2_TO_{C4,BANTAM,IBS,SCRAP} once vision confirms
+    // the color -- caught mid-flight it never matches the schedule's
+    // (already-final) task name, which isn't a real order violation.
+    const skipCompare = entity === "robot2" && r && r.task_name === "CLASSIFY_C2S2";
+
+    if (exp && exp.status === "active" && !skipCompare) {
+      if (!r) {
+        rowClass = "ct-row-warn"; statusLabel = "DEBERÍA ESTAR ACTIVO";
+        mismatches.push(`${entity}: se esperaba ${exp.task} #${exp.cycle_number} pero está IDLE`);
+      } else if (r.task_name !== exp.task) {
+        rowClass = "ct-row-bad"; statusLabel = "CYCLE UNEXPECTED — orden distinto";
+        mismatches.push(`${entity}: se esperaba ${exp.task} #${exp.cycle_number}, va ${r.task_name} #${r.cycle_number}`);
+      } else if (r.cycle_number === exp.cycle_number && r.elapsed_s - exp.dur > CT_DELAY_THRESHOLD_S) {
+        const delay = (r.elapsed_s - exp.dur).toFixed(0);
+        rowClass = "ct-row-warn"; statusLabel = `CYCLE UNEXPECTED — retraso +${delay}s`;
+        mismatches.push(`${entity}: ${delay}s de retraso en ${exp.task} #${exp.cycle_number}`);
+      }
+      // same task, different cycle_number: normal few-second drift around
+      // the boundary between two cycles, not flagged as a real mismatch
+    }
+
+    rows += `<tr class="${rowClass}"><td>${entity}</td><td>${expLabel}</td><td>${realLabel}</td><td>${driftLabel}</td><td>${statusLabel}</td></tr>`;
+  }
+  tbody.innerHTML = rows;
+
+  if (counterBox) {
+    const avgDrift = drifts.length ? drifts.reduce((a,b)=>a+b,0)/drifts.length : null;
+    const driftTxt = avgDrift === null ? "n/a"
+      : `<span class="${avgDrift>0?'ct-drift-behind':'ct-drift-ahead'}">${avgDrift>=0?"+":""}${avgDrift.toFixed(1)}s ${avgDrift>0?"(realidad va detrás)":"(simulación va por delante)"}</span>`;
+    counterBox.innerHTML =
+      `<div><span class="ct-label">⏱ Tiempo real:</span>${fmtMMSS(elapsed)}</div>` +
+      `<div><span class="ct-label">🖥 Desfase medio (${drifts.length}/${CT_ENTITIES.length} entidades comparables):</span>${driftTxt}</div>`;
+  }
+
+  if (mismatches.length) {
+    alertBox.style.display = "block";
+    alertBox.textContent = "⚠ CYCLE UNEXPECTED — " + mismatches.join("  ·  ");
+    if (badge) { badge.textContent = mismatches.length + " UNEXPECTED"; badge.style.background = "#e74c3c"; }
+  } else {
+    alertBox.style.display = "none";
+    if (badge) { badge.textContent = "ON TRACK"; badge.style.background = "#27ae60"; }
+  }
+}
 
 function fmtS(v) {
   if (v === null || v === undefined) return "n/a";
@@ -672,6 +1030,8 @@ async function refreshDashboard() {
     renderConveyors(data);
     renderAnalytics(data);
     _syncOptimizerBadge(data);
+    if (_productionStartTime === null) await fetchExpectedSchedule();
+    renderCycleTracking(data);
   } catch(e) {
     console.error("Dashboard refresh error:", e);
   }
@@ -755,6 +1115,9 @@ async function confirmOrder() {
       document.getElementById("waiting-banner").style.display = "none";
       document.getElementById("opt-status").textContent =
         "Order sent — supervisor starting production with: " + (j.order || []).join(" → ");
+      _productionStartTime = null;
+      _expectedSchedule = null;
+      setTimeout(fetchExpectedSchedule, 500);
     } else {
       alert("Error: " + (j.error||"?"));
       document.getElementById("opt-confirm").disabled = false;
@@ -886,6 +1249,11 @@ class _Handler(BaseHTTPRequestHandler):
         elif path == "/api/optimize_status":
             with _OPT_LOCK:
                 self._json(dict(_OPT_STATE))
+        elif path == "/api/expected_schedule":
+            with _SCHED_LOCK:
+                payload = dict(_EXPECTED_SCHEDULE)
+                payload["production_start_time"] = _PRODUCTION_START_TIME["t0"]
+            self._json(payload)
         elif path.startswith("/stream/"):
             key = path.split("/")[-1].replace(".jpg", "")
             img = _Handler.image_fn(key) if _Handler.image_fn else None
@@ -930,8 +1298,28 @@ class _Handler(BaseHTTPRequestHandler):
                 self._json({"ok": False, "error": "ROS publisher not available"})
                 return
             msg = String()
-            msg.data = json.dumps({"order": result["best_order"]})
+            msg.data = json.dumps({
+                "order":                   result["best_order"],
+                "original_order":          result["original_order"],
+                "original_time_s":         result["original_time"],
+                "best_time_s":             result["best_time"],
+                "saving_s":                result.get("saving_s", 0.0),
+                "saving_pct":              result.get("saving_pct", 0.0),
+                "method":                  result.get("method", "unknown"),
+                "permutations_evaluated":  result.get("permutations_evaluated", 0),
+                "optimizer_runtime_s":     result.get("optimizer_runtime_s", 0.0),
+            })
             pub.publish(msg)
+
+            with _SCHED_LOCK:
+                _PRODUCTION_START_TIME["t0"] = time.time()
+                _EXPECTED_SCHEDULE.update({"ready": False, "cycles": {}, "order": [],
+                                           "computed_at": None, "error": None})
+            threading.Thread(
+                target=_build_expected_schedule_async,
+                args=(result["best_order"],), daemon=True,
+            ).start()
+
             self._json({"ok": True, "order": result["best_order"]})
 
         else:
@@ -959,11 +1347,20 @@ class DashboardNode(Node):
         self._db_conn         = None
         self._initial_order_captured: list = []
 
+        # Cycle-tracking alarm persistence
+        self._current_run_id   = None
+        self._alarm_db_conn    = None
+        self._cycle_alarm_state: dict = {}   # entity -> {"signature": str, "alarm_id": int}
+        self._last_seen_t0      = None
+
         # Subscribe to factory system state
         self.create_subscription(String, "/factory/system_state", self._on_system_state, 10)
 
         # Subscribe to bantam status for door tracking
         self.create_subscription(String, "/bantam_factory/status", self._on_bantam_status, 10)
+
+        # Subscribe to the current run_id (latched) for alarm persistence
+        self.create_subscription(String, "/factory/run_id", self._on_run_id, 10)
 
         # Camera streams (Niryo robots)
         if _HAS_COMPRESSED_IMAGE:
@@ -979,6 +1376,10 @@ class DashboardNode(Node):
 
         # DB analytics refresh every 10s
         self.create_timer(10.0, self._refresh_analytics)
+
+        # Cycle-tracking: compare live cycles vs the expected sim schedule,
+        # persist any "cycle unexpected" transition to alarm_event
+        self.create_timer(3.0, self._check_cycle_tracking_alarms)
 
         # ROS publisher for optimized order → supervisor
         self._order_pub = self.create_publisher(String, "/supervisor/set_optimized_order", 10)
@@ -1036,6 +1437,127 @@ class DashboardNode(Node):
     def _on_image(self, key: str, msg) -> None:
         with self._lock:
             self._images[key] = bytes(msg.data)
+
+    # ── Cycle-tracking alarm persistence (sim expected vs real) ────────
+
+    def _on_run_id(self, msg: String) -> None:
+        self._current_run_id = msg.data
+
+    def _get_alarm_conn(self):
+        if not _HAS_PSYCOPG2:
+            return None
+        try:
+            if self._alarm_db_conn is None or self._alarm_db_conn.closed:
+                self._alarm_db_conn = psycopg2.connect(**_ALARM_DB_DEFAULTS, connect_timeout=4)
+                self._alarm_db_conn.autocommit = True
+            return self._alarm_db_conn
+        except Exception as exc:
+            self.get_logger().warning(f"[cycle_tracking] DB connection failed: {exc}")
+            return None
+
+    def _insert_cycle_alarm(self, entity: str, kind: str, description: str,
+                             expected: dict, real, elapsed: float):
+        conn = self._get_alarm_conn()
+        if conn is None:
+            return None
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO shipyard_pnp_ws.alarm_event
+                        (run_id, severity, resource_id, description, context_snapshot)
+                    VALUES (%s, %s, %s, %s, %s)
+                    RETURNING id;
+                    """,
+                    (
+                        self._current_run_id,
+                        "warning" if kind == "delay" else "critical",
+                        entity,
+                        f"CYCLE UNEXPECTED [{entity}]: {description}",
+                        json.dumps({
+                            "kind": kind,
+                            "elapsed_s": round(elapsed, 1),
+                            "expected": expected,
+                            "real": real,
+                        }),
+                    ),
+                )
+                row = cur.fetchone()
+                self.get_logger().warning(f"[cycle_tracking] CYCLE UNEXPECTED [{entity}]: {description}")
+                return row[0] if row else None
+        except Exception as exc:
+            self.get_logger().warning(f"[cycle_tracking] insert alarm failed: {exc}")
+            return None
+
+    def _resolve_cycle_alarm(self, alarm_id) -> None:
+        if alarm_id is None:
+            return
+        conn = self._get_alarm_conn()
+        if conn is None:
+            return
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE shipyard_pnp_ws.alarm_event SET resolved_at = now() WHERE id = %s;",
+                    (alarm_id,),
+                )
+        except Exception as exc:
+            self.get_logger().warning(f"[cycle_tracking] resolve alarm failed: {exc}")
+
+    def _check_cycle_tracking_alarms(self) -> None:
+        if self._current_run_id is None:
+            return
+        with _SCHED_LOCK:
+            ready = _EXPECTED_SCHEDULE["ready"]
+            cycles = _EXPECTED_SCHEDULE["cycles"]
+            t0 = _PRODUCTION_START_TIME["t0"]
+        if not ready or t0 is None:
+            return
+
+        if t0 != self._last_seen_t0:
+            # New production started -- old alarm ids are stale, drop them
+            # (their rows stay in the DB as-is, just no longer tracked here).
+            self._cycle_alarm_state = {}
+            self._last_seen_t0 = t0
+
+        elapsed = time.time() - t0
+        real = self.get_snapshot().get("cycles", {}).get("active_entity_cycles", {})
+
+        for entity in _SCHEDULE_ENTITIES:
+            exp = _find_expected_now(cycles.get(entity, []), elapsed)
+            r = real.get(entity)
+            # robot2's cycle is created as generic "CLASSIFY_C2S2" and only
+            # renamed to CLASSIFY_C2S2_TO_{C4,BANTAM,IBS,SCRAP} once vision
+            # confirms the color -- caught mid-flight it never matches the
+            # schedule's (already-final) task name, which isn't a real
+            # order violation, just a snapshot mid-rename.
+            skip_compare = entity == "robot2" and r is not None and r["task_name"] == "CLASSIFY_C2S2"
+            mismatch = None
+            if exp and exp.get("status") == "active" and not skip_compare:
+                if r is None:
+                    mismatch = ("missing",
+                                f"se esperaba {exp['task']} #{exp['cycle_number']} pero está IDLE")
+                elif r["task_name"] != exp["task"]:
+                    mismatch = ("order",
+                                f"se esperaba {exp['task']} #{exp['cycle_number']}, "
+                                f"va {r['task_name']} #{r['cycle_number']}")
+                elif r["cycle_number"] == exp["cycle_number"] and r["elapsed_s"] - exp["dur"] > 15:
+                    delay = r["elapsed_s"] - exp["dur"]
+                    mismatch = ("delay", f"{delay:.0f}s de retraso en {exp['task']} #{exp['cycle_number']}")
+                # same task, different cycle_number: normal few-second drift
+                # around the boundary between two cycles, not a real mismatch
+
+            prev = self._cycle_alarm_state.get(entity)
+            signature = mismatch[1] if mismatch else None
+
+            if mismatch and (prev is None or prev["signature"] != signature):
+                if prev is not None:
+                    self._resolve_cycle_alarm(prev["alarm_id"])
+                alarm_id = self._insert_cycle_alarm(entity, mismatch[0], mismatch[1], exp, r, elapsed)
+                self._cycle_alarm_state[entity] = {"signature": signature, "alarm_id": alarm_id}
+            elif not mismatch and prev is not None:
+                self._resolve_cycle_alarm(prev["alarm_id"])
+                self._cycle_alarm_state.pop(entity, None)
 
     # ── normalization ──────────────────────────────────────────────
 

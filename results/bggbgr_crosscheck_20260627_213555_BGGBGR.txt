@@ -1,0 +1,48 @@
+BGGBGR CROSSCHECK - SECOND DATABASE RUN
+==============================================================================
+Generated: 2026-06-28
+
+Real DB run:
+  run_id: 20260627_213555_BGGBGR
+  original_order:  BGGBGR
+  optimized_order: BBGGRG
+  status: ABORTED, but pieces_completed = 6/6
+  production elapsed: 853.424 s (includes non-operational time)
+
+Comparison origin:
+  t=0 is the first xArm2 cycle start in reality and SimPy xArm2 MOVE_TO_STACK.
+  Real origin from production_run start: 84.585 s.
+
+Main interval:
+  Reality:    329.197 s
+  Sim BBGGRG: 325.200 s
+  Difference: -3.997 s (simulation is 1.21% faster)
+
+For reference:
+  Sim original BGGBGR: 334.500 s
+  Difference vs reality: +5.303 s (simulation is 1.61% slower)
+
+Key real cycles:
+  robot2 CLASSIFY_C2S2_TO_BANTAM piece-001:  35.632 ->  80.082 s, dur 44.450 s
+  bantam PROCESS_BLUE piece-001:              80.087 -> 128.761 s, dur 48.675 s
+  robot2 CLASSIFY_C2S2_TO_IBS piece-004:      80.091 -> 110.884 s, dur 30.794 s
+  robot2 BANTAM_TO_C4 piece-001:             128.766 -> 165.326 s, dur 36.560 s
+  robot2 IBS_TO_BANTAM piece-004:            165.330 -> 202.152 s, dur 36.821 s
+  bantam PROCESS_BLUE piece-004:             202.157 -> 250.857 s, dur 48.700 s
+  robot2 CLASSIFY_C2S2_TO_C4 piece-006:      202.161 -> 235.601 s, dur 33.440 s
+  robot2 BANTAM_TO_C4 piece-004:             252.433 -> 288.913 s, dur 36.480 s
+  robot1 final UNLOAD_C4 piece-004:          293.969 -> 329.197 s, dur 35.228 s
+
+IBS/Bantam validation:
+  piece-004 enters intermediate_blue_stack at 110.883 s.
+  robot2 IBS_TO_BANTAM runs 165.330 -> 202.152 s.
+  piece-004 enters bantam_bed at 202.149 s.
+  Bantam PROCESS_BLUE starts at 202.157 s.
+  Delay from bantam_bed transfer to Bantam cycle start: about 0.008 s.
+
+Conclusion:
+  This second BGGBGR run confirms the same behavior seen in the latest run:
+  Bantam starts immediately after the real IBS->Bantam MOVE_PIECE completes.
+  The adjusted SimPy logic with ROBOT2_CLEAR_BANTAM_FROM_IBS = 9.6 matches that
+  behavior much better than the old 2.5 s clear.
+

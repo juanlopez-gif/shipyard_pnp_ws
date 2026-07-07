@@ -143,6 +143,17 @@ class CycleTracker:
             else:
                 cycle.metadata[k] = v
 
+    def get_active_entity_cycle(self, entity: str) -> Optional[EntityCycle]:
+        """Return the active entity cycle, if any."""
+        return self._active_entity.get(entity)
+
+    def rename_active_phase(self, entity: str, phase_name: str) -> None:
+        """Rename the currently open phase for an active entity cycle."""
+        cycle = self._active_entity.get(entity)
+        if cycle is None or not cycle.phases:
+            return
+        cycle.phases[-1].name = phase_name
+
     def complete_entity_cycle(
         self,
         entity: str,
@@ -240,6 +251,8 @@ class CycleTracker:
             entity: {
                 "task_name":     c.task_name,
                 "piece_id":      c.piece_id,
+                "color":         c.color,
+                "cycle_number":  c.cycle_number,
                 "current_phase": c.phases[-1].name if c.phases else None,
                 "elapsed_s":     round(time.time() - c.started_at, 1),
             }

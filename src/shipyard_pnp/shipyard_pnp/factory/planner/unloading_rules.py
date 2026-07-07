@@ -7,7 +7,8 @@ serialized by the Factory Supervisor.
 Entity cycles:
   robot1 / UNLOAD_C4  — classify+pick from C4, vacuum, lift+place, release, home
   robot1 / UNLOAD_C3  — classify+pick from C3, vacuum, lift+place, release, home
-  Phases: CLASSIFY_AND_PICK → VACUUM_PICK → LIFT_AND_PLACE → VACUUM_RELEASE → RETURNING_HOME
+  Phases: VISION_C3/C4 → MOVING_C3/C4_TO_FINAL_* →
+          VACUUM_PICK → LIFT_AND_PLACE → VACUUM_RELEASE → RETURNING_HOME
 """
 
 import time
@@ -38,9 +39,10 @@ def evaluate(fs) -> None:
             "pick_position":  context["pick_position"],
             "expected_color": context["color"],
             "expected_shape": context["shape"],
+            "expected_final_target": context["final_target"],
         },
     )
-    fs.cycles.add_phase("robot1", "CLASSIFY_AND_PICK")
+    fs.cycles.add_phase("robot1", f"VISION_{context['pick_position']}")
 
     fs._unloading_state = "WAITING_CLASSIFY_PICK"
     fs.send_command(
@@ -57,22 +59,38 @@ def evaluate(fs) -> None:
 
 
 def _next_pick_context(fs) -> dict:
-    if fs.state.get_sensor("c4") == SensorState.OCCUPIED:
-        location     = "c4_location"
-        sensor_id    = "c4"
-        pick_position = "C4"
-        elapsed = time.time() - fs._c4_deposit_time
-        if elapsed < fs.c4_settle_sec:
-            return None
-    elif fs.state.get_sensor("c3") == SensorState.OCCUPIED:
-        location     = "c3_location"
-        sensor_id    = "c3"
-        pick_position = "C3"
-        elapsed = time.time() - fs._c3_deposit_time
-        if elapsed < fs.c3_settle_sec:
-            return None
+    # Whichever of C3/C4 finished settling FIRST wins -- matches the SimPy
+    # model (system.c4_finish_time <= system.c3_finish_time), which is the
+    # validated reference behavior. This replaces the old unconditional
+    # "C4 always wins" if/elif, which picked C4 even when C3 had been
+    # ready and waiting longer, and caused a confirmed C3/C4 unload-order
+    # mismatch against the simulator.
+    c4_occupied = fs.state.get_sensor("c4") == SensorState.OCCUPIED
+    c3_occupied = fs.state.get_sensor("c3") == SensorState.OCCUPIED
+    now = time.time()
+
+    c4_ready_at = fs._c4_deposit_time + fs.c4_settle_sec if c4_occupied else None
+    c3_ready_at = fs._c3_deposit_time + fs.c3_settle_sec if c3_occupied else None
+    c4_ready = c4_occupied and now >= c4_ready_at
+    c3_ready = c3_occupied and now >= c3_ready_at
+
+    if c4_ready and c3_ready:
+        go_c4 = c4_ready_at <= c3_ready_at
+    elif c4_ready:
+        go_c4 = True
+    elif c3_ready:
+        go_c4 = False
     else:
         return None
+
+    if go_c4:
+        location      = "c4_location"
+        sensor_id     = "c4"
+        pick_position = "C4"
+    else:
+        location      = "c3_location"
+        sensor_id     = "c3"
+        pick_position = "C3"
 
     piece = fs.pieces.peek_first_piece(location)
     if piece is None:
@@ -141,12 +159,22 @@ def _on_classify_pick_complete(fs, context: dict):
         if actual_color in {"RED", "GREEN", "BLUE"}:
             updated_context["route"] = actual_color
 
+        fs.db.insert_vision_detection(
+            "robot1_camera",
+            piece_id=context["piece_id"],
+            detected_color=actual_color,
+            detected_shape=actual_shape,
+            success=True,
+        )
+
         # Update entity cycle with confirmed color/route from vision.
         fs.cycles.update_entity_cycle(
             "robot1",
             color=actual_color,
             route=updated_context["route"],
+            final_target=final_target,
         )
+        _sync_robot1_moving_phase_target(fs, updated_context)
         fs.cycles.add_phase("robot1", "VACUUM_PICK")
 
         fs._unloading_state = "WAITING_VACUUM_PICK"
@@ -276,6 +304,52 @@ def _on_return_home_complete(fs, context: dict):
 
 
 # ── DB helpers ───────────────────────────────────────────────────────────────
+
+def sync_robot1_vision_phase(fs, previous_state: str, current_state: str) -> None:
+    """Mirror robot1's internal vision state in cycle_event phases."""
+    if previous_state == current_state:
+        return
+
+    cycle = fs.cycles.get_active_entity_cycle("robot1")
+    if cycle is None or not cycle.task_name.startswith("UNLOAD_"):
+        return
+
+    pick_position = cycle.metadata.get("pick_position")
+    if pick_position not in {"C3", "C4"}:
+        return
+
+    current_phase = cycle.phases[-1].name if cycle.phases else None
+    vision_phase = f"VISION_{pick_position}"
+
+    if current_state == RobotState.WAITING_FOR_VISION.value:
+        if current_phase != vision_phase:
+            fs.cycles.add_phase("robot1", vision_phase)
+        return
+
+    if previous_state == RobotState.WAITING_FOR_VISION.value:
+        if current_phase == vision_phase:
+            target = (
+                cycle.metadata.get("final_target")
+                or cycle.metadata.get("expected_final_target")
+                or "FINAL"
+            )
+            fs.cycles.add_phase("robot1", f"MOVING_{pick_position}_TO_{target}")
+
+
+def _sync_robot1_moving_phase_target(fs, context: dict) -> None:
+    cycle = fs.cycles.get_active_entity_cycle("robot1")
+    if cycle is None:
+        return
+
+    pick_position = cycle.metadata.get("pick_position")
+    current_phase = cycle.phases[-1].name if cycle.phases else ""
+    prefix = f"MOVING_{pick_position}_TO_"
+    if pick_position in {"C3", "C4"} and current_phase.startswith(prefix):
+        fs.cycles.rename_active_phase(
+            "robot1",
+            f"MOVING_{pick_position}_TO_{context['final_target']}",
+        )
+
 
 def _discard_and_insert(fs, entity: str, reason: str) -> None:
     cycle = fs.cycles.discard_entity_cycle(entity, reason)

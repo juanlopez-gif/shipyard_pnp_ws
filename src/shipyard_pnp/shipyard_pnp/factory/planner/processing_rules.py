@@ -15,32 +15,44 @@ from shipyard_pnp.shared.contracts import MachineState, RobotState, SensorState
 
 
 def evaluate(fs) -> None:
-    # Laser finished but c2s1 was occupied — poll until conveyor2 frees it.
-    if fs._processing_state == "LASER_DONE_WAITING_C2S1":
-        if (
-            fs.state.get_sensor("c2s1") == SensorState.FREE
-            and not fs.vendor_clients["ufactory"].is_busy("xarm1")
-        ):
-            _send_xarm1_laser_to_c2(fs, fs._pending_laser_piece_id)
+    xarm1_free = (
+        fs.state.get_robot("xarm1") == RobotState.IDLE
+        and not fs.vendor_clients["ufactory"].is_busy("xarm1")
+    )
+
+    # ── Priority 1: retrieve a finished piece from the laser bed ────────────
+    # Checked independently of c1s2 — a finished RED piece gets picked up as
+    # soon as xarm1 and c2s1 are both free, even if a new piece (any color)
+    # is already sitting at c1s2 waiting its turn.
+    if (
+        xarm1_free
+        and fs.state.get_machine("laser") == MachineState.FINISHED
+        and fs.state.get_sensor("c2s1") == SensorState.FREE
+    ):
+        _send_xarm1_laser_to_c2(fs, fs._pending_laser_piece_id)
         return
 
-    if fs._processing_state != "IDLE":
+    # ── Priority 2: pick up the next piece waiting at c1s2 ──────────────────
+    if not xarm1_free:
         return
     if fs.pieces.count("conveyor1") <= 0:
         return
     if fs.state.get_sensor("c1s2") != SensorState.OCCUPIED:
         return
-    if fs.state.get_robot("xarm1") != RobotState.IDLE:
-        return
-    if fs.vendor_clients["ufactory"].is_busy("xarm1"):
-        return
 
     piece_id = fs.pieces.peek_first_piece_id("conveyor1")
     color    = fs.pieces.peek_first_piece_color("conveyor1") or "UNKNOWN"
     if color == "RED":
-        # c2s1 is checked only for the laser→c2s1 move, not for c1s2→laser.
+        # Laser bed holds one piece at a time — RED can only go in once it's
+        # back to IDLE (previous piece fully placed on the laser and cleared,
+        # or laser never used). A RED piece waiting here does NOT block BLUE/
+        # GREEN pieces at c1s2 from moving directly to c2s1 in the meantime.
+        if fs.state.get_machine("laser") != MachineState.IDLE:
+            return
         _send_xarm1_to_laser(fs, piece_id)
     else:
+        # c2s1 must be empty for ANY color placed there — this direct move
+        # competes for the same slot as the laser→c2s1 retrieval above.
         if fs.state.get_sensor("c2s1") != SensorState.FREE:
             return
         _send_xarm1_direct_to_c2(fs, piece_id, color)
@@ -155,13 +167,31 @@ def _on_laser_complete(fs, piece_id: str):
         _complete_and_insert(fs, "laser")
 
         fs._pending_laser_piece_id = piece_id
-        if fs.state.get_sensor("c2s1") == SensorState.FREE:
-            _send_xarm1_laser_to_c2(fs, piece_id)
-        else:
+        # Unlike evaluate()'s Priority 1 (which checks xarm1_free before
+        # dispatching), this callback used to call _send_xarm1_laser_to_c2
+        # unconditionally whenever c2s1 was free -- if xarm1 was still busy
+        # with an unrelated piece at that exact instant, send_command raised
+        # ("VendorClient 'ufactory/xarm1' is busy"), after the entity cycle
+        # had already been started, leaving a stray/duplicate cycle_event
+        # once evaluate()'s next 0.5s tick retried it correctly. Guard on
+        # xarm1_free here too; if busy, just leave laser=FINISHED and
+        # _pending_laser_piece_id set -- evaluate()'s Priority 1 picks it up
+        # on its own as soon as xarm1 frees up, no extra state needed.
+        xarm1_free = (
+            fs.state.get_robot("xarm1") == RobotState.IDLE
+            and not fs.vendor_clients["ufactory"].is_busy("xarm1")
+        )
+        if fs.state.get_sensor("c2s1") != SensorState.FREE:
             fs.get_logger().info(
                 f"[processing] laser done for {piece_id} — c2s1 occupied, waiting for conveyor2"
             )
             fs._processing_state = "LASER_DONE_WAITING_C2S1"
+        elif xarm1_free:
+            _send_xarm1_laser_to_c2(fs, piece_id)
+        else:
+            fs.get_logger().info(
+                f"[processing] laser done for {piece_id} — xarm1 busy, evaluate() will retrieve it"
+            )
 
     return on_complete
 

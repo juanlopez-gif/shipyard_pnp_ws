@@ -13,15 +13,19 @@ c4 guard: only required before starting vision when the piece is known NOT to be
 BLUE. BLUE pieces go to bantam/IBS and never need c4 free at pick time.
 
 Concurrency model:
-  _classification_state tracks the bantam pipeline state. Robot2's concurrent
-  sub-movements (classify+route while bantam runs) are tracked via the hardware
-  state (is_busy / get_robot). Both can advance independently.
+  _classification_state tracks robot2's OWN in-flight movement (classify+route
+  for whichever piece it's currently handling) and must reflect that alone —
+  it gets overwritten every time robot2 starts/finishes a step, regardless of
+  what else is going on. Bantam's "job finished, piece waiting for pickup"
+  signal is therefore tracked SEPARATELY via fs._pending_bantam_piece, which
+  survives robot2 handling an unrelated piece (e.g. a RED/GREEN piece going
+  straight to C4) while bantam is still holding a finished BLUE piece.
+  Mixing the two into one variable previously caused bantam pickups to be
+  silently dropped whenever robot2 was mid-cycle on another piece when the
+  bantam job completed.
 
   States that mean robot2 is physically moving (block a new robot2 command):
     _ROBOT2_BUSY_STATES
-
-  States compatible with robot2 being idle (bantam running, waiting for result):
-    "WAITING_BANTAM", "BANTAM_DONE_WAITING_PICKUP"
 
 Entity cycles:
   robot2 / CLASSIFY_C2S2_TO_C4       — vision + move to C4 + return home
@@ -51,11 +55,6 @@ _ROBOT2_BUSY_STATES = frozenset({
     "WAITING_ROBOT2_HOME",
 })
 
-# State set by _on_bantam_complete to signal "bantam done, send robot2 to bantam→c4
-# as soon as robot2 is free". NOT in _ROBOT2_BUSY_STATES — evaluate() must be able
-# to enter and dispatch robot2 from this state.
-_STATE_BANTAM_DONE = "BANTAM_DONE_WAITING_PICKUP"
-
 
 def evaluate(fs) -> None:
     if fs._classification_state in _ROBOT2_BUSY_STATES:
@@ -65,45 +64,51 @@ def evaluate(fs) -> None:
     if fs.vendor_clients["niryo"].is_busy("robot2"):
         return
 
-    # Priority 1: bantam finished — pick processed piece bantam → c4.
+    # Priority 1: piece waiting at C2S2 — classify and route. Absolute
+    # priority over the bantam pickup below — a piece sitting at C2S2 blocks
+    # conveyor2 (and everything upstream of it) from advancing, so it always
+    # gets serviced first.
+    # c4 must be free before starting: robot2's own local vision is the only
+    # authority on this piece's real color (it may disagree with whatever an
+    # earlier stage guessed), and _send_robot2_to_c4() never re-checks c4 once
+    # that result comes back. Gating on a pre-known/hinted color here would
+    # let a piece through unsafely if that hint turns out to be wrong.
     if (
-        fs._classification_state == _STATE_BANTAM_DONE
-        and fs._pending_bantam_piece is not None
+        fs.pieces.count("conveyor2") > 0
+        and fs.state.get_sensor("c2s2") == SensorState.OCCUPIED
+        and fs.state.get_sensor("c4") == SensorState.FREE
+    ):
+        piece_id = fs.pieces.peek_first_piece_id("conveyor2")
+        # Start robot2 entity cycle — first phase is vision at C2S2.
+        fs.cycles.start_entity_cycle(
+            "robot2", "CLASSIFY_C2S2",
+            piece_id=piece_id,
+            metadata={"pick_position": "C2S2"},
+        )
+        fs.cycles.add_phase("robot2", "VISION_C2S2")
+        fs._classification_state = "WAITING_VISION"
+        fs.send_command(
+            "niryo",
+            "robot2",
+            "CAPTURE_LOCAL_VISION",
+            piece_id=piece_id,
+            source="C2S2",
+            parameters={"position": "C2S2"},
+            on_complete=_on_vision_complete(fs, piece_id),
+        )
+        return
+
+    # Priority 2: bantam finished — pick processed piece bantam → c4. Only
+    # once c2s2 is clear — Priority 1 above always wins when both are ready,
+    # even if that means leaving a finished bantam piece waiting longer.
+    if (
+        fs._pending_bantam_piece is not None
+        and fs.state.get_sensor("c2s2") != SensorState.OCCUPIED
     ):
         if fs.state.get_sensor("c4") != SensorState.FREE:
             return
         _send_robot2_bantam_to_c4(fs, fs._pending_bantam_piece)
         return
-
-    # Priority 2: piece waiting at C2S2 — classify and route.
-    if (
-        fs.pieces.count("conveyor2") > 0
-        and fs.state.get_sensor("c2s2") == SensorState.OCCUPIED
-    ):
-        known_color = fs.pieces.peek_first_piece_color("conveyor2")
-        c4_needed   = known_color != "BLUE"
-        if c4_needed and fs.state.get_sensor("c4") != SensorState.FREE:
-            pass
-        else:
-            piece_id = fs.pieces.peek_first_piece_id("conveyor2")
-            # Start robot2 entity cycle — first phase is vision at C2S2.
-            fs.cycles.start_entity_cycle(
-                "robot2", "CLASSIFY_C2S2",
-                piece_id=piece_id,
-                metadata={"pick_position": "C2S2"},
-            )
-            fs.cycles.add_phase("robot2", "VISION_C2S2")
-            fs._classification_state = "WAITING_VISION"
-            fs.send_command(
-                "niryo",
-                "robot2",
-                "CAPTURE_LOCAL_VISION",
-                piece_id=piece_id,
-                source="C2S2",
-                parameters={"position": "C2S2"},
-                on_complete=_on_vision_complete(fs, piece_id),
-            )
-            return
 
     # Priority 3: IBS drain — only when bantam is fully idle.
     if (
@@ -132,8 +137,9 @@ def _decide_route(fs, color: str) -> str:
 
 
 def _restore_classification_state(fs) -> None:
-    if fs._classification_state == _STATE_BANTAM_DONE:
-        return
+    # Always resolves to WAITING_BANTAM/IDLE based on bantam's real status,
+    # regardless of fs._pending_bantam_piece — Priority 2 checks that flag
+    # independently and fires as soon as this leaves _ROBOT2_BUSY_STATES.
     if (
         fs.vendor_clients["bantam"].is_busy()
         or fs.state.get_machine("bantam") == MachineState.PREPARING
@@ -156,8 +162,15 @@ def _on_vision_complete(fs, piece_id: str):
         color = result.get("color", "UNKNOWN")
         shape = result.get("shape", "UNKNOWN")
         fs.pieces.assign_color_shape("conveyor2", color, shape)
-        fs._c2s2_committed = True
         route = _decide_route(fs, color)
+
+        fs.db.insert_vision_detection(
+            "robot2_camera",
+            piece_id=piece_id,
+            detected_color=color,
+            detected_shape=shape,
+            success=True,
+        )
 
         fs.get_logger().info(
             f"[classification] vision piece={piece_id} color={color} shape={shape} "
@@ -396,20 +409,24 @@ def _on_bantam_complete(fs, piece_id: str):
                     f"[classification] bantam RUN_JOB ended with {task_state}: {result}"
                 )
                 _discard_and_insert(fs, "bantam", "bantam_job_failed")
-                fs._classification_state = "IDLE"
+                _restore_classification_state(fs)
                 return
 
             fs.state.update_machine("bantam", MachineState.FINISHED)
             _complete_and_insert(fs, "bantam")
 
+            # fs._pending_bantam_piece alone drives Priority 2 — deliberately
+            # NOT touching fs._classification_state here, since robot2 may
+            # currently be mid-cycle on an unrelated piece (e.g. RED/GREEN
+            # direct to C4); overwriting it would erase that tracking and
+            # strand this piece unretrieved once robot2 finishes the other one.
             fs.get_logger().info(
                 f"[classification] bantam COMPLETE piece={piece_id} "
                 f"robot2={fs.state.get_robot('robot2').name} "
                 f"robot2_busy={fs.vendor_clients['niryo'].is_busy('robot2')} "
-                f"→ signalling {_STATE_BANTAM_DONE}"
+                f"→ pending pickup"
             )
             fs._pending_bantam_piece = piece_id
-            fs._classification_state = _STATE_BANTAM_DONE
         except Exception as exc:
             fs.get_logger().error(
                 f"[classification] _on_bantam_complete raised: {exc}"
@@ -537,14 +554,30 @@ def _on_robot2_home_complete(fs):
 # ── Conveyor stop helper ────────────────────────────────────────────────────
 
 def _schedule_conveyor_stop(fs, conveyor_id: str, piece_id, route, delay_sec: float) -> None:
-    def _stop():
+    # green_conveyors is a single shared-Arduino domain (concurrent_resources=
+    # False) -- conveyor3 and conveyor4 commands compete for the one pending
+    # slot, so this stop can be rejected while the other conveyor's RUN/STOP
+    # is still in flight. Retry with a short backoff instead of dropping the
+    # stop silently (a swallowed stop leaves the conveyor running past its
+    # intended point).
+    def _stop(attempt=0):
         try:
             fs.send_command(
                 "green_conveyors", conveyor_id, "STOP_CONVEYOR",
                 piece_id=piece_id, route=route,
             )
         except Exception as exc:
-            fs.get_logger().warning(f"Auto-stop {conveyor_id} failed: {exc}")
+            if attempt >= 10:
+                fs.get_logger().error(
+                    f"Auto-stop {conveyor_id} failed after {attempt} retries: {exc} — giving up"
+                )
+                return
+            fs.get_logger().warning(
+                f"Auto-stop {conveyor_id} failed (retry {attempt + 1}/10): {exc}"
+            )
+            t_retry = threading.Timer(0.5, _stop, args=(attempt + 1,))
+            t_retry.daemon = True
+            t_retry.start()
     t = threading.Timer(delay_sec, _stop)
     t.daemon = True
     t.start()
