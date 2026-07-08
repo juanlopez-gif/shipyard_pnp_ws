@@ -1,0 +1,623 @@
+<title>__TITLE__</title>
+<style>
+  :root {
+    --bg: #eef1f4;
+    --surface: #ffffff;
+    --surface-alt: #e3e8ec;
+    --ink: #10151b;
+    --ink-muted: #55636f;
+    --border: #d3dae0;
+    --real: #c97a2b;
+    --sim: #2f9e8f;
+    --critical: #c0392b;
+    --good: #3f9142;
+    --discarded: #8a94a0;
+    --blue: #3b6fd1;
+    --red: #d1483b;
+    --green: #4a9e57;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, "Segoe UI", system-ui, Roboto, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117;
+      --surface: #151b23;
+      --surface-alt: #1c2430;
+      --ink: #e6edf3;
+      --ink-muted: #8b98a5;
+      --border: #2a333f;
+      --real: #e2984f;
+      --sim: #5fc3b8;
+      --critical: #e5605a;
+      --good: #5fbf6a;
+      --discarded: #79828f;
+      --blue: #6f97e0;
+      --red: #e07468;
+      --green: #79c084;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1117; --surface: #151b23; --surface-alt: #1c2430;
+    --ink: #e6edf3; --ink-muted: #8b98a5; --border: #2a333f;
+    --real: #e2984f; --sim: #5fc3b8; --critical: #e5605a; --good: #5fbf6a;
+    --discarded: #79828f; --blue: #6f97e0; --red: #e07468; --green: #79c084;
+  }
+  :root[data-theme="light"] {
+    --bg: #eef1f4; --surface: #ffffff; --surface-alt: #e3e8ec;
+    --ink: #10151b; --ink-muted: #55636f; --border: #d3dae0;
+    --real: #c97a2b; --sim: #2f9e8f; --critical: #c0392b; --good: #3f9142;
+    --discarded: #8a94a0; --blue: #3b6fd1; --red: #d1483b; --green: #4a9e57;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .page { display: flex; flex-direction: column; gap: 20px; padding: 24px; max-width: 1400px; margin: 0 auto; }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+  }
+  h1 {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 600;
+    margin: 2px 0 0;
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+
+  header.hero {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 16px;
+  }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .chip {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    min-width: 120px;
+  }
+  .chip .k { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-muted); }
+  .chip .v { font-family: var(--mono); font-size: 16px; font-variant-numeric: tabular-nums; }
+  .chip .v.delta-pos { color: var(--real); }
+  .chip .v.delta-neg { color: var(--sim); }
+
+  .order-strip { display: flex; gap: 3px; flex-wrap: wrap; align-items: center; }
+  .order-dot { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+  .order-dot.BLUE { background: var(--blue); }
+  .order-dot.RED { background: var(--red); }
+  .order-dot.GREEN { background: var(--green); }
+
+  section { display: flex; flex-direction: column; gap: 10px; }
+  .section-title { font-family: var(--mono); font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-muted); }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 12.5px; color: var(--ink-muted); align-items: center; }
+  .legend .item { display: flex; align-items: center; gap: 6px; }
+  .legend .swatch { width: 20px; height: 9px; border-radius: 2px; flex: none; }
+  .legend .swatch.real { background: var(--real); }
+  .legend .swatch.sim { background: var(--sim); opacity: 0.55; }
+  .legend .swatch.timeout { background: var(--surface); border: 1.5px solid var(--critical); }
+  .legend .swatch.discarded { background: repeating-linear-gradient(45deg, var(--discarded) 0 3px, transparent 3px 6px); }
+  .legend .swatch.wait { background: var(--real); box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--ink-muted); }
+
+  .gantt-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  .gantt { position: relative; padding: 8px 24px 12px 0; }
+  .gantt-axis {
+    position: relative;
+    height: 22px;
+    margin-left: 92px;
+    border-bottom: 1px solid var(--border);
+  }
+  .gantt-axis .tick {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-left: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-muted);
+    padding-left: 3px;
+    white-space: nowrap;
+  }
+  .lane {
+    display: flex;
+    align-items: stretch;
+    border-top: 1px solid var(--border);
+  }
+  .lane:first-of-type { border-top: none; }
+  .lane:nth-of-type(even) { background: var(--surface-alt); }
+  .lane-label {
+    width: 92px;
+    flex: none;
+    display: flex;
+    align-items: center;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink);
+    padding: 6px 8px 6px 0;
+  }
+  .lane-tracks { position: relative; flex: 1; padding: 6px 0; }
+  .track { position: relative; height: 16px; margin-bottom: 3px; }
+  .track:last-child { margin-bottom: 0; }
+  .grid-line {
+    position: absolute;
+    top: 0; bottom: 0;
+    border-left: 1px solid var(--border);
+    opacity: 0.5;
+  }
+  .bar {
+    position: absolute;
+    top: 1px; bottom: 1px;
+    border-radius: 3px;
+    min-width: 3px;
+    cursor: default;
+  }
+  .bar.sim { background: var(--sim); opacity: 0.5; }
+  .bar.real.matched { background: var(--real); }
+  .bar.real.followed { background: var(--real); box-shadow: inset 0 0 0 1.5px var(--ink); }
+  .bar.real.timeout { background: var(--surface); border: 1.5px solid var(--critical); }
+  .bar.real.discarded { background: repeating-linear-gradient(45deg, var(--discarded) 0 3px, transparent 3px 6px); }
+  .bar.real.no_sim { background: var(--ink-muted); opacity: 0.7; }
+  .bar:hover { filter: brightness(1.15); z-index: 5; }
+  .bar:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+
+  .tooltip {
+    position: fixed;
+    pointer-events: none;
+    background: var(--ink);
+    color: var(--bg);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    padding: 6px 9px;
+    border-radius: 5px;
+    max-width: 280px;
+    line-height: 1.45;
+    opacity: 0;
+    transition: opacity 0.1s;
+    z-index: 50;
+  }
+  @media (prefers-reduced-motion: reduce) { .tooltip { transition: none; } }
+  .tooltip.show { opacity: 1; }
+
+  .table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow-x: auto;
+  }
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+  thead th {
+    position: sticky; top: 0;
+    background: var(--surface-alt);
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  tbody td {
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  tbody tr:hover { background: var(--surface-alt); }
+  td.num { font-family: var(--mono); text-align: right; }
+  td.piece { display: flex; align-items: center; gap: 6px; font-family: var(--mono); }
+  .piece-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .piece-dot.BLUE { background: var(--blue); }
+  .piece-dot.RED { background: var(--red); }
+  .piece-dot.GREEN { background: var(--green); }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-family: var(--mono);
+    white-space: nowrap;
+  }
+  .pill.matched { background: color-mix(in srgb, var(--good) 18%, transparent); color: var(--good); }
+  .pill.followed { background: color-mix(in srgb, var(--real) 22%, transparent); color: var(--real); }
+  .pill.timeout { background: color-mix(in srgb, var(--critical) 20%, transparent); color: var(--critical); }
+  .pill.discarded { background: color-mix(in srgb, var(--discarded) 25%, transparent); color: var(--ink-muted); }
+  .pill.no_sim { background: var(--surface-alt); color: var(--ink-muted); }
+
+  .tabs { display: flex; gap: 6px; }
+  .tab-btn {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--ink-muted);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 5px 12px;
+    cursor: pointer;
+  }
+  .tab-btn:hover { background: var(--surface-alt); }
+  .tab-btn.active { color: var(--bg); background: var(--ink); border-color: var(--ink); }
+  .tab-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+
+  tr.group-header td {
+    background: var(--surface-alt);
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--ink);
+    padding: 5px 10px;
+  }
+
+  footer { color: var(--ink-muted); font-size: 11.5px; font-family: var(--mono); padding-top: 4px; }
+
+  .print-btn {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 14px;
+    cursor: pointer;
+    align-self: flex-start;
+  }
+  .print-btn:hover { background: var(--surface-alt); }
+  .print-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+
+  /* Printing / "save as PDF": overflow-x:auto containers clip anything past
+     the visible scroll width instead of reflowing it, so without this the
+     PDF only captures whatever fit on screen at print time. Let the Gantt
+     and table render at their full natural width here instead, and force
+     background colors to actually print (browsers strip them by default). */
+  @media print {
+    @page { size: landscape; margin: 12mm; }
+    body { background: #fff; }
+    .print-btn { display: none; }
+    .tabs { display: none; }
+    .tooltip { display: none !important; }
+    .gantt-wrap, .table-wrap { overflow: visible !important; border: none; }
+    .page { max-width: none; padding: 0; }
+    /* The table reflows to the page width instead (unlike the Gantt, which
+       is redrawn at a print-fitted scale in JS -- see beforeprint below). */
+    tbody td, thead th { white-space: normal; }
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+  }
+</style>
+
+<div class="page">
+  <header class="hero">
+    <span class="eyebrow">shipyard_pnp — informe de corrida</span>
+    <h1 id="run-title">__TITLE__</h1>
+    <button class="print-btn" id="print-btn" type="button">Guardar como PDF</button>
+  </header>
+
+  <section>
+    <div class="chips" id="summary-chips"></div>
+    <div class="order-strip" id="order-strip"></div>
+  </section>
+
+  <section>
+    <div class="section-title">Gantt — real vs. mapa (simulación)</div>
+    <div class="legend">
+      <span class="item"><span class="swatch real"></span>real</span>
+      <span class="item"><span class="swatch sim"></span>simulado</span>
+      <span class="item"><span class="swatch wait"></span>esperó al mapa y coincidió</span>
+      <span class="item"><span class="swatch timeout"></span>el mapa no llegó a tiempo</span>
+      <span class="item"><span class="swatch discarded"></span>descartado</span>
+    </div>
+    <div class="gantt-wrap">
+      <div class="gantt" id="gantt"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-title">Detalle</div>
+    <div class="tabs" id="detail-tabs">
+      <button class="tab-btn active" type="button" data-mode="chrono">Cronológico</button>
+      <button class="tab-btn" type="button" data-mode="component">Por componente</button>
+      <button class="tab-btn" type="button" data-mode="transfers">Transferencias de piezas</button>
+    </div>
+    <div class="table-wrap">
+      <table id="detail-table">
+        <thead id="detail-thead"></thead>
+        <tbody id="detail-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>Criterio de t0/t_fin y duración simulada: ver CLAUDE.md — generado por factory/run_report.py</footer>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script type="application/json" id="report-data">__REPORT_JSON__</script>
+<script>
+(function () {
+  const report = JSON.parse(document.getElementById("report-data").textContent);
+  const rows = report.rows;
+  const ENTITY_ORDER = ["xarm2", "xarm1", "laser", "bantam", "robot2", "robot1"];
+
+  document.getElementById("run-title").textContent = report.run_id;
+  document.getElementById("print-btn").addEventListener("click", () => window.print());
+
+  // ── Summary chips ──────────────────────────────────────────────
+  const chips = document.getElementById("summary-chips");
+  function chip(k, v, cls) {
+    const d = document.createElement("div");
+    d.className = "chip";
+    d.innerHTML = `<span class="k">${k}</span><span class="v ${cls || ""}">${v}</span>`;
+    chips.appendChild(d);
+  }
+  chip("t0 real", new Date(report.t0).toLocaleTimeString("es-ES"));
+  chip("t fin real", report.t_fin ? new Date(report.t_fin).toLocaleTimeString("es-ES") : "N/A");
+  chip("duración real", report.real_total_s != null ? report.real_total_s.toFixed(1) + "s" : "N/A");
+  chip("duración simulada", report.sim_total_s.toFixed(1) + "s");
+  if (report.real_total_s != null) {
+    const diff = report.real_total_s - report.sim_total_s;
+    const pct = (diff / report.sim_total_s) * 100;
+    chip("diferencia", `${diff >= 0 ? "+" : ""}${diff.toFixed(1)}s (${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%)`,
+         diff >= 0 ? "delta-pos" : "delta-neg");
+  }
+
+  const orderStrip = document.getElementById("order-strip");
+  (report.order || []).forEach(c => {
+    const d = document.createElement("span");
+    d.className = "order-dot " + c;
+    d.title = c;
+    orderStrip.appendChild(d);
+  });
+
+  // ── Gantt ───────────────────────────────────────────────────────
+  const byEntity = {};
+  ENTITY_ORDER.forEach(e => byEntity[e] = []);
+  rows.forEach(r => { if (!byEntity[r.entity]) byEntity[r.entity] = []; byEntity[r.entity].push(r); });
+
+  const maxT = Math.max(
+    report.real_total_s || 0,
+    report.sim_total_s || 0,
+    ...rows.map(r => (r.real_t || 0) + (r.real_dur || 4)),
+    ...rows.map(r => (r.sim_t || 0) + (r.sim_dur || 0))
+  );
+  const SCREEN_PX_PER_S = Math.max(0.9, Math.min(2.2, 1500 / maxT));
+  const ganttEl = document.getElementById("gantt");
+
+  const tooltip = document.getElementById("tooltip");
+  function showTip(e, html) {
+    tooltip.innerHTML = html;
+    tooltip.classList.add("show");
+    moveTip(e);
+  }
+  function moveTip(e) {
+    tooltip.style.left = Math.min(e.clientX + 14, window.innerWidth - 290) + "px";
+    tooltip.style.top = (e.clientY + 14) + "px";
+  }
+  function hideTip() { tooltip.classList.remove("show"); }
+
+  // Rebuilt at a different px-per-second for print (see beforeprint below) --
+  // text/labels stay their normal size either way, only the timeline's
+  // geometry compresses, so a print-scaled Gantt stays legible instead of
+  // shrinking everything (fonts included) the way a CSS transform would.
+  function renderGantt(pxPerS) {
+    ganttEl.innerHTML = "";
+
+    const axis = document.createElement("div");
+    axis.className = "gantt-axis";
+    axis.style.width = (maxT * pxPerS) + "px";
+    for (let t = 0; t <= maxT; t += 60) {
+      const tick = document.createElement("div");
+      tick.className = "tick";
+      tick.style.left = (t * pxPerS) + "px";
+      tick.textContent = Math.round(t / 60) + "m";
+      axis.appendChild(tick);
+    }
+    ganttEl.appendChild(axis);
+
+    function makeBar(cls, t, dur, title) {
+      const b = document.createElement("div");
+      b.className = "bar " + cls;
+      b.style.left = (t * pxPerS) + "px";
+      b.style.width = Math.max((dur || 3) * pxPerS, 3) + "px";
+      b.tabIndex = 0;
+      b.addEventListener("mouseenter", e => showTip(e, title));
+      b.addEventListener("mousemove", moveTip);
+      b.addEventListener("mouseleave", hideTip);
+      b.addEventListener("focus", e => showTip(e, title));
+      b.addEventListener("blur", hideTip);
+      return b;
+    }
+
+    ENTITY_ORDER.forEach(entity => {
+      const cycles = byEntity[entity] || [];
+      if (!cycles.length) return;
+      const lane = document.createElement("div");
+      lane.className = "lane";
+      const label = document.createElement("div");
+      label.className = "lane-label";
+      label.textContent = entity;
+      lane.appendChild(label);
+
+      const tracksWrap = document.createElement("div");
+      tracksWrap.className = "lane-tracks";
+      tracksWrap.style.width = (maxT * pxPerS) + "px";
+
+      const simTrack = document.createElement("div");
+      simTrack.className = "track";
+      const realTrack = document.createElement("div");
+      realTrack.className = "track";
+
+      for (let t = 0; t <= maxT; t += 60) {
+        [simTrack, realTrack].forEach(track => {
+          const gl = document.createElement("div");
+          gl.className = "grid-line";
+          gl.style.left = (t * pxPerS) + "px";
+          track.appendChild(gl);
+        });
+      }
+
+      cycles.forEach(r => {
+        const pieceLabel = r.piece_id ? ` ${r.piece_id}` : "";
+        if (r.sim_t != null) {
+          simTrack.appendChild(makeBar("sim", r.sim_t, r.sim_dur,
+            `<b>${entity} · ${r.task}</b>${pieceLabel}<br>mapa: t=${r.sim_t.toFixed(1)}s dur=${(r.sim_dur||0).toFixed(1)}s`));
+        }
+        const realTitle =
+          `<b>${entity} · ${r.task}</b>${pieceLabel}<br>real: t=${r.real_t.toFixed(1)}s` +
+          (r.real_dur ? ` dur=${r.real_dur.toFixed(1)}s` : "") +
+          (r.diff != null ? `<br>diff vs mapa: ${r.diff >= 0 ? "+" : ""}${r.diff.toFixed(1)}s` : "") +
+          `<br>${r.status_label}`;
+        realTrack.appendChild(makeBar("real " + r.status, r.real_t, r.real_dur || 3, realTitle));
+      });
+
+      tracksWrap.appendChild(simTrack);
+      tracksWrap.appendChild(realTrack);
+      lane.appendChild(tracksWrap);
+      ganttEl.appendChild(lane);
+    });
+  }
+
+  renderGantt(SCREEN_PX_PER_S);
+
+  // Printing renders the page as if its width were the paper's printable
+  // width (landscape A4/Letter minus margins, ~950px here) -- anything wider
+  // just gets clipped at the page edge, and browsers don't paginate
+  // horizontal overflow the way they do vertical overflow. Re-render the
+  // Gantt at whatever px-per-second fits that width before printing, then
+  // restore the normal on-screen version afterwards.
+  const PRINT_TARGET_WIDTH = 950;
+  window.addEventListener("beforeprint", () => {
+    const printPxPerS = Math.min(SCREEN_PX_PER_S, (PRINT_TARGET_WIDTH - 92) / maxT);
+    renderGantt(printPxPerS);
+  });
+  window.addEventListener("afterprint", () => {
+    renderGantt(SCREEN_PX_PER_S);
+  });
+
+  // ── Detail table: cronológico / por componente / transferencias ──
+  const transfers = report.transfers || [];
+  const thead = document.getElementById("detail-thead");
+  const tbody = document.getElementById("detail-tbody");
+  const STATUS_LABEL = { matched: "coincidió", followed: "esperó → coincidió", timeout: "timeout del mapa", discarded: "descartado", no_sim: "sin mapa" };
+  const CYCLE_HEADERS = ["Entidad", "Tarea", "Pieza", "#", "t real (s)", "t mapa (s)", "diff (s)", "Estado"];
+  const TRANSFER_HEADERS = ["Pieza", "t (s)", "Desde", "Hacia"];
+
+  function pieceDot(color) {
+    return color ? `<span class="piece-dot ${color}"></span>` : "";
+  }
+
+  function setHeaders(labels) {
+    thead.innerHTML = `<tr>${labels.map(h => `<th>${h}</th>`).join("")}</tr>`;
+  }
+
+  function groupHeaderRow(label, colspan) {
+    const tr = document.createElement("tr");
+    tr.className = "group-header";
+    tr.innerHTML = `<td colspan="${colspan}">${label}</td>`;
+    return tr;
+  }
+
+  function cycleRow(r) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${r.entity}</td>
+      <td>${r.task}</td>
+      <td class="piece">${pieceDot(r.color)}${r.piece_id || ""}</td>
+      <td class="num">${r.cycle_number ?? ""}</td>
+      <td class="num">${r.real_t.toFixed(1)}</td>
+      <td class="num">${r.sim_t != null ? r.sim_t.toFixed(1) : "—"}</td>
+      <td class="num">${r.diff != null ? (r.diff >= 0 ? "+" : "") + r.diff.toFixed(1) : "—"}</td>
+      <td><span class="pill ${r.status}" title="${r.status_label}">${STATUS_LABEL[r.status] || r.status}</span></td>
+    `;
+    return tr;
+  }
+
+  function renderDetail(mode) {
+    tbody.innerHTML = "";
+
+    if (mode === "transfers") {
+      setHeaders(TRANSFER_HEADERS);
+      const byPiece = {};
+      transfers.forEach(t => {
+        (byPiece[t.piece_id] || (byPiece[t.piece_id] = [])).push(t);
+      });
+      const pieceIds = Object.keys(byPiece).sort((a, b) => {
+        const na = parseInt(a.replace(/\D/g, ""), 10) || 0;
+        const nb = parseInt(b.replace(/\D/g, ""), 10) || 0;
+        return na - nb;
+      });
+      pieceIds.forEach(pid => {
+        const hops = byPiece[pid];
+        const colorRow = rows.find(r => r.piece_id === pid && r.color);
+        tbody.appendChild(groupHeaderRow(`${pid}  (${hops.length} movimientos)`, 4));
+        hops.forEach(h => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td class="piece">${pieceDot(colorRow ? colorRow.color : null)}</td>
+            <td class="num">${h.t.toFixed(1)}</td>
+            <td>${h.from_loc}</td>
+            <td>${h.to_loc}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      });
+      return;
+    }
+
+    setHeaders(CYCLE_HEADERS);
+    if (mode === "component") {
+      ENTITY_ORDER.forEach(entity => {
+        const entityRows = rows.filter(r => r.entity === entity);
+        if (!entityRows.length) return;
+        tbody.appendChild(groupHeaderRow(`${entity}  (${entityRows.length} ciclos)`, 8));
+        entityRows.forEach(r => tbody.appendChild(cycleRow(r)));
+      });
+    } else {
+      rows.forEach(r => tbody.appendChild(cycleRow(r)));
+    }
+  }
+
+  document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      renderDetail(btn.dataset.mode);
+    });
+  });
+
+  renderDetail("chrono");
+})();
+</script>

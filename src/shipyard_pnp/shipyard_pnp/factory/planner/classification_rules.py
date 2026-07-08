@@ -64,51 +64,94 @@ def evaluate(fs) -> None:
     if fs.vendor_clients["niryo"].is_busy("robot2"):
         return
 
-    # Priority 1: piece waiting at C2S2 — classify and route. Absolute
-    # priority over the bantam pickup below — a piece sitting at C2S2 blocks
-    # conveyor2 (and everything upstream of it) from advancing, so it always
-    # gets serviced first.
-    # c4 must be free before starting: robot2's own local vision is the only
-    # authority on this piece's real color (it may disagree with whatever an
-    # earlier stage guessed), and _send_robot2_to_c4() never re-checks c4 once
-    # that result comes back. Gating on a pre-known/hinted color here would
-    # let a piece through unsafely if that hint turns out to be wrong.
-    if (
+    # Priority 1 / 2 tie: piece waiting at C2S2 (classify+route) vs a
+    # finished bantam piece waiting to be moved to C4. Both need c4 free, so
+    # they're mutually exclusive at any given instant. Absolute rule when
+    # BOTH are truly ready: classify always wins (a piece at C2S2 blocks
+    # conveyor2 and everything upstream, so it's worse to leave it there).
+    # When only ONE is ready, check whether the expected schedule wanted the
+    # other one instead -- if so, give it up to MAP_GRACE_SEC to become
+    # ready before falling back to whichever is actually available. c4 free
+    # is checked either way; this never lets classify skip its own color-
+    # safety check (see note below) or lets bantam retrieval start without c4.
+    classify_ready = (
         fs.pieces.count("conveyor2") > 0
         and fs.state.get_sensor("c2s2") == SensorState.OCCUPIED
         and fs.state.get_sensor("c4") == SensorState.FREE
-    ):
-        piece_id = fs.pieces.peek_first_piece_id("conveyor2")
-        # Start robot2 entity cycle — first phase is vision at C2S2.
-        fs.cycles.start_entity_cycle(
-            "robot2", "CLASSIFY_C2S2",
-            piece_id=piece_id,
-            metadata={"pick_position": "C2S2"},
-        )
-        fs.cycles.add_phase("robot2", "VISION_C2S2")
-        fs._classification_state = "WAITING_VISION"
-        fs.send_command(
-            "niryo",
-            "robot2",
-            "CAPTURE_LOCAL_VISION",
-            piece_id=piece_id,
-            source="C2S2",
-            parameters={"position": "C2S2"},
-            on_complete=_on_vision_complete(fs, piece_id),
-        )
-        return
-
-    # Priority 2: bantam finished — pick processed piece bantam → c4. Only
-    # once c2s2 is clear — Priority 1 above always wins when both are ready,
-    # even if that means leaving a finished bantam piece waiting longer.
-    if (
+    )
+    bantam_ready = (
         fs._pending_bantam_piece is not None
         and fs.state.get_sensor("c2s2") != SensorState.OCCUPIED
-    ):
-        if fs.state.get_sensor("c4") != SensorState.FREE:
+        and fs.state.get_sensor("c4") == SensorState.FREE
+    )
+
+    if classify_ready or bantam_ready:
+        do_classify = None
+        if classify_ready and bantam_ready:
+            do_classify = True
+        elif classify_ready:
+            # If the map wants bantam retrieval next, give it up to
+            # MAP_GRACE_SEC to actually finish and become ready, even if
+            # nothing is pending yet -- waiting for a piece that hasn't
+            # arrived/finished yet is exactly the case this exists for (the
+            # plain reactive rule already covers "already pending, just
+            # blocked on c2s2/c4" on its own, no map needed). If it doesn't
+            # show up within the grace window, classify goes.
+            expected = fs._map_next("robot2")
+            wants_bantam = expected is not None and expected["task"] == "BANTAM_TO_C4"
+            if wants_bantam and fs._map_should_wait("robot2"):
+                do_classify = None
+            else:
+                do_classify = True
+        else:  # bantam_ready only
+            expected = fs._map_next("robot2")
+            wants_classify = expected is not None and expected["task"].startswith("CLASSIFY_C2S2")
+            if wants_classify and fs._map_should_wait("robot2"):
+                do_classify = None
+            else:
+                do_classify = False
+
+        if do_classify:
+            # c4 must be free before starting: robot2's own local vision is
+            # the only authority on this piece's real color (it may disagree
+            # with whatever an earlier stage guessed), and _send_robot2_to_c4()
+            # never re-checks c4 once that result comes back. Gating on a
+            # pre-known/hinted color here would let a piece through unsafely
+            # if that hint turns out to be wrong.
+            #
+            # The real route (-> C4 / BANTAM / IBS / SCRAP) isn't known until
+            # vision resolves, so the map can't be told "this dispatch was
+            # CLASSIFY_C2S2_TO_X" yet -- only that a dispatch decision was
+            # made now (_map_begin_dispatch just closes out wait-timer
+            # bookkeeping). The actual match against what the map expected
+            # happens later in _on_vision_complete, once X is known -- see
+            # factory_supervisor._map_resolve_dispatch.
+            wait_info = fs._map_begin_dispatch("robot2")
+            piece_id = fs.pieces.peek_first_piece_id("conveyor2")
+            # Start robot2 entity cycle — first phase is vision at C2S2.
+            fs.cycles.start_entity_cycle(
+                "robot2", "CLASSIFY_C2S2",
+                piece_id=piece_id,
+                metadata={"pick_position": "C2S2"},
+            )
+            fs.cycles.add_phase("robot2", "VISION_C2S2")
+            fs._classification_state = "WAITING_VISION"
+            fs.send_command(
+                "niryo",
+                "robot2",
+                "CAPTURE_LOCAL_VISION",
+                piece_id=piece_id,
+                source="C2S2",
+                parameters={"position": "C2S2"},
+                on_complete=_on_vision_complete(fs, piece_id, wait_info),
+            )
             return
-        _send_robot2_bantam_to_c4(fs, fs._pending_bantam_piece)
-        return
+        elif do_classify is False:
+            fs._map_note_dispatch("robot2", "BANTAM_TO_C4")
+            _send_robot2_bantam_to_c4(fs, fs._pending_bantam_piece)
+            return
+        # else: do_classify is None -- within the grace window, wait (fall
+        # through to Priority 3, which never competes for c4).
 
     # Priority 3: IBS drain — only when bantam is fully idle.
     if (
@@ -118,6 +161,7 @@ def evaluate(fs) -> None:
         and not fs.vendor_clients["bantam"].is_busy()
     ):
         piece_id = fs.pieces.peek_first_piece_id("intermediate_blue_stack")
+        fs._map_note_dispatch("robot2", "IBS_TO_BANTAM")
         _send_robot2_ibs_to_bantam(fs, piece_id)
 
 
@@ -151,7 +195,7 @@ def _restore_classification_state(fs) -> None:
 
 # ── Vision ───────────────────────────────────────────────────────────────────
 
-def _on_vision_complete(fs, piece_id: str):
+def _on_vision_complete(fs, piece_id: str, wait_info: dict):
     def on_complete(task_state: str, result: dict) -> None:
         if task_state != "COMPLETED":
             fs.get_logger().error(f"Robot2 local vision failed: {result}")
@@ -177,10 +221,16 @@ def _on_vision_complete(fs, piece_id: str):
             f"route={route} — c2s2_committed=True"
         )
 
-        # Finalize task name and route on the active robot2 cycle.
+        # Only now is the real route known -- confirm it against the map
+        # (or log an off-map "intruder" cycle without consuming the map's
+        # still-pending expectation) with full knowledge, instead of the
+        # pre-vision generic match this used to do.
         task_name = f"CLASSIFY_C2S2_TO_{route}"
-        fs.cycles.update_entity_cycle("robot2",
-                                      task_name=task_name, color=color, route=route)
+        fs._map_resolve_dispatch("robot2", task_name, wait_info)
+        fs.cycles.update_entity_cycle(
+            "robot2", task_name=task_name, color=color, route=route,
+            **fs._map_pop_dispatch_metadata("robot2"),
+        )
 
         if route == "C4":
             fs.cycles.add_phase("robot2", "MOVING_C2S2_TO_C4")
@@ -202,6 +252,8 @@ def _on_vision_complete(fs, piece_id: str):
 
 def _send_robot2_to_c4(fs, piece_id: str, color: str) -> None:
     fs._classification_state = "WAITING_ROBOT2_TO_C4"
+    fs.register_pick_source("robot2", "conveyor2")
+    fs.register_place_target("robot2", "c4_location")
     fs.send_command(
         "niryo",
         "robot2",
@@ -223,7 +275,8 @@ def _on_robot2_to_c4_complete(fs):
             _restore_classification_state(fs)
             return
 
-        fs.pieces.transfer_piece("conveyor2", "c4_location")
+        if not fs.consume_place_done_flag("robot2"):
+            fs.pieces.transfer_via_gripper("robot2_gripper", "conveyor2", "c4_location")
         fs.state.update_sensor("c4", SensorState.OCCUPIED)
         fs._c4_deposit_time = time.time()
 
@@ -251,6 +304,8 @@ def _on_robot2_to_c4_complete(fs):
 
 def _send_robot2_to_bantam(fs, piece_id: str) -> None:
     fs._classification_state = "WAITING_ROBOT2_TO_BANTAM"
+    fs.register_pick_source("robot2", "conveyor2")
+    fs.register_place_target("robot2", "bantam_bed")
     fs.send_command(
         "niryo",
         "robot2",
@@ -276,7 +331,8 @@ def _on_robot2_to_bantam_complete(fs, piece_id: str):
             f"[classification] robot2 placed at bantam — piece={piece_id} "
             f"sending bantam RUN_JOB now"
         )
-        fs.pieces.transfer_piece("conveyor2", "bantam_bed")
+        if not fs.consume_place_done_flag("robot2"):
+            fs.pieces.transfer_via_gripper("robot2_gripper", "conveyor2", "bantam_bed")
         fs.state.update_robot("robot2", RobotState.IDLE)
         fs.state.update_machine("bantam", MachineState.PREPARING)
 
@@ -294,6 +350,8 @@ def _send_robot2_to_ibs(fs, piece_id: str) -> None:
         f"[classification] bantam busy — parking piece={piece_id} at IBS"
     )
     fs._classification_state = "WAITING_ROBOT2_TO_IBS"
+    fs.register_pick_source("robot2", "conveyor2")
+    fs.register_place_target("robot2", "intermediate_blue_stack")
     fs.send_command(
         "niryo",
         "robot2",
@@ -315,7 +373,8 @@ def _on_robot2_to_ibs_complete(fs, piece_id: str):
             _restore_classification_state(fs)
             return
 
-        fs.pieces.transfer_piece("conveyor2", "intermediate_blue_stack")
+        if not fs.consume_place_done_flag("robot2"):
+            fs.pieces.transfer_via_gripper("robot2_gripper", "conveyor2", "intermediate_blue_stack")
         fs.state.update_robot("robot2", RobotState.IDLE)
         fs.get_logger().info(
             f"[classification] piece={piece_id} parked at IBS "
@@ -338,10 +397,13 @@ def _send_robot2_ibs_to_bantam(fs, piece_id: str) -> None:
     fs.cycles.start_entity_cycle(
         "robot2", "IBS_TO_BANTAM",
         piece_id=piece_id, color="BLUE", route="BLUE",
+        metadata=fs._map_pop_dispatch_metadata("robot2"),
     )
     fs.cycles.add_phase("robot2", "MOVING_IBS_TO_BANTAM")
 
     fs._classification_state = "WAITING_ROBOT2_IBS_TO_BANTAM"
+    fs.register_pick_source("robot2", "intermediate_blue_stack")
+    fs.register_place_target("robot2", "bantam_bed")
     fs.send_command(
         "niryo",
         "robot2",
@@ -367,7 +429,8 @@ def _on_robot2_ibs_to_bantam_complete(fs, piece_id: str):
             f"[classification] robot2 IBS→bantam place done — piece={piece_id} "
             f"sending bantam RUN_JOB now"
         )
-        fs.pieces.transfer_piece("intermediate_blue_stack", "bantam_bed")
+        if not fs.consume_place_done_flag("robot2"):
+            fs.pieces.transfer_via_gripper("robot2_gripper", "intermediate_blue_stack", "bantam_bed")
         fs.state.update_robot("robot2", RobotState.IDLE)
         fs.state.update_machine("bantam", MachineState.PREPARING)
 
@@ -442,11 +505,14 @@ def _send_robot2_bantam_to_c4(fs, piece_id: str) -> None:
     fs.cycles.start_entity_cycle(
         "robot2", "BANTAM_TO_C4",
         piece_id=piece_id, color="BLUE", route="BLUE",
+        metadata=fs._map_pop_dispatch_metadata("robot2"),
     )
     fs.cycles.add_phase("robot2", "MOVING_BANTAM_TO_C4")
 
     fs._pending_bantam_piece = None
     fs._classification_state = "WAITING_ROBOT2_BANTAM_TO_C4"
+    fs.register_pick_source("robot2", "bantam_bed")
+    fs.register_place_target("robot2", "c4_location")
     fs.send_command(
         "niryo",
         "robot2",
@@ -468,7 +534,8 @@ def _on_robot2_bantam_to_c4_complete(fs):
             fs._classification_state = "IDLE"
             return
 
-        fs.pieces.transfer_piece("bantam_bed", "c4_location")
+        if not fs.consume_place_done_flag("robot2"):
+            fs.pieces.transfer_via_gripper("robot2_gripper", "bantam_bed", "c4_location")
         fs.state.update_machine("bantam", MachineState.IDLE)
         fs.state.update_sensor("c4", SensorState.OCCUPIED)
         fs._c4_deposit_time = time.time()
@@ -500,6 +567,8 @@ def _send_robot2_to_scrap(fs, piece_id: str, color: str, shape: str) -> None:
         f"[classification] SCRAP piece={piece_id} color={color} shape={shape}"
     )
     fs._classification_state = "WAITING_ROBOT2_TO_SCRAP"
+    fs.register_pick_source("robot2", "conveyor2")
+    fs.register_place_target("robot2", "robot2_scrap")
     fs.send_command(
         "niryo",
         "robot2",
@@ -521,7 +590,8 @@ def _on_robot2_to_scrap_complete(fs, piece_id: str, color: str, shape: str):
             _restore_classification_state(fs)
             return
 
-        fs.pieces.transfer_piece("conveyor2", "robot2_scrap")
+        if not fs.consume_place_done_flag("robot2"):
+            fs.pieces.transfer_via_gripper("robot2_gripper", "conveyor2", "robot2_scrap")
         fs.state.update_robot("robot2", RobotState.IDLE)
 
         # Piece-level cycle ends here (scrap = completed, route=SCRAP).

@@ -112,6 +112,19 @@ class PieceTracker:
     # Movement
     # ------------------------------------------------------------------
 
+    def transfer_via_gripper(self, gripper_loc: str, source_loc: str, target_loc: str) -> bool:
+        """Complete a move whose pick may already have been fast-forwarded
+        into `gripper_loc` by FactorySupervisor._apply_resource_state (the
+        PICK_DONE hook, see register_pick_source) -- so EXPECTED shows the
+        piece leaving `source_loc` at pick time instead of only at the end
+        of the whole move. Falls back to a direct source_loc->target_loc
+        transfer if that early hook never fired (e.g. the vendor never
+        reported PICK_DONE), so behavior never regresses below the old
+        single-step transfer."""
+        if self._queues.get(gripper_loc):
+            return self.transfer_piece(gripper_loc, target_loc)
+        return self.transfer_piece(source_loc, target_loc)
+
     def transfer_piece(self, from_loc: str, to_loc: str) -> bool:
         if from_loc not in self._queues or to_loc not in self._queues:
             return False

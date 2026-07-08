@@ -19,27 +19,62 @@ def evaluate(fs) -> None:
         fs.state.get_robot("xarm1") == RobotState.IDLE
         and not fs.vendor_clients["ufactory"].is_busy("xarm1")
     )
+    if not xarm1_free:
+        return
 
-    # ── Priority 1: retrieve a finished piece from the laser bed ────────────
-    # Checked independently of c1s2 — a finished RED piece gets picked up as
-    # soon as xarm1 and c2s1 are both free, even if a new piece (any color)
-    # is already sitting at c1s2 waiting its turn.
-    if (
-        xarm1_free
-        and fs.state.get_machine("laser") == MachineState.FINISHED
+    # Two jobs can compete for xarm1's single arm at the same instant:
+    # retrieving a finished piece off the laser bed, and handling the next
+    # piece waiting at c1s2. Absolute rule when BOTH are ready: retrieve
+    # wins (matches the validated simulator behavior). When only one is
+    # ready, check whether the expected schedule wanted the other one --
+    # give it up to MAP_GRACE_SEC to become ready before falling back.
+    retrieve_ready = (
+        fs.state.get_machine("laser") == MachineState.FINISHED
         and fs.state.get_sensor("c2s1") == SensorState.FREE
-    ):
+    )
+    c1s2_ready = (
+        fs.pieces.count("conveyor1") > 0
+        and fs.state.get_sensor("c1s2") == SensorState.OCCUPIED
+    )
+
+    if not retrieve_ready and not c1s2_ready:
+        return
+
+    # If the expected schedule's pick is ALREADY physically ready, take it
+    # immediately -- this is what resolves a wait: once the awaited option
+    # becomes ready it must win outright, not get re-litigated against the
+    # "both ready" absolute rule below.
+    expected = fs._map_next("xarm1")
+    wants_retrieve = expected is not None and expected["task"] == "LASER_TO_C2S1"
+    wants_c1s2 = expected is not None and expected["task"] in ("C1S2_TO_LASER", "C1S2_TO_C2S1")
+
+    if c1s2_ready and wants_c1s2:
+        do_retrieve = False
+    elif retrieve_ready and wants_retrieve:
+        do_retrieve = True
+    elif retrieve_ready and c1s2_ready:
+        do_retrieve = True
+    elif retrieve_ready:
+        # If the map wants c1s2 handling next, give it up to MAP_GRACE_SEC
+        # to actually show up, even if nothing's there yet -- waiting for a
+        # piece that hasn't arrived is exactly the case this exists for (the
+        # plain reactive rule already covers "already sitting there" on its
+        # own). If it doesn't show up within the grace window, retrieve goes.
+        if wants_c1s2 and fs._map_should_wait("xarm1"):
+            return
+        do_retrieve = True
+    else:
+        if wants_retrieve and fs._map_should_wait("xarm1"):
+            return
+        do_retrieve = False
+
+    # ── Retrieve a finished piece from the laser bed ────────────────────────
+    if do_retrieve:
+        fs._map_note_dispatch("xarm1", "LASER_TO_C2S1")
         _send_xarm1_laser_to_c2(fs, fs._pending_laser_piece_id)
         return
 
-    # ── Priority 2: pick up the next piece waiting at c1s2 ──────────────────
-    if not xarm1_free:
-        return
-    if fs.pieces.count("conveyor1") <= 0:
-        return
-    if fs.state.get_sensor("c1s2") != SensorState.OCCUPIED:
-        return
-
+    # ── Pick up the next piece waiting at c1s2 ──────────────────────────────
     piece_id = fs.pieces.peek_first_piece_id("conveyor1")
     color    = fs.pieces.peek_first_piece_color("conveyor1") or "UNKNOWN"
     if color == "RED":
@@ -49,12 +84,14 @@ def evaluate(fs) -> None:
         # GREEN pieces at c1s2 from moving directly to c2s1 in the meantime.
         if fs.state.get_machine("laser") != MachineState.IDLE:
             return
+        fs._map_note_dispatch("xarm1", "C1S2_TO_LASER")
         _send_xarm1_to_laser(fs, piece_id)
     else:
         # c2s1 must be empty for ANY color placed there — this direct move
         # competes for the same slot as the laser→c2s1 retrieval above.
         if fs.state.get_sensor("c2s1") != SensorState.FREE:
             return
+        fs._map_note_dispatch("xarm1", "C1S2_TO_C2S1")
         _send_xarm1_direct_to_c2(fs, piece_id, color)
 
 
@@ -62,10 +99,13 @@ def _send_xarm1_direct_to_c2(fs, piece_id: str, color: str) -> None:
     fs.cycles.start_entity_cycle(
         "xarm1", "C1S2_TO_C2S1",
         piece_id=piece_id, color=color, route=color,
+        metadata=fs._map_pop_dispatch_metadata("xarm1"),
     )
     fs.cycles.add_phase("xarm1", "MOVING_C1S2_TO_C2S1")
 
     fs._processing_state = "WAITING_XARM1_DIRECT"
+    fs.register_pick_source("xarm1", "conveyor1")
+    fs.register_place_target("xarm1", "conveyor2")
     fs.send_command(
         "ufactory",
         "xarm1",
@@ -84,10 +124,13 @@ def _send_xarm1_to_laser(fs, piece_id: str) -> None:
     fs.cycles.start_entity_cycle(
         "xarm1", "C1S2_TO_LASER",
         piece_id=piece_id, color="RED", route="RED",
+        metadata=fs._map_pop_dispatch_metadata("xarm1"),
     )
     fs.cycles.add_phase("xarm1", "MOVING_C1S2_TO_LASER")
 
     fs._processing_state = "WAITING_XARM1_TO_LASER"
+    fs.register_pick_source("xarm1", "conveyor1")
+    fs.register_place_target("xarm1", "laser_bed")
     fs.send_command(
         "ufactory",
         "xarm1",
@@ -109,7 +152,8 @@ def _on_xarm1_direct_complete(fs):
             fs._processing_state = "IDLE"
             return
 
-        fs.pieces.transfer_piece("conveyor1", "conveyor2")
+        if not fs.consume_place_done_flag("xarm1"):
+            fs.pieces.transfer_via_gripper("xarm1_gripper", "conveyor1", "conveyor2")
         fs.state.update_robot("xarm1", RobotState.IDLE)
         _complete_and_insert(fs, "xarm1")
         fs._processing_state = "IDLE"
@@ -125,7 +169,8 @@ def _on_xarm1_to_laser_complete(fs, piece_id: str):
             fs._processing_state = "IDLE"
             return
 
-        fs.pieces.transfer_piece("conveyor1", "laser_bed")
+        if not fs.consume_place_done_flag("xarm1"):
+            fs.pieces.transfer_via_gripper("xarm1_gripper", "conveyor1", "laser_bed")
         fs.state.update_robot("xarm1", RobotState.IDLE)
         fs.state.update_machine("laser", MachineState.PREPARING)
         _complete_and_insert(fs, "xarm1")
@@ -187,6 +232,7 @@ def _on_laser_complete(fs, piece_id: str):
             )
             fs._processing_state = "LASER_DONE_WAITING_C2S1"
         elif xarm1_free:
+            fs._map_note_dispatch("xarm1", "LASER_TO_C2S1")
             _send_xarm1_laser_to_c2(fs, piece_id)
         else:
             fs.get_logger().info(
@@ -201,10 +247,13 @@ def _send_xarm1_laser_to_c2(fs, piece_id: str) -> None:
     fs.cycles.start_entity_cycle(
         "xarm1", "LASER_TO_C2S1",
         piece_id=piece_id, color="RED", route="RED",
+        metadata=fs._map_pop_dispatch_metadata("xarm1"),
     )
     fs.cycles.add_phase("xarm1", "MOVING_LASER_TO_C2S1")
 
     fs._processing_state = "WAITING_XARM1_TO_C2S1"
+    fs.register_pick_source("xarm1", "laser_bed")
+    fs.register_place_target("xarm1", "conveyor2")
     fs.send_command(
         "ufactory",
         "xarm1",
@@ -226,7 +275,8 @@ def _on_xarm1_laser_to_c2_complete(fs):
             fs._processing_state = "IDLE"
             return
 
-        fs.pieces.transfer_piece("laser_bed", "conveyor2")
+        if not fs.consume_place_done_flag("xarm1"):
+            fs.pieces.transfer_via_gripper("xarm1_gripper", "laser_bed", "conveyor2")
         fs.state.update_robot("xarm1", RobotState.IDLE)
         fs.state.update_machine("laser", MachineState.IDLE)
         _complete_and_insert(fs, "xarm1")

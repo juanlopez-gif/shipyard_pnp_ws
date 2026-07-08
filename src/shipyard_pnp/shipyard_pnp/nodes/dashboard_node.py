@@ -54,19 +54,11 @@ _ALARM_DB_DEFAULTS = dict(
 )
 
 
-def _find_expected_now(cycle_list: list, elapsed: float):
-    """Mirrors the frontend's _ctFindExpected() -- what should this entity
-    be doing right now, given elapsed seconds since production start."""
-    if not cycle_list:
-        return None
-    if elapsed < cycle_list[0]["t_start"]:
-        return {"status": "not_started"}
-    for c in cycle_list:
-        if c["t_start"] <= elapsed < c["t_start"] + c["dur"]:
-            d = dict(c)
-            d["status"] = "active"
-            return d
-    return {"status": "finished_all"}
+from shipyard_pnp.factory.expected_schedule import (
+    SCHEDULE_ENTITIES as _SCHEDULE_ENTITIES,
+    compute_expected_schedule as _compute_expected_schedule,
+    find_expected_now as _find_expected_now,
+)
 
 
 # ── Optimizer global state ────────────────────────────────────────
@@ -80,128 +72,6 @@ _OPT_LOCK = threading.Lock()
 _SCHED_LOCK = threading.Lock()
 _EXPECTED_SCHEDULE = {"ready": False, "cycles": {}, "order": [], "computed_at": None, "error": None}
 _PRODUCTION_START_TIME = {"t0": None}
-
-_SCHEDULE_ENTITIES = ["xarm2", "xarm1", "laser", "robot2", "bantam", "robot1"]
-_SCHEDULE_CYCLE_START = {
-    "xarm2":  {"MOVE_TO_STACK"},
-    "xarm1":  {"MOVE_TO_C1S2", "MOVE_TO_LASER"},
-    "robot2": {"MOVE_TO_C2S2", "MOVE_TO_BANTAM", "MOVE_TO_IBS"},
-    "robot1": {"MOVE_TO_C4", "MOVE_TO_C3"},
-    "laser":  {"PROCESSING", "HEATING"},
-    "bantam": {"DOOR_CLOSING"},
-}
-
-
-def _schedule_infer_task(entity: str, states: set, color: str) -> str:
-    if entity == "xarm2":
-        return "FEED_GREEN_TO_C3" if color == "GREEN" else "FEED_TO_C1S1"
-    if entity == "xarm1":
-        if "MOVE_TO_LASER" in states:
-            return "LASER_TO_C2S1"
-        if "MOVE_TO_C1S2" in states and color == "RED":
-            return "C1S2_TO_LASER"
-        return "C1S2_TO_C2S1"
-    if entity == "robot1":
-        return "UNLOAD_C3" if "MOVE_TO_C3" in states else "UNLOAD_C4"
-    if entity == "robot2":
-        if "MOVE_TO_BANTAM" in states:
-            return "BANTAM_TO_C4"
-        if "MOVE_TO_IBS" in states and "PLACE_BANTAM" in states:
-            return "IBS_TO_BANTAM"
-        if "PLACE_BANTAM" in states:
-            return "CLASSIFY_C2S2_TO_BANTAM"
-        if "PLACE_IBS" in states:
-            return "CLASSIFY_C2S2_TO_IBS"
-        return "CLASSIFY_C2S2_TO_C4"
-    if entity == "laser":
-        return "PROCESS_RED"
-    if entity == "bantam":
-        return "PROCESS_BLUE"
-    return entity
-
-
-def _compute_expected_schedule(order: list) -> dict:
-    """Run the SimPy model for the confirmed order and group its raw
-    state_changes into per-entity cycles (task, color, cycle_number,
-    t_start, dur) -- same grouping used for the offline sim-vs-real
-    analyses, kept simple here since only order/timing matter for the
-    live comparison, not exact sub-phase duration accounting."""
-    import io
-    import contextlib
-    from collections import defaultdict
-    import simpy
-    from shipyard_pnp.nodes.shipyard_sim import (
-        System, bantam_machine_process, xarm2_process,
-        conveyor1_process, conveyor1_control,
-        conveyor2_process, conveyor2_control,
-        xarm1_process, robot2_process, robot1_process,
-    )
-
-    env = simpy.Environment()
-    system = System(env, list(order))
-    env.process(bantam_machine_process(env, system))
-    env.process(xarm2_process(env, system))
-    env.process(conveyor1_process(env, system))
-    env.process(conveyor1_control(env, system))
-    env.process(conveyor2_process(env, system))
-    env.process(conveyor2_control(env, system))
-    env.process(xarm1_process(env, system))
-    env.process(robot2_process(env, system))
-    env.process(robot1_process(env, system))
-    with contextlib.redirect_stdout(io.StringIO()):
-        env.run(until=2500)
-
-    entity_stream = defaultdict(list)
-    for c in sorted(system.state_changes, key=lambda x: x["time"]):
-        if c["piece"] is None:
-            continue
-        entity_stream[c["entity"]].append(c)
-
-    schedule = {}
-    for entity in _SCHEDULE_ENTITIES:
-        markers = _SCHEDULE_CYCLE_START[entity]
-        groups = []
-        current = None
-        for c in entity_stream[entity]:
-            if c["state"] in markers or current is None or current["piece"] != c["piece"]:
-                if current is not None:
-                    groups.append(current)
-                current = {"piece": c["piece"], "color": c["color"], "events": [c]}
-            else:
-                current["events"].append(c)
-        if current is not None:
-            groups.append(current)
-        groups = [g for g in groups if g["events"][0]["state"] in markers]
-
-        task_counts = defaultdict(int)
-        entity_cycles = []
-        for g in groups:
-            states = {e["state"] for e in g["events"]}
-            t_start = g["events"][0]["time"]
-            t_end = g["events"][-1]["time"]
-            task = _schedule_infer_task(entity, states, g["color"])
-            # classification_rules.py creates the robot2 cycle as generic
-            # "CLASSIFY_C2S2" (cycle_number assigned then) and only renames
-            # it to CLASSIFY_C2S2_TO_{C4,BANTAM,IBS,SCRAP} once vision
-            # confirms the color -- so real cycle_number for all four is one
-            # SHARED counter, not one per final route. Match that here so
-            # comparisons against the live cycle_number (read straight from
-            # cycle_tracker) aren't spuriously flagged.
-            if entity == "robot2" and task.startswith("CLASSIFY_C2S2_TO_"):
-                counter_key = "CLASSIFY_C2S2"
-            else:
-                counter_key = task
-            task_counts[counter_key] += 1
-            entity_cycles.append({
-                "task": task, "color": g["color"],
-                "cycle_number": task_counts[counter_key],
-                "t_start": round(t_start, 1),
-                "dur": round(max(t_end - t_start, 0.1), 1),
-            })
-        entity_cycles.sort(key=lambda d: d["t_start"])
-        schedule[entity] = entity_cycles
-
-    return schedule
 
 
 def _build_expected_schedule_async(order: list) -> None:
@@ -504,6 +374,7 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
 .opt-btn-confirm:disabled { opacity: .5; cursor: not-allowed; }
 .ct-counter { background: #f8f9fa; border: 1.5px solid #e0e6ed; border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; font-size: 1.0rem; font-weight: 600; color: #2c3e50; display: flex; gap: 24px; flex-wrap: wrap; }
 .ct-counter span.ct-label { color: #607284; font-weight: 500; margin-right: 6px; }
+.ct-live-status  { font-size: .75rem; font-weight: 700; color: #8e44ad; }
 .ct-drift-ahead  { color: #2980b9; }
 .ct-drift-behind { color: #c0392b; }
 .ct-alert { background: linear-gradient(135deg,#c0392b,#e74c3c); color: white; font-weight: 700; padding: 12px 16px; border-radius: 8px; margin-bottom: 12px; letter-spacing: .02em; animation: ct-pulse 1.4s ease-in-out infinite; }
@@ -590,6 +461,10 @@ _HTML = r"""<!DOCTYPE html>
                 <div class="subpanel">
                   <h4>Pipeline Locations</h4>
                   <div id="piece-tracker"></div>
+                </div>
+                <div class="subpanel">
+                  <h4>Initial Stack — live (stack_status)</h4>
+                  <div class="stack-visual-wrap" id="initial-stack-visual"></div>
                 </div>
               </div>
             </div>
@@ -800,8 +675,21 @@ function renderCycleTracking(data) {
     else if (exp.status === "finished_all")   expLabel = "(ya no tiene más ciclos)";
     else expLabel = `${exp.task} #${exp.cycle_number} · ${exp.color}`;
 
+    // r.task_name/cycle_number stay constant for the WHOLE task (e.g.
+    // CLASSIFY_C2S2_TO_C4 covers vision + pick + travel + place + return
+    // home as one block) -- that's correct for cycle bookkeeping, but on
+    // its own it makes "reality" look frozen on "picking at C2S2" long
+    // after the piece has actually been picked/placed. The vendor adapters
+    // (robot2_adapter.py etc.) already report finer real-time hardware
+    // states (PICKING/PICK_DONE/GOING_TO_POSITION/PLACING/PLACE_DONE/
+    // RETURNING_HOME) via data.robots[entity]/data.machines[entity] --
+    // surface that here so Reality visibly updates the instant the robot
+    // physically grabs/drops the piece, without waiting for RETURN_HOME.
+    const liveObj = (data.robots && data.robots[entity]) || (data.machines && data.machines[entity]) || null;
+    const liveStatus = liveObj ? liveObj.status : null;
     let realLabel = r
-      ? `${r.task_name} #${r.cycle_number} · ${r.color || "?"} (${fmtS(r.elapsed_s)})`
+      ? `${r.task_name} #${r.cycle_number} · ${r.color || "?"} (${fmtS(r.elapsed_s)})` +
+        (liveStatus ? ` <span class="ct-live-status">[${liveStatus}]</span>` : "")
       : "IDLE";
 
     let rowClass = "", statusLabel = "OK", driftLabel = "—";
@@ -948,6 +836,45 @@ function renderRobots(data) {
   ).join("") || `<tr><td colspan="4" style="color:#aaa">No completed cycles</td></tr>`;
 }
 
+// ── Initial stack visualization (fed by ml_node.py's "stack_status" topic,
+// see factory_supervisor.py::_on_stack_status / get_stack_status_full) ────
+const STACK_COLOR_HEX = { RED: "#e74c3c", GREEN: "#27ae60", BLUE: "#2980b9" };
+const STACK_SHAPE_ICON = { CIRCLE: "●", SQUARE: "■", UNKNOWN: "?" };
+
+function renderInitialStack(data) {
+  const wrap = document.getElementById("initial-stack-visual");
+  if (!wrap) return;
+  const status = data.stack_status || {};
+
+  if (!Object.keys(status).length) {
+    wrap.innerHTML = '<div style="color:#aaa;font-size:.82rem;padding:6px">Sin datos de stack_status todavia (esperando al proceso de vision externo)</div>';
+    return;
+  }
+
+  let html = "";
+  for (let col = 1; col <= 3; col++) {
+    html += `<div class="stack-col-group"><div class="stack-col-label">Col ${col}</div>`;
+    for (let row = 1; row <= 6; row++) {
+      const key = `s${col}.${row}`;
+      const piece = status[key];
+      if (piece && piece.color) {
+        const bg = STACK_COLOR_HEX[piece.color] || "#7f8c8d";
+        const icon = STACK_SHAPE_ICON[piece.shape] || "?";
+        html += `<div class="stack-slot" style="background:${bg}" title="${key}: ${piece.color} ${piece.shape}">
+          <span class="stack-slot-text">${icon}</span>
+          <span class="stack-slot-key">${key}</span>
+        </div>`;
+      } else {
+        html += `<div class="stack-slot empty" title="${key}: vacio">
+          <span class="stack-slot-key">${key}</span>
+        </div>`;
+      }
+    }
+    html += `</div>`;
+  }
+  wrap.innerHTML = html;
+}
+
 function renderMachines(data) {
   const mach = data.machines || {};
   const door = data.door || {};
@@ -1026,6 +953,7 @@ async function refreshDashboard() {
     renderTopo(data);
     renderAlerts(data);
     renderRobots(data);
+    renderInitialStack(data);
     renderMachines(data);
     renderConveyors(data);
     renderAnalytics(data);
@@ -1197,6 +1125,7 @@ def _default_snapshot():
         "initial_order": [],
         "domains": {},
         "cycles": {},
+        "stack_status": {},
         "analytics": {"db": {"connected": False, "last_refresh": None},
                       "cycle_timing": [], "recent_cycles": [],
                       "discarded_summary": [], "recent_transfers": []},
@@ -1634,6 +1563,7 @@ class DashboardNode(Node):
             "initial_order": self._initial_order_captured or raw.get("initial_order", []),
             "domains":       raw.get("domains", {}),
             "cycles":        raw.get("cycles", {}),
+            "stack_status":  raw.get("stack_status", {}),
         }
 
     # ── public accessors ───────────────────────────────────────────

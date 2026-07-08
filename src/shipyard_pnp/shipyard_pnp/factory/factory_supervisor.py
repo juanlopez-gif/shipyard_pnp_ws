@@ -45,26 +45,24 @@ from shipyard_pnp.shared.contracts import (
 # Define aquí las piezas que el xArm2 debe coger del stack inicial.
 # color/shape son opcionales: si se especifican, se usan como hint para globalvision.
 # Si se omiten (None), globalvision los detecta automáticamente con visión.
-INITIAL_STACK_ORDER = [
-    {"id": "piece-001", "color": "GREEN", "shape": None},
-    {"id": "piece-002", "color": "GREEN", "shape": None},
-    {"id": "piece-003", "color": "GREEN", "shape": None},
-    {"id": "piece-004", "color": "GREEN", "shape": None},
-    {"id": "piece-005", "color": "GREEN", "shape": None},
-    {"id": "piece-006", "color": "GREEN", "shape": None},
-    {"id": "piece-007", "color": "RED",   "shape": None},
-    {"id": "piece-008", "color": "RED",   "shape": None},
-    {"id": "piece-009", "color": "RED",   "shape": None},
-    {"id": "piece-010", "color": "RED",   "shape": None},
-    {"id": "piece-011", "color": "RED",   "shape": None},
-    {"id": "piece-012", "color": "RED",   "shape": None},
-    {"id": "piece-013", "color": "BLUE",  "shape": None},
-    {"id": "piece-014", "color": "BLUE",  "shape": None},
-    {"id": "piece-015", "color": "BLUE",  "shape": None},
-    {"id": "piece-016", "color": "BLUE",  "shape": None},
-    {"id": "piece-017", "color": "BLUE",  "shape": None},
-    {"id": "piece-018", "color": "BLUE",  "shape": None},
-]
+INITIAL_STACK_ORDER = (
+    [{"id": f"piece-{i:03d}", "color": "RED",   "shape": None} for i in range(1, 7)]
+    + [{"id": f"piece-{i:03d}", "color": "BLUE",  "shape": None} for i in range(7, 13)]
+    + [{"id": f"piece-{i:03d}", "color": "GREEN", "shape": None} for i in range(13, 19)]
+)
+
+# entity -> gripper location in piece_tracker.PIPELINE_LOCATIONS. Used by
+# register_pick_source/_apply_resource_state to move a piece OUT of its
+# source queue (EXPECTED) the instant the real robot reports PICK_DONE,
+# instead of leaving it there until the whole pick+travel+place(+home)
+# command finishes -- see register_pick_source below and
+# piece_tracker.PieceTracker.transfer_via_gripper.
+_GRIPPER_LOCATION = {
+    "robot1": "robot1_gripper",
+    "robot2": "robot2_gripper",
+    "xarm1": "xarm1_gripper",
+    "xarm2": "xarm2_gripper",
+}
 
 
 class FactorySupervisor(Node):
@@ -103,6 +101,50 @@ class FactorySupervisor(Node):
         self.pieces = piece_tracker.PieceTracker(INITIAL_STACK_ORDER, self.db)
         self.cycles = cycle_tracker.CycleTracker()
 
+        # slot_id -> {"color":..., "shape":...}, fed by the external vision
+        # process (ml_node.py, runs on a separate computer) publishing on the
+        # bare "stack_status" topic. Our own GlobalVision camera_adapter only
+        # detects color/occupancy live (shape is intentionally not inferred
+        # there) -- this map is the sole source of real shape for
+        # initial_stack pieces (see feeding_rules.py::_on_locate_complete),
+        # and also feeds the dashboard's initial-stack visualization
+        # (get_stack_status_full -> /factory/system_state -> dashboard_node.py).
+        self._stack_status: dict = {}
+
+        # entity -> source location for a MOVE_PIECE-type command currently
+        # in flight (pick+travel+place as ONE vendor command). Consumed in
+        # _apply_resource_state the instant that entity's resource_state
+        # reaches PICK_DONE. See register_pick_source.
+        self._inflight_pick_source: dict = {}
+
+        # entity -> target location for the same in-flight command,
+        # consumed at PLACE_DONE (see register_place_target). Needed
+        # because several vendor adapters (xarm1_adapter.py::_place_to_c2s1/
+        # _place_to_laser, xarm2_adapter.py::_place_to_c1s1,
+        # robot2_adapter.py's BANTAM/IBS/SCRAP placements) call move_home()
+        # INSIDE the same command right after PLACE_DONE, so the command's
+        # own on_complete/task_state==COMPLETED callback -- where the piece
+        # used to get transferred to the target queue -- doesn't fire until
+        # the robot is back home. Reacting to PLACE_DONE directly instead
+        # (a real STATUS event, not a polled snapshot) fixes it regardless
+        # of what a given adapter does after placing.
+        self._inflight_place_target: dict = {}
+
+        # entity -> True once the PLACE_DONE hook above has ALREADY done the
+        # gripper->target transfer for the current dispatch. BUG FOUND
+        # 2026-07-07 (real DB evidence, piece-001 GREEN got dragged through
+        # conveyor1/laser_bed/conveyor2/c4_location behind piece-002 RED):
+        # without this flag, the command's own on_complete callback still
+        # unconditionally called transfer_via_gripper() too -- by the time
+        # it fired (after the adapter's internal move_home), the gripper was
+        # ALREADY empty (this hook emptied it minutes^Wseconds earlier), so
+        # transfer_via_gripper's fallback kicked in and popped whatever
+        # piece happened to be sitting at the head of source_loc NOW (an
+        # unrelated piece waiting for a LATER dispatch) into target_loc.
+        # consume_place_done_flag() lets on_complete skip its own transfer
+        # entirely when this hook already handled it.
+        self._place_done_via_hook: dict = {}
+
         self.vendor_clients = {}
         self._command_publishers = {}
         self._ack_subscriptions = []
@@ -127,6 +169,24 @@ class FactorySupervisor(Node):
         self.c4_settle_sec: float = 14.5
         self._optimized_order = list(INITIAL_STACK_ORDER)
         self._init_wait_logged_domains = set()
+
+        # Map-guided tie-breaking: physical readiness is checked exactly as
+        # before and ALWAYS gates first (nothing here can make an entity act
+        # before its normal preconditions are met). When TWO options are
+        # simultaneously valid, or one option's map-predicted alternative
+        # isn't ready yet, this schedule breaks the tie / grants a grace
+        # period -- see FactorySupervisor._map_next/_map_should_wait/
+        # _map_note_dispatch and their call sites in the planner rules.
+        self.declare_parameter("map_guidance_enabled", True)
+        self._map_guidance_enabled = bool(
+            self.get_parameter("map_guidance_enabled").get_parameter_value().bool_value
+        )
+        self.MAP_GRACE_SEC = 10.0
+        self._expected_schedule: dict = {}
+        self._map_pointer: dict = {}
+        self._map_wait_since: dict = {}
+        self._map_last_wait_duration: dict = {}
+        self._map_last_dispatch_info: dict = {}
         boot_grace_sec = (
             self.get_parameter("boot_grace_sec")
             .get_parameter_value()
@@ -150,11 +210,12 @@ class FactorySupervisor(Node):
                 for e in INITIAL_STACK_ORDER
             ],
             get_planner_phase=lambda: self.planner_phase.value,
+            get_stack_status=self.get_stack_status_full,
         )
 
         self.create_timer(0.5,  self.evaluate_rules,          callback_group=self.planner_cbg)
         self.create_timer(1.0,  self.watchdog,                 callback_group=self.watchdog_cbg)
-        self.create_timer(2.0,  self._publish_system_state,    callback_group=self.dashboard_cbg)
+        self.create_timer(0.5,  self._publish_system_state,    callback_group=self.dashboard_cbg)
         self.create_timer(5.0,  self._publish_run_id,          callback_group=self.dashboard_cbg)
         self.create_timer(10.0, self._sample_queue_depths,     callback_group=self.planner_cbg)
 
@@ -238,6 +299,13 @@ class FactorySupervisor(Node):
             self._on_optimized_order,
             10,
             callback_group=self.order_cbg,
+        )
+        self._stack_status_sub = self.create_subscription(
+            String,
+            "stack_status",
+            self._on_stack_status,
+            10,
+            callback_group=self.ack_status_cbg,
         )
 
     # ------------------------------------------------------------------
@@ -463,6 +531,38 @@ class FactorySupervisor(Node):
     # State helpers
     # ------------------------------------------------------------------
 
+    def register_pick_source(self, entity: str, source_loc: str) -> None:
+        """Call at the moment a MOVE_PIECE-type command (pick+travel+place
+        handled as ONE vendor command, e.g. xarm1/xarm2/robot2) is
+        dispatched for `entity`, naming the location the piece is
+        currently sitting in. Once the real hardware reports PICK_DONE
+        (see _apply_resource_state below), the piece leaves that queue
+        right there -- otherwise EXPECTED keeps showing it at the source
+        location until the whole command (including RETURNING_HOME)
+        finishes, long after it's physically in the gripper. Not needed
+        for robot1 (unloading_rules.py), which already gets an explicit
+        on_complete callback for its separate vacuum PICK command."""
+        self._inflight_pick_source[entity] = source_loc
+
+    def register_place_target(self, entity: str, target_loc: str) -> None:
+        """Call alongside register_pick_source, at the same MOVE_PIECE
+        dispatch, naming where the piece is headed. Once the real hardware
+        reports PLACE_DONE, the piece lands in that queue right there --
+        see the comment on self._inflight_place_target in __init__ for why
+        this can't wait for the command's own on_complete callback."""
+        self._inflight_place_target[entity] = target_loc
+        self._place_done_via_hook[entity] = False
+
+    def consume_place_done_flag(self, entity: str) -> bool:
+        """Call from a MOVE_PIECE on_complete callback INSTEAD of doing the
+        gripper->target transfer unconditionally. Returns True if the
+        PLACE_DONE hook already transferred the piece for this dispatch
+        (nothing left to do -- see self._place_done_via_hook). Returns
+        False if it never fired (e.g. a dropped STATUS message), in which
+        case the caller should still fall back to
+        pieces.transfer_via_gripper() itself."""
+        return self._place_done_via_hook.pop(entity, False)
+
     def _apply_resource_state(self, resource_id: str, resource_state: str) -> None:
         if not resource_id or not resource_state:
             return
@@ -493,6 +593,28 @@ class FactorySupervisor(Node):
             unloading_rules.sync_robot1_vision_phase(
                 self, prev_state or "", resource_state
             )
+
+        # EXPECTED must leave the source location the instant the piece is
+        # physically picked, not when the whole move (incl. RETURNING_HOME)
+        # finishes -- see register_pick_source. Consumed once per dispatch.
+        if resource_state == "PICK_DONE":
+            gripper_loc = _GRIPPER_LOCATION.get(resource_id)
+            source_loc = self._inflight_pick_source.pop(resource_id, None)
+            if gripper_loc and source_loc:
+                self.pieces.transfer_piece(source_loc, gripper_loc)
+
+        # Symmetric to the PICK_DONE hook above -- several vendor adapters
+        # call move_home() INSIDE the same command right after PLACE_DONE
+        # (see comment on self._inflight_place_target in __init__), so
+        # waiting for the command's own completion would show the piece
+        # stuck in the gripper (nowhere) in EXPECTED until home. React to
+        # the real PLACE_DONE event instead.
+        if resource_state == "PLACE_DONE":
+            gripper_loc = _GRIPPER_LOCATION.get(resource_id)
+            target_loc = self._inflight_place_target.pop(resource_id, None)
+            if gripper_loc and target_loc:
+                if self.pieces.transfer_piece(gripper_loc, target_loc):
+                    self._place_done_via_hook[resource_id] = True
 
     def _apply_sensor_result(self, result: dict) -> bool:
         sensor_id = result.get("sensor_id")
@@ -646,6 +768,16 @@ class FactorySupervisor(Node):
                     f"Optimized order updated ({len(order)} pieces): {order}"
                 )
 
+        if self._map_guidance_enabled:
+            with self._state_lock:
+                self._expected_schedule = {}
+                self._map_pointer = {}
+                self._map_wait_since = {}
+            threading.Thread(
+                target=self._build_expected_schedule_async,
+                args=(list(order),), daemon=True,
+            ).start()
+
         saving_s = payload.get("saving_s", 0.0)
         self.db.insert_operator_event("APPLY_ORDER", f"order={order}")
         self.db.update_production_run_optimized_order(order, saving_s)
@@ -663,6 +795,234 @@ class FactorySupervisor(Node):
                 permutations_evaluated= payload.get("permutations_evaluated", 0),
                 optimizer_runtime_s   = payload.get("optimizer_runtime_s", 0.0),
             )
+
+    # ------------------------------------------------------------------
+    # External vision shape enrichment (ml_node.py, runs off-repo)
+    # ------------------------------------------------------------------
+
+    def _on_stack_status(self, msg: String) -> None:
+        """Parse {"s1.1": "GREEN_CIRCLE", "s1.2": "null", ...} into
+        slot_id -> {"color", "shape"}.
+
+        Color+slot SELECTION for initial_stack stays owned by our own live
+        camera_adapter.py detection (unchanged) -- exactly like shipyard_core
+        keeps that decision in GlobalVision's own live HSV pass and only
+        overlays shape from this externally-published map (see
+        feeding_rules.py::_on_locate_complete for that lookup). The full
+        color+shape map is kept here too, only to drive the dashboard's
+        initial-stack visualization (a live picture of the physical stack,
+        not a control-flow input).
+        """
+        try:
+            payload = json.loads(msg.data)
+        except Exception as exc:
+            self.get_logger().warning(f"Invalid stack_status payload ignored: {exc}")
+            return
+        if not isinstance(payload, dict):
+            return
+
+        slots = {}
+        for slot_id, value in payload.items():
+            if not isinstance(value, str) or value.upper() == "NULL":
+                continue
+            parts = value.split("_", 1)
+            slots[slot_id] = {
+                "color": parts[0].upper(),
+                "shape": parts[1].upper() if len(parts) == 2 and parts[1] else "UNKNOWN",
+            }
+
+        with self._state_lock:
+            self._stack_status = slots
+
+    def get_stack_status_shape(self, slot_id: Optional[str]) -> Optional[str]:
+        if not slot_id:
+            return None
+        with self._state_lock:
+            entry = self._stack_status.get(slot_id)
+        return entry.get("shape") if entry else None
+
+    def get_stack_status_full(self) -> dict:
+        with self._state_lock:
+            return dict(self._stack_status)
+
+    # ------------------------------------------------------------------
+    # Map-guided tie-breaking (see comment in __init__)
+    # ------------------------------------------------------------------
+
+    def _build_expected_schedule_async(self, order: list) -> None:
+        try:
+            from shipyard_pnp.factory.expected_schedule import compute_expected_schedule
+            sched = compute_expected_schedule(order)
+            with self._state_lock:
+                self._expected_schedule = sched
+            self.get_logger().info(
+                f"[map] expected schedule ready ({sum(len(v) for v in sched.values())} cycles)"
+            )
+        except Exception as exc:
+            self.get_logger().warning(f"[map] failed to compute expected schedule: {exc}")
+            with self._state_lock:
+                self._expected_schedule = {}
+
+    def _map_next(self, entity: str) -> Optional[dict]:
+        """The next not-yet-fulfilled expected cycle for this entity, or
+        None if there's no schedule (not confirmed yet, still computing,
+        guidance disabled) or the entity has run past the end of it --
+        callers must always treat None as "no opinion, use the plain
+        physical rule", never as a reason to block."""
+        if not self._map_guidance_enabled:
+            return None
+        cycles = self._expected_schedule.get(entity)
+        if not cycles:
+            return None
+        idx = self._map_pointer.get(entity, 0)
+        if idx >= len(cycles):
+            return None
+        return cycles[idx]
+
+    def _map_should_wait(self, entity: str) -> bool:
+        """True while this entity should keep waiting (up to MAP_GRACE_SEC)
+        for its map-predicted option to become physically ready instead of
+        taking a different option that's already ready. Starts the timer on
+        first call for this "waiting episode". Clears itself the moment the
+        grace period expires (the decision to stop waiting is made right
+        here, regardless of whether the caller's fallback attempt actually
+        succeeds this tick) so a stale timestamp can never leak into and
+        cut short some later, unrelated waiting episode for this entity --
+        records how long it waited so _map_note_dispatch can log/persist the
+        outcome. _map_note_dispatch also clears the start time on an actual
+        successful dispatch (whether that took any waiting or not)."""
+        now = time.time()
+        started = self._map_wait_since.get(entity)
+        if started is None:
+            self._map_wait_since[entity] = now
+            return True
+        if (now - started) < self.MAP_GRACE_SEC:
+            return True
+        self._map_wait_since.pop(entity, None)
+        self._map_last_wait_duration[entity] = now - started
+        return False
+
+    def _map_begin_dispatch(self, entity: str) -> dict:
+        """Call the instant a dispatch decision is made, even when the
+        final outcome isn't knowable yet (robot2's classify commits to
+        "go handle whatever's at C2S2" before vision reveals the real
+        color/route). Closes out any pending wait-timer bookkeeping right
+        away so it can never leak into a later, unrelated waiting episode
+        for this entity. Returns the wait info to pass into
+        _map_resolve_dispatch() once the real outcome is known."""
+        started = self._map_wait_since.pop(entity, None)
+        waited_before_this = (time.time() - started) if started is not None else None
+        gave_up_after = self._map_last_wait_duration.pop(entity, None)
+        return {"waited_before_this": waited_before_this, "gave_up_after": gave_up_after}
+
+    def _map_resolve_dispatch(self, entity: str, actual_category: str, wait_info: dict) -> None:
+        """Compare the FINAL, resolved actual_category against what the map
+        expected, and advance the map pointer only on a genuine match.
+        wait_info comes from _map_begin_dispatch(), called earlier at the
+        moment the dispatch decision was made (may be well before this, if
+        the real outcome took a vision call to resolve).
+
+        If it doesn't match (a grace-period fallback, OR a genuinely
+        unplanned outcome the map never predicted at all -- e.g. robot2's
+        vision resolving to SCRAP when the map expected a normal route),
+        the expected cycle stays pending and will be compared against again
+        next time this entity is free. Per user decision: skipped/unplanned
+        map entries are never dropped, only ever caught up on -- an
+        "intruder" cycle must not silently consume the slot of whatever the
+        map was actually still waiting for.
+
+        Every outcome that involved waiting at all gets logged; a timeout
+        fallback or an intruder cycle also gets persisted to alarm_event so
+        it can be reviewed after the fact."""
+        if not self._map_guidance_enabled:
+            return
+        expected = self._map_next(entity)
+        if expected is None:
+            return
+        expected_task = expected["task"]
+        expected_label = f"{expected_task} #{expected.get('cycle_number')}"
+        matched = actual_category == expected_task
+        waited_before_this = wait_info.get("waited_before_this")
+        gave_up_after = wait_info.get("gave_up_after")
+
+        if matched:
+            self._map_pointer[entity] = self._map_pointer.get(entity, 0) + 1
+            if waited_before_this:
+                self.get_logger().info(
+                    f"[map] {entity}: siguió el mapa ({expected_label}) "
+                    f"tras esperar {waited_before_this:.1f}s"
+                )
+                self._map_last_dispatch_info[entity] = {
+                    "map_outcome":      "followed",
+                    "map_expected":     expected_label,
+                    "map_wait_s":       round(waited_before_this, 2),
+                }
+        elif gave_up_after is not None:
+            msg = (
+                f"se esperaron {gave_up_after:.1f}s a {expected_label}, no llegó "
+                f"a tiempo -> se hizo {actual_category} en su lugar (sigue pendiente)"
+            )
+            self.get_logger().warning(f"[map] {entity}: {msg}")
+            self.db.insert_alarm(
+                severity="warning",
+                resource_id=entity,
+                description=f"MAP GUIDANCE TIMEOUT [{entity}]: {msg}",
+                context_snapshot={
+                    "kind":            "map_guidance_timeout",
+                    "entity":          entity,
+                    "expected_task":   expected_task,
+                    "expected_cycle":  expected.get("cycle_number"),
+                    "actual_category": actual_category,
+                    "waited_s":        round(gave_up_after, 2),
+                    "grace_sec":       self.MAP_GRACE_SEC,
+                },
+            )
+            self._map_last_dispatch_info[entity] = {
+                "map_outcome":     "timeout",
+                "map_expected":    expected_label,
+                "map_wait_s":      round(gave_up_after, 2),
+            }
+        else:
+            # Neither a match nor a grace-period fallback -- an outcome the
+            # map had no opinion about waiting for at all (e.g. vision
+            # revealed a route the map never predicted). Leave the pointer
+            # untouched: the expected entry is still owed.
+            msg = (
+                f"ciclo no esperado ({actual_category}) -- el mapa seguía "
+                f"esperando {expected_label}, se deja pendiente"
+            )
+            self.get_logger().warning(f"[map] {entity}: {msg}")
+            self.db.insert_alarm(
+                severity="warning",
+                resource_id=entity,
+                description=f"MAP GUIDANCE INTRUDER [{entity}]: {msg}",
+                context_snapshot={
+                    "kind":            "map_guidance_intruder",
+                    "entity":          entity,
+                    "expected_task":   expected_task,
+                    "expected_cycle":  expected.get("cycle_number"),
+                    "actual_category": actual_category,
+                },
+            )
+            self._map_last_dispatch_info[entity] = {
+                "map_outcome":     "intruder",
+                "map_expected":    expected_label,
+            }
+
+    def _map_note_dispatch(self, entity: str, actual_category: str) -> None:
+        """Convenience for call sites that already know their final,
+        resolved actual_category at the moment of dispatch (everyone
+        except robot2's classify, which only learns its real route after
+        vision -- see _map_begin_dispatch/_map_resolve_dispatch)."""
+        self._map_resolve_dispatch(entity, actual_category, self._map_begin_dispatch(entity))
+
+    def _map_pop_dispatch_metadata(self, entity: str) -> dict:
+        """Consume (return-and-clear) the map-guidance outcome recorded by
+        the most recent _map_note_dispatch call for this entity, if any --
+        callers merge this into the metadata of the cycle_event they're
+        about to start, so a wait/timeout is visible on the specific
+        piece/cycle it affected, not just in the ROS log and alarm_event."""
+        return self._map_last_dispatch_info.pop(entity, {})
 
     # ------------------------------------------------------------------
     # DB support timers

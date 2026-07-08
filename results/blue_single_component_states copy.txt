@@ -1,0 +1,495 @@
+BLUE SINGLE PIECE - COMPONENT STATE TRACE
+==============================================================================
+Archivo generado desde SimPy actual y PostgreSQL shipyard_pnp_ws.
+Orden simulacion: [BLUE]
+Run real DB usado: 20260627_215707_B
+
+RESUMEN MAKESPAN / TIEMPOS
+------------------------------------------------------------------------------
+Simulacion makespan (ultimo state_change): 209.500 s
+Real production_run elapsed: 269.237 s (ABORTED; incluye boot/shutdown, no solo pieza)
+Real pieza piece-001: total_time_s=190.442 s, completed_after_run_start=228.041 s, final=final_blue_circle
+
+Nota: la SimPy no registra sensores ni conveyors en system.state_changes;
+      en realidad esos recursos si aparecen en status_log. Para realidad se
+      listan todos los resource_id registrados por el supervisor.
+
+SIMULACION - ESTADOS POR COMPONENTE
+==============================================================================
+
+[bantam]
+Resumen estados: DOOR_CLOSING:1, DOOR_OPENING:1, DOOR_OPENING_INIT:1, FINISHED:1, IDLE:2, PROCESSING:1, WAITING_ROBOT2:1, WORKING:1
+  t_s      dur_s    state                         piece color
+  -------  -------  ----------------------------  ----- -----
+    0.000   12.100  DOOR_OPENING_INIT                        
+   12.100   62.500  IDLE                                     
+   74.600    8.900  WAITING_ROBOT2                P01   BLUE 
+   83.500    0.000  WORKING                       P01   BLUE 
+   83.500   11.400  DOOR_CLOSING                  P01   BLUE 
+   94.900   25.000  PROCESSING                    P01   BLUE 
+  119.900   12.100  DOOR_OPENING                  P01   BLUE 
+  132.000   12.100  FINISHED                      P01   BLUE 
+  144.100   65.400  IDLE                                     
+
+[c4_station]
+Resumen estados: FINISHED:1, PROCESSING:1
+  t_s      dur_s    state                         piece color
+  -------  -------  ----------------------------  ----- -----
+  159.000   14.500  PROCESSING                    P01   BLUE 
+  173.500   36.000  FINISHED                      P01   BLUE 
+
+[robot1]
+Resumen estados: IDLE:2, MOVE_TO_C4:1, PICK_C4:1, PLACE_FINAL_BLUE:1, RETURN_HOME:1, VISION:1
+  t_s      dur_s    state                         piece color
+  -------  -------  ----------------------------  ----- -----
+    0.000  173.600  IDLE                                     
+  173.600    2.200  MOVE_TO_C4                    P01   BLUE 
+  175.800    3.000  VISION                        P01   BLUE 
+  178.800    5.100  PICK_C4                       P01   BLUE 
+  183.900   15.800  PLACE_FINAL_BLUE              P01   BLUE 
+  199.700    9.800  RETURN_HOME                   P01   BLUE 
+  209.500    0.000  IDLE                                     
+
+[robot2]
+Resumen estados: IDLE:3, MOVE_TO_BANTAM:1, MOVE_TO_C2S2:1, PICK_BANTAM:1, PICK_C2S2:1, PLACE_BANTAM:1, PLACE_C4:1, RETURN_HOME:2, VISION:1
+  t_s      dur_s    state                         piece color
+  -------  -------  ----------------------------  ----- -----
+    0.000   40.700  IDLE                                     
+   40.700    2.500  MOVE_TO_C2S2                  P01   BLUE 
+   43.200   13.800  VISION                        P01   BLUE 
+   57.000    3.500  PICK_C2S2                     P01   BLUE 
+   60.500   14.000  PLACE_BANTAM                  P01   BLUE 
+   74.500    9.000  RETURN_HOME                   P01   BLUE 
+   83.500   48.600  IDLE                                     
+  132.100    8.900  MOVE_TO_BANTAM                P01   BLUE 
+  141.000    3.100  PICK_BANTAM                   P01   BLUE 
+  144.100   14.900  PLACE_C4                      P01   BLUE 
+  159.000    9.500  RETURN_HOME                   P01   BLUE 
+  168.500   41.000  IDLE                                     
+
+[xarm1]
+Resumen estados: IDLE:2, MOVE_TO_C1S2:1, PICK_C1S2:1, PLACE_C2S1:1, RETURN_HOME:1
+  t_s      dur_s    state                         piece color
+  -------  -------  ----------------------------  ----- -----
+    0.000   17.500  IDLE                                     
+   17.500    4.000  MOVE_TO_C1S2                  P01   BLUE 
+   21.500    0.550  PICK_C1S2                     P01   BLUE 
+   22.050    9.400  PLACE_C2S1                    P01   BLUE 
+   31.450    1.800  RETURN_HOME                   P01   BLUE 
+   33.250  176.250  IDLE                                     
+
+[xarm2]
+Resumen estados: IDLE:2, MOVE_TO_STACK:1, PICK_STACK:1, PLACE_C1S1:1, RETURN_HOME:1, VISION:1
+  t_s      dur_s    state                         piece color
+  -------  -------  ----------------------------  ----- -----
+    0.000    0.000  IDLE                                     
+    0.000    3.800  MOVE_TO_STACK                 P01   BLUE 
+    3.800    0.050  VISION                        P01   BLUE 
+    3.850    2.500  PICK_STACK                    P01   BLUE 
+    6.350    5.200  PLACE_C1S1                    P01   BLUE 
+   11.550    2.000  RETURN_HOME                   P01   BLUE 
+   13.550  195.950  IDLE                                     
+
+REALIDAD DB - FASES DE CICLO POR COMPONENTE (cycle_event.phases)
+==============================================================================
+
+[bantam]
+  t_rel_s  dur_s    task_name                   phase
+  -------  -------  --------------------------  --------------------------
+  101.726   48.882  PROCESS_BLUE                PROCESSING                
+
+[robot1]
+  t_rel_s  dur_s    task_name                   phase
+  -------  -------  --------------------------  --------------------------
+  192.075   10.618  UNLOAD_C4                   CLASSIFY_AND_PICK         
+  202.693    1.575  UNLOAD_C4                   VACUUM_PICK               
+  204.268   13.619  UNLOAD_C4                   LIFT_AND_PLACE            
+  217.887    1.383  UNLOAD_C4                   VACUUM_RELEASE            
+  219.269    8.778  UNLOAD_C4                   RETURNING_HOME            
+
+[robot2]
+  t_rel_s  dur_s    task_name                   phase
+  -------  -------  --------------------------  --------------------------
+   59.641   13.165  CLASSIFY_C2S2_TO_BANTAM     VISION_C2S2               
+   72.806   28.916  CLASSIFY_C2S2_TO_BANTAM     MOVING_C2S2_TO_BANTAM     
+  150.618   26.874  BANTAM_TO_C4                MOVING_BANTAM_TO_C4       
+  177.491    9.465  BANTAM_TO_C4                RETURNING_HOME            
+
+[xarm1]
+  t_rel_s  dur_s    task_name                   phase
+  -------  -------  --------------------------  --------------------------
+   39.467   15.820  C1S2_TO_C2S1                MOVING_C1S2_TO_C2S1       
+
+[xarm2]
+  t_rel_s  dur_s    task_name                   phase
+  -------  -------  --------------------------  --------------------------
+   24.199    0.043  FEED_TO_C1S1                WAITING_GLOBALVISION      
+   24.242   13.357  FEED_TO_C1S1                MOVING_TO_C1S1            
+
+REALIDAD DB - COMANDOS TERMINALES POR COMPONENTE
+==============================================================================
+
+[arduino_vacuum]
+  dur_s    task_name             source          target          route  result_state  code
+  -------  --------------------  --------------  --------------  -----  ------------  ----------------------
+    4.081  INITIALIZE_DOMAIN                                            IDLE          INITIALIZED           
+    1.563  PICK                  C4              FINAL_BLUE_CIR  BLUE   PICK_DONE     OK                    
+    1.363  RELEASE               C4              FINAL_BLUE_CIR  BLUE   RELEASE_DONE  OK                    
+    1.058  OFF                                                          IDLE          OK                    
+
+[bantam]
+  dur_s    task_name             source          target          route  result_state  code
+  -------  --------------------  --------------  --------------  -----  ------------  ----------------------
+    0.032  INITIALIZE_DOMAIN                                            IDLE          INITIALIZED           
+   48.860  RUN_JOB               BANTAM_BED      BANTAM_BED      BLUE   FINISHED      JOB_COMPLETE          
+   11.223  CLOSE_DOOR                                                   IDLE          DOOR_CLOSED           
+
+[conveyor1]
+  dur_s    task_name             source          target          route  result_state  code
+  -------  --------------------  --------------  --------------  -----  ------------  ----------------------
+    5.842  RUN_NIRYO_CONVEYOR                                           STOPPED       STOPPED_AT_EXIT_SENSOR
+    0.080  STOP_NIRYO_CONVEYOR                                          STOPPED       STOPPED               
+
+[conveyor2]
+  dur_s    task_name             source          target          route  result_state  code
+  -------  --------------------  --------------  --------------  -----  ------------  ----------------------
+    9.329  RUN_NIRYO_CONVEYOR                                           STOPPED       STOPPED_AT_EXIT_SENSOR
+    0.103  STOP_NIRYO_CONVEYOR                                          STOPPED       STOPPED               
+
+[conveyor3]
+  dur_s    task_name             source          target          route  result_state  code
+  -------  --------------------  --------------  --------------  -----  ------------  ----------------------
+    4.718  INITIALIZE_DOMAIN                                            STOPPED       INITIALIZED           
+    0.090  STOP_CONVEYOR                                                STOPPED       OK                    
+
+[conveyor4]
+  dur_s    task_name             source          target          route  result_state  code
+  -------  --------------------  --------------  --------------  -----  ------------  ----------------------
+    0.860  RUN_CONVEYOR          C4_ENTRY        C4                     RUNNING       OK                    
+    0.072  STOP_CONVEYOR                                                STOPPED       OK                    
+    0.095  STOP_CONVEYOR                                                STOPPED       OK                    
+
+[globalvision_camera]
+  dur_s    task_name             source          target          route  result_state  code
+  -------  --------------------  --------------  --------------  -----  ------------  ----------------------
+    0.020  INITIALIZE_DOMAIN                                            IDLE          INITIALIZED           
+    0.385  LOCATE_NEXT_PIECE     INITIAL_STACK                          IDLE          SLOT_FOUND            
+
+[laser]
+  dur_s    task_name             source          target          route  result_state  code
+  -------  --------------------  --------------  --------------  -----  ------------  ----------------------
+    0.013  INITIALIZE_DOMAIN                                            IDLE          INITIALIZED           
+
+[robot1]
+  dur_s    task_name             source          target          route  result_state  code
+  -------  --------------------  --------------  --------------  -----  ------------  ----------------------
+    5.391  INITIALIZE_DOMAIN                                            IDLE          INITIALIZED           
+   10.601  CLASSIFY_AND_PICK     C4              FINAL_BLUE_CIR  BLUE   AT_PICK_POSI  AT_PICK_POSITION      
+   13.600  LIFT_AND_PLACE        C4              FINAL_BLUE_CIR  BLUE   AT_PLACE_POS  AT_PLACE_POSITION     
+    8.754  RETURN_HOME                                           BLUE   IDLE          HOME                  
+
+[robot2]
+  dur_s    task_name             source          target          route  result_state  code
+  -------  --------------------  --------------  --------------  -----  ------------  ----------------------
+   13.143  CAPTURE_LOCAL_VISION  C2S2                                   IDLE          VISION_RESULT_READY   
+   28.884  MOVE_PIECE            C2S2            BANTAM_BED      BLUE   IDLE          MOVE_DONE             
+   26.844  MOVE_PIECE            BANTAM_BED      C4              BLUE   PLACE_DONE    PLACED_C4             
+    9.443  RETURN_HOME                                                  IDLE          HOME                  
+
+[xarm1]
+  dur_s    task_name             source          target          route  result_state  code
+  -------  --------------------  --------------  --------------  -----  ------------  ----------------------
+    2.505  INITIALIZE_DOMAIN                                            IDLE          INITIALIZED           
+   15.793  MOVE_PIECE            C1S2            C2S1            BLUE   IDLE          MOVE_DONE             
+    1.112  MOVE_XARM_HOME                                               IDLE          HOME                  
+
+[xarm2]
+  dur_s    task_name             source          target          route  result_state  code
+  -------  --------------------  --------------  --------------  -----  ------------  ----------------------
+   13.335  MOVE_PIECE            INITIAL_STACK   C1S1                   IDLE          MOVE_DONE             
+    1.085  MOVE_XARM_HOME                                               IDLE          HOME                  
+
+REALIDAD DB - STATUS_LOG POR COMPONENTE
+==============================================================================
+
+[arduino_vacuum]
+Resumen estados: IDLE:2 (first=6.290s,last=240.768s), PICK_DONE:1 (first=204.271s,last=204.271s), RELEASE_DONE:1 (first=219.264s,last=219.264s)
+  t_rel_s  dur_next task_state resource_state      code                         command_id
+  -------  -------- ---------- ------------------- ---------------------------- ------------------------------
+    6.290   197.981 COMPLETED  IDLE                INITIALIZED                  CMD-arduino_vacuum-arduino_vac
+  204.271    14.993 COMPLETED  PICK_DONE           OK                           CMD-arduino_vacuum-arduino_vac
+  219.264    21.504 COMPLETED  RELEASE_DONE        OK                           CMD-arduino_vacuum-arduino_vac
+  240.768           COMPLETED  IDLE                OK                           CMD-arduino_vacuum-arduino_vac
+
+[bantam]
+Resumen estados: FINISHED:4 (first=138.569s,last=150.599s), IDLE:4 (first=19.046s,last=239.699s), PREPARING:1 (first=101.758s,last=101.758s), WORKING:1 (first=113.564s,last=113.564s)
+  t_rel_s  dur_next task_state resource_state      code                         command_id
+  -------  -------- ---------- ------------------- ---------------------------- ------------------------------
+   19.046     0.008 RUNNING    IDLE                INITIALIZING                 CMD-bantam-bantam-20260628T015
+   19.054     0.003 RUNNING    IDLE                INITIALIZED                  CMD-bantam-bantam-20260628T015
+   19.057    82.701 COMPLETED  IDLE                INITIALIZED                  CMD-bantam-bantam-20260628T015
+  101.758    11.806 RUNNING    PREPARING           CLOSING_DOOR                 CMD-bantam-bantam-20260628T015
+  113.564    25.004 RUNNING    WORKING             MACHINING_SIMULATED          CMD-bantam-bantam-20260628T015
+  138.569    12.016 RUNNING    FINISHED            OPENING_DOOR_AFTER_JOB       CMD-bantam-bantam-20260628T015
+  150.585     0.010 RUNNING    FINISHED            DOOR_OPEN_TIMEOUT_CONTINUING CMD-bantam-bantam-20260628T015
+  150.595     0.004 RUNNING    FINISHED            JOB_COMPLETE                 CMD-bantam-bantam-20260628T015
+  150.599    89.100 COMPLETED  FINISHED            JOB_COMPLETE                 CMD-bantam-bantam-20260628T015
+  239.699           COMPLETED  IDLE                DOOR_CLOSED                  CMD-bantam-bantam-20260628T020
+
+[c1s1]
+Resumen estados: FREE:3 (first=13.686s,last=35.320s), OCCUPIED:1 (first=33.756s,last=33.756s)
+  t_rel_s  dur_next task_state resource_state      code                         command_id
+  -------  -------- ---------- ------------------- ---------------------------- ------------------------------
+   13.686     4.974 COMPLETED  FREE                SENSOR_UPDATE                AUTO                          
+   18.661    15.096 COMPLETED  FREE                SENSOR_UPDATE                AUTO                          
+   33.756     1.564 COMPLETED  OCCUPIED            SENSOR_UPDATE                AUTO                          
+   35.320           COMPLETED  FREE                SENSOR_UPDATE                AUTO                          
+
+[c1s2]
+Resumen estados: FREE:3 (first=13.777s,last=44.602s), OCCUPIED:1 (first=39.468s,last=39.468s)
+  t_rel_s  dur_next task_state resource_state      code                         command_id
+  -------  -------- ---------- ------------------- ---------------------------- ------------------------------
+   13.777     4.959 COMPLETED  FREE                SENSOR_UPDATE                AUTO                          
+   18.736    20.732 COMPLETED  FREE                SENSOR_UPDATE                AUTO                          
+   39.468     5.133 COMPLETED  OCCUPIED            SENSOR_UPDATE                AUTO                          
+   44.602           COMPLETED  FREE                SENSOR_UPDATE                AUTO                          
+
+[c2s1]
+Resumen estados: FREE:3 (first=16.929s,last=52.103s), OCCUPIED:1 (first=50.455s,last=50.455s)
+  t_rel_s  dur_next task_state resource_state      code                         command_id
+  -------  -------- ---------- ------------------- ---------------------------- ------------------------------
+   16.929     1.956 COMPLETED  FREE                SENSOR_UPDATE                AUTO                          
+   18.885    31.570 COMPLETED  FREE                SENSOR_UPDATE                AUTO                          
+   50.455     1.648 COMPLETED  OCCUPIED            SENSOR_UPDATE                AUTO                          
+   52.103           COMPLETED  FREE                SENSOR_UPDATE                AUTO                          
+
+[c2s2]
+Resumen estados: FREE:3 (first=16.980s,last=79.106s), OCCUPIED:1 (first=59.643s,last=59.643s)
+  t_rel_s  dur_next task_state resource_state      code                         command_id
+  -------  -------- ---------- ------------------- ---------------------------- ------------------------------
+   16.980     2.001 COMPLETED  FREE                SENSOR_UPDATE                AUTO                          
+   18.981    40.662 COMPLETED  FREE                SENSOR_UPDATE                AUTO                          
+   59.643    19.463 COMPLETED  OCCUPIED            SENSOR_UPDATE                AUTO                          
+   79.106           COMPLETED  FREE                SENSOR_UPDATE                AUTO                          
+
+[conveyor1]
+Resumen estados: RUNNING:1 (first=33.781s,last=33.781s), STOPPED:5 (first=18.609s,last=228.144s)
+  t_rel_s  dur_next task_state resource_state      code                         command_id
+  -------  -------- ---------- ------------------- ---------------------------- ------------------------------
+   18.609    15.172 RUNNING    STOPPED             STOPPED                      CMD-niryo-robot1-20260628T0157
+   33.781     5.801 RUNNING    RUNNING             RUNNING                      CMD-niryo-conveyor1-20260628T0
+   39.582     0.024 RUNNING    STOPPED             STOPPED                      CMD-niryo-conveyor1-20260628T0
+   39.605   188.532 COMPLETED  STOPPED             STOPPED_AT_EXIT_SENSOR       CMD-niryo-conveyor1-20260628T0
+  228.137     0.007 RUNNING    STOPPED             STOPPED                      CMD-niryo-conveyor1-20260628T0
+  228.144           COMPLETED  STOPPED             STOPPED                      CMD-niryo-conveyor1-20260628T0
+
+[conveyor2]
+Resumen estados: RUNNING:1 (first=50.480s,last=50.480s), STOPPED:5 (first=18.803s,last=228.259s)
+  t_rel_s  dur_next task_state resource_state      code                         command_id
+  -------  -------- ---------- ------------------- ---------------------------- ------------------------------
+   18.803    31.676 RUNNING    STOPPED             STOPPED                      CMD-niryo-robot1-20260628T0157
+   50.480     9.311 RUNNING    RUNNING             RUNNING                      CMD-niryo-conveyor2-20260628T0
+   59.791     0.004 RUNNING    STOPPED             STOPPED                      CMD-niryo-conveyor2-20260628T0
+   59.794   168.461 COMPLETED  STOPPED             STOPPED_AT_EXIT_SENSOR       CMD-niryo-conveyor2-20260628T0
+  228.255     0.004 RUNNING    STOPPED             STOPPED                      CMD-niryo-conveyor2-20260628T0
+  228.259           COMPLETED  STOPPED             STOPPED                      CMD-niryo-conveyor2-20260628T0
+
+[conveyor3]
+Resumen estados: STOPPED:2 (first=11.022s,last=228.361s)
+  t_rel_s  dur_next task_state resource_state      code                         command_id
+  -------  -------- ---------- ------------------- ---------------------------- ------------------------------
+   11.022   217.339 COMPLETED  STOPPED             INITIALIZED                  CMD-green_conveyors-conveyor3-
+  228.361           COMPLETED  STOPPED             OK                           CMD-green_conveyors-conveyor3-
+
+[conveyor4]
+Resumen estados: RUNNING:1 (first=178.359s,last=178.359s), STOPPED:2 (first=192.078s,last=228.466s)
+  t_rel_s  dur_next task_state resource_state      code                         command_id
+  -------  -------- ---------- ------------------- ---------------------------- ------------------------------
+  178.359    13.719 COMPLETED  RUNNING             OK                           CMD-green_conveyors-conveyor4-
+  192.078    36.388 COMPLETED  STOPPED             OK                           CMD-green_conveyors-conveyor4-
+  228.466           COMPLETED  STOPPED             OK                           CMD-green_conveyors-conveyor4-
+
+[globalvision_camera]
+Resumen estados: IDLE:2 (first=11.060s,last=24.239s)
+  t_rel_s  dur_next task_state resource_state      code                         command_id
+  -------  -------- ---------- ------------------- ---------------------------- ------------------------------
+   11.060    13.179 COMPLETED  IDLE                INITIALIZED                  CMD-globalvision-globalvision_
+   24.239           COMPLETED  IDLE                SLOT_FOUND                   CMD-globalvision-globalvision_
+
+[laser]
+Resumen estados: IDLE:1 (first=19.014s,last=19.014s)
+  t_rel_s  dur_next task_state resource_state      code                         command_id
+  -------  -------- ---------- ------------------- ---------------------------- ------------------------------
+   19.014           COMPLETED  IDLE                INITIALIZED                  CMD-laser-laser-20260628T01572
+
+[robot1]
+Resumen estados: AT_PICK_POSITION:2 (first=202.683s,last=202.690s), AT_PLACE_POSITION:2 (first=217.883s,last=217.887s), GOING_TO_POSITION:16 (first=13.794s,last=224.633s), IDLE:4 (first=14.307s,last=228.041s), INITIALIZING:1 (first=13.629s,last=13.629s), PICK_DONE:1 (first=204.304s,last=204.304s), PLACING:1 (first=209.053s,last=209.053s), RETURNING_HOME:1 (first=219.308s,last=219.308s), WAITING_FOR_VISION:1 (first=195.023s,last=195.023s)
+  t_rel_s  dur_next task_state resource_state      code                         command_id
+  -------  -------- ---------- ------------------- ---------------------------- ------------------------------
+   13.629     0.165 RUNNING    INITIALIZING        INITIALIZING                 CMD-niryo-robot1-20260628T0157
+   13.794     0.513 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot1-20260628T0157
+   14.307     4.682 RUNNING    IDLE                IDLE                         CMD-niryo-robot1-20260628T0157
+   18.989   173.119 COMPLETED  IDLE                INITIALIZED                  CMD-niryo-robot1-20260628T0157
+  192.108     0.004 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot1-20260628T0200
+  192.112     0.609 RUNNING    GOING_TO_POSITION   GOING_TO_CAPTURE_C4          CMD-niryo-robot1-20260628T0200
+  192.720     2.303 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot1-20260628T0200
+  195.023     2.898 RUNNING    WAITING_FOR_VISION  AT_CAPTURE_POSITION          CMD-niryo-robot1-20260628T0200
+  197.921     2.715 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot1-20260628T0200
+  200.636     2.047 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot1-20260628T0200
+  202.683     0.007 RUNNING    AT_PICK_POSITION    AT_PICK_POSITION             CMD-niryo-robot1-20260628T0200
+  202.690     1.614 COMPLETED  AT_PICK_POSITION    AT_PICK_POSITION             CMD-niryo-robot1-20260628T0200
+  204.304     0.008 RUNNING    PICK_DONE           EXTERNAL_VACUUM_PICK_DONE    CMD-niryo-robot1-20260628T0200
+  204.311     1.988 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot1-20260628T0200
+  206.299     2.754 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot1-20260628T0200
+  209.053     0.013 RUNNING    PLACING             GOING_TO_FINAL_PLACE         CMD-niryo-robot1-20260628T0200
+  209.066     3.353 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot1-20260628T0200
+  212.419     2.568 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot1-20260628T0200
+  214.987     1.451 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot1-20260628T0200
+  216.438     1.445 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot1-20260628T0200
+  217.883     0.005 COMPLETED  AT_PLACE_POSITION   AT_PLACE_POSITION            CMD-niryo-robot1-20260628T0200
+  217.887     1.415 RUNNING    AT_PLACE_POSITION   AT_PLACE_POSITION            CMD-niryo-robot1-20260628T0200
+  219.302     0.007 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot1-20260628T0200
+  219.308     1.416 RUNNING    RETURNING_HOME      RETURNING_HOME               CMD-niryo-robot1-20260628T0200
+  220.724     1.393 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot1-20260628T0200
+  222.117     2.516 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot1-20260628T0200
+  224.633     3.404 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot1-20260628T0200
+  228.037     0.004 COMPLETED  IDLE                HOME                         CMD-niryo-robot1-20260628T0200
+  228.041           RUNNING    IDLE                IDLE                         CMD-niryo-robot1-20260628T0200
+
+[robot2]
+Resumen estados: GOING_TO_POSITION:23 (first=17.989s,last=184.370s), IDLE:8 (first=18.560s,last=186.955s), INITIALIZING:1 (first=14.302s,last=14.302s), PICK_DONE:2 (first=78.176s,last=161.488s), PICKING:2 (first=72.834s,last=150.657s), PLACE_DONE:3 (first=91.494s,last=177.479s), PLACING:2 (first=79.964s,last=175.617s), RETURNING_HOME:2 (first=97.257s,last=177.528s), WAITING_FOR_VISION:1 (first=59.664s,last=59.664s)
+  t_rel_s  dur_next task_state resource_state      code                         command_id
+  -------  -------- ---------- ------------------- ---------------------------- ------------------------------
+   14.302     3.687 RUNNING    INITIALIZING        INITIALIZING                 CMD-niryo-robot1-20260628T0157
+   17.989     0.571 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot1-20260628T0157
+   18.560    41.104 RUNNING    IDLE                IDLE                         CMD-niryo-robot1-20260628T0157
+   59.664     0.009 RUNNING    WAITING_FOR_VISION  GOING_TO_CAPTURE             CMD-niryo-robot2-20260628T0158
+   59.672    13.119 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot2-20260628T0158
+   72.792     0.004 RUNNING    IDLE                VISION_RESULT_READY          CMD-niryo-robot2-20260628T0158
+   72.796     0.038 COMPLETED  IDLE                VISION_RESULT_READY          CMD-niryo-robot2-20260628T0158
+   72.834     0.008 RUNNING    PICKING             PICKING_C2S2                 CMD-niryo-robot2-20260628T0158
+   72.841     1.711 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot2-20260628T0158
+   74.552     3.624 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot2-20260628T0158
+   78.176     0.005 RUNNING    PICK_DONE           PICKING_C2S2_DONE            CMD-niryo-robot2-20260628T0158
+   78.181     1.779 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot2-20260628T0158
+   79.961     0.004 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot2-20260628T0158
+   79.964     4.001 RUNNING    PLACING             PLACING_BANTAM               CMD-niryo-robot2-20260628T0158
+   83.965     3.097 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot2-20260628T0158
+   87.063     4.431 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot2-20260628T0158
+   91.494     0.007 RUNNING    PLACE_DONE          PLACING_BANTAM_DONE          CMD-niryo-robot2-20260628T0158
+   91.500     2.609 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot2-20260628T0158
+   94.109     3.148 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot2-20260628T0158
+   97.257     1.207 RUNNING    RETURNING_HOME      RETURNING_HOME               CMD-niryo-robot2-20260628T0158
+   98.464     3.238 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot2-20260628T0158
+  101.702     0.004 COMPLETED  IDLE                MOVE_DONE                    CMD-niryo-robot2-20260628T0158
+  101.706     0.003 RUNNING    IDLE                IDLE                         CMD-niryo-robot2-20260628T0158
+  101.709    48.948 RUNNING    IDLE                IDLE                         CMD-niryo-robot2-20260628T0158
+  150.657     0.024 RUNNING    PICKING             PICKING_BANTAM               CMD-niryo-robot2-20260628T0159
+  150.681     3.225 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot2-20260628T0159
+  153.906     3.109 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot2-20260628T0159
+  157.015     4.473 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot2-20260628T0159
+  161.488     0.007 RUNNING    PICK_DONE           PICKING_BANTAM_DONE          CMD-niryo-robot2-20260628T0159
+  161.495     2.655 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot2-20260628T0159
+  164.150     3.150 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot2-20260628T0159
+  167.300     0.007 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot2-20260628T0159
+  167.307     2.462 RUNNING    GOING_TO_POSITION   MOVING_TO_C4                 CMD-niryo-robot2-20260628T0159
+  169.770     3.727 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot2-20260628T0159
+  173.496     2.121 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot2-20260628T0159
+  175.617     1.858 RUNNING    PLACING             PLACING_C4                   CMD-niryo-robot2-20260628T0159
+  177.475     0.003 COMPLETED  PLACE_DONE          PLACED_C4                    CMD-niryo-robot2-20260628T0159
+  177.479     0.049 RUNNING    PLACE_DONE          PLACING_C4_DONE              CMD-niryo-robot2-20260628T0159
+  177.528     1.127 RUNNING    RETURNING_HOME      RETURNING_HOME               CMD-niryo-robot2-20260628T0200
+  178.655     2.091 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot2-20260628T0200
+  180.746     3.624 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot2-20260628T0200
+  184.370     2.578 RUNNING    GOING_TO_POSITION   MOVING                       CMD-niryo-robot2-20260628T0200
+  186.948     0.008 COMPLETED  IDLE                HOME                         CMD-niryo-robot2-20260628T0200
+  186.955           RUNNING    IDLE                IDLE                         CMD-niryo-robot2-20260628T0200
+
+[vision_robot1]
+Resumen estados: IDLE:1 (first=18.567s,last=18.567s), PROCESSING:2 (first=195.030s,last=195.034s), RESULT_READY:1 (first=197.927s,last=197.927s), SCANNING:1 (first=195.014s,last=195.014s)
+  t_rel_s  dur_next task_state resource_state      code                         command_id
+  -------  -------- ---------- ------------------- ---------------------------- ------------------------------
+   18.567   176.447 RUNNING    IDLE                INITIALIZED                  CMD-niryo-robot1-20260628T0157
+  195.014     0.016 RUNNING    SCANNING            SCANNING                     CMD-niryo-robot1-20260628T0200
+  195.030     0.003 RUNNING    PROCESSING          RUNNING_ML                   CMD-niryo-robot1-20260628T0200
+  195.034     2.893 RUNNING    PROCESSING          WAITING_FRAME                CMD-niryo-robot1-20260628T0200
+  197.927           RUNNING    RESULT_READY        RESULT_READY                 CMD-niryo-robot1-20260628T0200
+
+[vision_robot2]
+Resumen estados: IDLE:1 (first=18.570s,last=18.570s), PROCESSING:2 (first=63.242s,last=63.245s), RESULT_READY:1 (first=72.798s,last=72.798s), SCANNING:1 (first=63.234s,last=63.234s)
+  t_rel_s  dur_next task_state resource_state      code                         command_id
+  -------  -------- ---------- ------------------- ---------------------------- ------------------------------
+   18.570    44.665 RUNNING    IDLE                INITIALIZED                  CMD-niryo-robot1-20260628T0157
+   63.234     0.008 RUNNING    SCANNING            SCANNING                     CMD-niryo-robot2-20260628T0158
+   63.242     0.003 RUNNING    PROCESSING          RUNNING_ML                   CMD-niryo-robot2-20260628T0158
+   63.245     9.553 RUNNING    PROCESSING          WAITING_FRAME                CMD-niryo-robot2-20260628T0158
+   72.798           RUNNING    RESULT_READY        RESULT_READY                 CMD-niryo-robot2-20260628T0158
+
+[xarm1]
+Resumen estados: GOING_TO_POSITION:17 (first=11.853s,last=240.800s), IDLE:7 (first=12.418s,last=241.894s), INITIALIZING:1 (first=11.101s,last=11.101s), PICK_DONE:1 (first=44.106s,last=44.106s), PICKING:1 (first=43.601s,last=43.601s), PLACE_DONE:1 (first=51.401s,last=51.401s), PLACING:1 (first=50.894s,last=50.894s), RETURNING_HOME:2 (first=53.432s,last=240.792s)
+  t_rel_s  dur_next task_state resource_state      code                         command_id
+  -------  -------- ---------- ------------------- ---------------------------- ------------------------------
+   11.101     0.753 RUNNING    INITIALIZING        INITIALIZING                 CMD-ufactory-xarm1-20260628T01
+   11.853     0.565 RUNNING    GOING_TO_POSITION   MOVING                       CMD-ufactory-xarm1-20260628T01
+   12.418     1.161 RUNNING    IDLE                IDLE                         CMD-ufactory-xarm1-20260628T01
+   13.580    25.926 COMPLETED  IDLE                INITIALIZED                  CMD-ufactory-xarm1-20260628T01
+   39.506     0.033 RUNNING    GOING_TO_POSITION   APPROACHING_C1S2             CMD-ufactory-xarm1-20260628T01
+   39.539     0.538 RUNNING    GOING_TO_POSITION   MOVING                       CMD-ufactory-xarm1-20260628T01
+   40.077     1.274 RUNNING    GOING_TO_POSITION   MOVING                       CMD-ufactory-xarm1-20260628T01
+   41.351     1.277 RUNNING    GOING_TO_POSITION   MOVING                       CMD-ufactory-xarm1-20260628T01
+   42.627     0.974 RUNNING    GOING_TO_POSITION   MOVING                       CMD-ufactory-xarm1-20260628T01
+   43.601     0.505 RUNNING    PICKING             PICKING_C1S2                 CMD-ufactory-xarm1-20260628T01
+   44.106     0.007 RUNNING    PICK_DONE           PICKING_C1S2_DONE            CMD-ufactory-xarm1-20260628T01
+   44.113     0.916 RUNNING    GOING_TO_POSITION   MOVING                       CMD-ufactory-xarm1-20260628T01
+   45.029     1.274 RUNNING    GOING_TO_POSITION   MOVING                       CMD-ufactory-xarm1-20260628T01
+   46.303     1.276 RUNNING    GOING_TO_POSITION   MOVING                       CMD-ufactory-xarm1-20260628T01
+   47.579     0.007 RUNNING    GOING_TO_POSITION   APPROACHING_C2S1             CMD-ufactory-xarm1-20260628T01
+   47.586     1.315 RUNNING    GOING_TO_POSITION   MOVING                       CMD-ufactory-xarm1-20260628T01
+   48.901     1.173 RUNNING    GOING_TO_POSITION   MOVING                       CMD-ufactory-xarm1-20260628T01
+   50.073     0.821 RUNNING    GOING_TO_POSITION   MOVING                       CMD-ufactory-xarm1-20260628T01
+   50.894     0.507 RUNNING    PLACING             PLACING_C2S1                 CMD-ufactory-xarm1-20260628T01
+   51.401     0.004 RUNNING    PLACE_DONE          PLACING_C2S1_DONE            CMD-ufactory-xarm1-20260628T01
+   51.405     0.811 RUNNING    GOING_TO_POSITION   MOVING                       CMD-ufactory-xarm1-20260628T01
+   52.216     1.215 RUNNING    GOING_TO_POSITION   MOVING                       CMD-ufactory-xarm1-20260628T01
+   53.432     0.004 RUNNING    RETURNING_HOME      RETURNING_HOME               CMD-ufactory-xarm1-20260628T01
+   53.435     1.829 RUNNING    GOING_TO_POSITION   MOVING                       CMD-ufactory-xarm1-20260628T01
+   55.265     0.006 RUNNING    IDLE                IDLE                         CMD-ufactory-xarm1-20260628T01
+   55.271     0.003 COMPLETED  IDLE                MOVE_DONE                    CMD-ufactory-xarm1-20260628T01
+   55.274   185.518 RUNNING    IDLE                IDLE                         CMD-ufactory-xarm1-20260628T01
+  240.792     0.008 RUNNING    RETURNING_HOME      RETURNING_HOME               CMD-ufactory-xarm1-20260628T02
+  240.800     1.091 RUNNING    GOING_TO_POSITION   MOVING                       CMD-ufactory-xarm1-20260628T02
+  241.891     0.003 COMPLETED  IDLE                HOME                         CMD-ufactory-xarm1-20260628T02
+  241.894           RUNNING    IDLE                IDLE                         CMD-ufactory-xarm1-20260628T02
+
+[xarm2]
+Resumen estados: GOING_TO_POSITION:15 (first=13.017s,last=241.923s), IDLE:6 (first=13.577s,last=242.996s), INITIALIZING:1 (first=12.424s,last=12.424s), PICK_DONE:1 (first=28.499s,last=28.499s), PICKING:1 (first=27.993s,last=27.993s), PLACE_DONE:1 (first=34.621s,last=34.621s), PLACING:1 (first=34.111s,last=34.111s), RETURNING_HOME:2 (first=35.543s,last=241.929s)
+  t_rel_s  dur_next task_state resource_state      code                         command_id
+  -------  -------- ---------- ------------------- ---------------------------- ------------------------------
+   12.424     0.593 RUNNING    INITIALIZING        INITIALIZING                 CMD-ufactory-xarm1-20260628T01
+   13.017     0.560 RUNNING    GOING_TO_POSITION   MOVING                       CMD-ufactory-xarm1-20260628T01
+   13.577    10.688 RUNNING    IDLE                IDLE                         CMD-ufactory-xarm1-20260628T01
+   24.264     0.007 RUNNING    GOING_TO_POSITION   GOING_TO_PICK                CMD-ufactory-xarm2-20260628T01
+   24.271     0.555 RUNNING    GOING_TO_POSITION   MOVING                       CMD-ufactory-xarm2-20260628T01
+   24.825     1.328 RUNNING    GOING_TO_POSITION   MOVING                       CMD-ufactory-xarm2-20260628T01
+   26.153     0.968 RUNNING    GOING_TO_POSITION   MOVING                       CMD-ufactory-xarm2-20260628T01
+   27.121     0.872 RUNNING    GOING_TO_POSITION   MOVING                       CMD-ufactory-xarm2-20260628T01
+   27.993     0.506 RUNNING    PICKING             PICKING_INITIAL_STACK        CMD-ufactory-xarm2-20260628T01
+   28.499     0.007 RUNNING    PICK_DONE           PICKING_INITIAL_STACK_DONE   CMD-ufactory-xarm2-20260628T01
+   28.507     0.857 RUNNING    GOING_TO_POSITION   MOVING                       CMD-ufactory-xarm2-20260628T01
+   29.364     0.974 RUNNING    GOING_TO_POSITION   MOVING                       CMD-ufactory-xarm2-20260628T01
+   30.338     1.327 RUNNING    GOING_TO_POSITION   MOVING                       CMD-ufactory-xarm2-20260628T01
+   31.664     0.003 RUNNING    GOING_TO_POSITION   MOVING_TO_C1S1               CMD-ufactory-xarm2-20260628T01
+   31.667     1.524 RUNNING    GOING_TO_POSITION   MOVING                       CMD-ufactory-xarm2-20260628T01
+   33.191     0.919 RUNNING    GOING_TO_POSITION   MOVING                       CMD-ufactory-xarm2-20260628T01
+   34.111     0.511 RUNNING    PLACING             PLACING_C1S1                 CMD-ufactory-xarm2-20260628T01
+   34.621     0.008 RUNNING    PLACE_DONE          PLACING_C1S1_DONE            CMD-ufactory-xarm2-20260628T01
+   34.629     0.914 RUNNING    GOING_TO_POSITION   MOVING                       CMD-ufactory-xarm2-20260628T01
+   35.543     0.004 RUNNING    RETURNING_HOME      RETURNING_HOME               CMD-ufactory-xarm2-20260628T01
+   35.547     2.034 RUNNING    GOING_TO_POSITION   MOVING                       CMD-ufactory-xarm2-20260628T01
+   37.581     0.004 RUNNING    IDLE                IDLE                         CMD-ufactory-xarm2-20260628T01
+   37.585     0.003 RUNNING    IDLE                IDLE                         CMD-ufactory-xarm2-20260628T01
+   37.588   204.334 COMPLETED  IDLE                MOVE_DONE                    CMD-ufactory-xarm2-20260628T01
+  241.923     0.006 RUNNING    GOING_TO_POSITION   MOVING                       CMD-ufactory-xarm2-20260628T02
+  241.929     1.063 RUNNING    RETURNING_HOME      RETURNING_HOME               CMD-ufactory-xarm2-20260628T02
+  242.992     0.003 COMPLETED  IDLE                HOME                         CMD-ufactory-xarm2-20260628T02
+  242.996           RUNNING    IDLE                IDLE                         CMD-ufactory-xarm2-20260628T02

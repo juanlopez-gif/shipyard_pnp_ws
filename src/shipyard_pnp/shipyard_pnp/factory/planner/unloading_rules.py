@@ -32,15 +32,17 @@ def evaluate(fs) -> None:
 
     # Start robot1 entity cycle — task name includes the source position.
     task_name = f"UNLOAD_{context['pick_position']}"  # UNLOAD_C4 or UNLOAD_C3
+    metadata = {
+        "pick_position":  context["pick_position"],
+        "expected_color": context["color"],
+        "expected_shape": context["shape"],
+        "expected_final_target": context["final_target"],
+    }
+    metadata.update(fs._map_pop_dispatch_metadata("robot1"))
     fs.cycles.start_entity_cycle(
         "robot1", task_name,
         piece_id=context["piece_id"],
-        metadata={
-            "pick_position":  context["pick_position"],
-            "expected_color": context["color"],
-            "expected_shape": context["shape"],
-            "expected_final_target": context["final_target"],
-        },
+        metadata=metadata,
     )
     fs.cycles.add_phase("robot1", f"VISION_{context['pick_position']}")
 
@@ -74,14 +76,44 @@ def _next_pick_context(fs) -> dict:
     c4_ready = c4_occupied and now >= c4_ready_at
     c3_ready = c3_occupied and now >= c3_ready_at
 
-    if c4_ready and c3_ready:
+    if not c4_ready and not c3_ready:
+        return None
+
+    # If the expected schedule's pick is ALREADY physically ready, take it
+    # immediately -- no reason to consult the settle-time tie rule at all,
+    # and critically this is what resolves a wait: once the awaited option
+    # becomes ready, it must win outright, not get re-litigated against
+    # whichever one merely settled earliest.
+    expected = fs._map_next("robot1")
+    wants_c3 = expected is not None and expected["task"] == "UNLOAD_C3"
+    wants_c4 = expected is not None and expected["task"] == "UNLOAD_C4"
+
+    if c3_ready and wants_c3:
+        go_c4 = False
+    elif c4_ready and wants_c4:
+        go_c4 = True
+    elif c4_ready and c3_ready:
+        # Both ready, map has no opinion (or none confirmed yet) -- fall
+        # back to the plain settle-time tie rule.
         go_c4 = c4_ready_at <= c3_ready_at
     elif c4_ready:
+        # Only c4 ready. If the map wants c3 next, give it up to
+        # MAP_GRACE_SEC to actually show up and become ready before falling
+        # back to c4 -- deliberately not conditioned on c3 already having a
+        # piece on it: waiting for a piece that hasn't even arrived yet is
+        # exactly the case this exists for (the plain reactive rule already
+        # covers "something is already sitting there settling" on its own,
+        # no map needed). Physical readiness is still the only thing that
+        # can ever trigger an action; this can only delay, never skip, a
+        # precondition check -- if c3 never shows up within the grace
+        # window, c4 goes.
+        if wants_c3 and fs._map_should_wait("robot1"):
+            return None
         go_c4 = True
-    elif c3_ready:
-        go_c4 = False
     else:
-        return None
+        if wants_c4 and fs._map_should_wait("robot1"):
+            return None
+        go_c4 = False
 
     if go_c4:
         location      = "c4_location"
@@ -96,6 +128,8 @@ def _next_pick_context(fs) -> dict:
     if piece is None:
         fs.state.update_sensor(sensor_id, SensorState.FREE)
         return None
+
+    fs._map_note_dispatch("robot1", "UNLOAD_C4" if go_c4 else "UNLOAD_C3")
 
     color = piece.get("color") or "UNKNOWN"
     shape = piece.get("shape") or "UNKNOWN"
@@ -202,6 +236,11 @@ def _on_vacuum_pick_complete(fs, context: dict):
 
         fs.state.update_vacuum("arduino_vacuum", VacuumState.PICK_DONE)
         fs.state.update_sensor(context["sensor_id"], SensorState.FREE)
+        # Vacuum PICK just completed -- the piece is physically off
+        # C3/C4 now (into the gripper), even though LIFT_AND_PLACE +
+        # RELEASE + RETURN_HOME are still ahead. Move it out of EXPECTED
+        # here instead of waiting for _on_vacuum_release_complete below.
+        fs.pieces.transfer_piece(context["source_location"], "robot1_gripper")
         fs.cycles.add_phase("robot1", "LIFT_AND_PLACE")
 
         fs._unloading_state = "WAITING_LIFT_PLACE"
@@ -252,7 +291,7 @@ def _on_vacuum_release_complete(fs, context: dict):
             fs._unloading_state = "IDLE"
             return
 
-        fs.pieces.transfer_piece(context["source_location"], context["final_location"])
+        fs.pieces.transfer_via_gripper("robot1_gripper", context["source_location"], context["final_location"])
         fs.state.update_vacuum("arduino_vacuum", VacuumState.RELEASE_DONE)
         fs.cycles.add_phase("robot1", "RETURNING_HOME")
 

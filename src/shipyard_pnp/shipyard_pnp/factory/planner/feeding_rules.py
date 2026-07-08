@@ -84,6 +84,15 @@ def _on_locate_complete(fs, piece_id: str):
             fs._feeding_state = "IDLE"
             return
 
+        # camera_adapter.py intentionally never infers shape (color/occupancy
+        # only) -- overlay the real shape from the external vision process
+        # (ml_node.py's stack_status), keyed by the same slot_id, exactly
+        # like shipyard_core overlays stack_status shape onto its own
+        # live-detected slot/color instead of re-deriving either from scratch.
+        stack_shape = fs.get_stack_status_shape(slot_id)
+        if stack_shape:
+            shape = stack_shape
+
         fs.db.insert_vision_detection(
             "globalvision",
             piece_id=piece_id,
@@ -120,6 +129,8 @@ def _on_locate_complete(fs, piece_id: str):
 
 def _send_xarm2_to_c1(fs, piece_id: str, slot_id: str) -> None:
     fs._feeding_state = "WAITING_XARM2_PICK"
+    fs.register_pick_source("xarm2", "initial_stack")
+    fs.register_place_target("xarm2", "conveyor1")
     fs.send_command(
         "ufactory",
         "xarm2",
@@ -134,6 +145,8 @@ def _send_xarm2_to_c1(fs, piece_id: str, slot_id: str) -> None:
 
 def _send_xarm2_to_c3(fs, piece_id: str, slot_id: str) -> None:
     fs._feeding_state = "WAITING_XARM2_GREEN"
+    fs.register_pick_source("xarm2", "initial_stack")
+    fs.register_place_target("xarm2", "c3_location")
     fs.send_command(
         "ufactory",
         "xarm2",
@@ -155,7 +168,8 @@ def _on_xarm2_to_c1_complete(fs, piece_id: str):
             fs._feeding_state = "IDLE"
             return
 
-        fs.pieces.transfer_piece("initial_stack", "conveyor1")
+        if not fs.consume_place_done_flag("xarm2"):
+            fs.pieces.transfer_via_gripper("xarm2_gripper", "initial_stack", "conveyor1")
         fs.cycles.start_cycle(piece_id)  # piece-level cycle starts here
 
         _complete_and_insert(fs, "xarm2")
@@ -174,7 +188,8 @@ def _on_xarm2_to_c3_complete(fs, piece_id: str):
             fs._feeding_state = "IDLE"
             return
 
-        fs.pieces.transfer_piece("initial_stack", "c3_location")
+        if not fs.consume_place_done_flag("xarm2"):
+            fs.pieces.transfer_via_gripper("xarm2_gripper", "initial_stack", "c3_location")
         fs.cycles.start_cycle(piece_id)  # piece-level cycle starts here
         fs.state.update_sensor("c3", SensorState.OCCUPIED)
         fs._c3_deposit_time = time.time()
