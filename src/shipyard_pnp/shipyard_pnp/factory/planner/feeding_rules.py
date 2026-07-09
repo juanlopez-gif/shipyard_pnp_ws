@@ -22,6 +22,15 @@ def evaluate(fs) -> None:
         return
     if fs.vendor_clients["ufactory"].is_busy("xarm2"):
         return
+    # xarm2 just went IDLE (or is still idle from before) -- don't resolve
+    # the next slot until a stack_status message has arrived confirming the
+    # magazine has actually settled/refilled since then. Without this, a
+    # slot that gets physically refilled slightly late can still be serving
+    # the PREVIOUS occupant's cached shape when LOCATE_NEXT_PIECE resolves
+    # it for the new piece (see stack_status_fresh_since_idle in
+    # factory_supervisor.py). Waits here, re-checked every 0.5s tick.
+    if not fs.stack_status_is_fresh():
+        return
 
     # GREEN goes to C3, not C1S1 -- only check the sensor the piece will
     # actually land on. Checking c1s1 unconditionally here blocked GREEN

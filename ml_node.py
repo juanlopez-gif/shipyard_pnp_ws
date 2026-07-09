@@ -1040,6 +1040,20 @@ class VisionLoggerNode(Node):
                     self._last_reality[c] = conveyors[c]
 
             # ── Verificacion continua (gracia 2 s post-desbloqueo) ─
+            # BUG FOUND 2026-07-08 (real DB evidence, intruder GREEN_SQUARE
+            # dejado a mano en C2S2 con EXPECTED en null): esto antes vivia
+            # DENTRO de `if state["timer"] is not None:` -- es decir, la
+            # comparacion entera (check_piece_match, deteccion de mismatch,
+            # alarma) solo se ejecutaba la PRIMERA vez tras un cambio de
+            # EXPECTED, nunca mas hasta el siguiente cambio. Un intruso no
+            # tracked nunca cambia EXPECTED (se queda en `[]` todo el
+            # tiempo), asi que la comparacion no se disparaba NUNCA -- por
+            # eso Reality mostraba GREEN_SQUARE con Expected=null sin que
+            # saltara ninguna alarma. Arreglado: el grace period tras un
+            # cambio de EXPECTED solo salta la comparacion mientras dura esa
+            # ventana (`continue`); pasada la ventana (o si nunca hubo un
+            # cambio reciente, timer=None desde el principio) la comparacion
+            # se ejecuta SIEMPRE, cada frame, no solo una vez.
             now = time.time()
             for conv, state in verify_snapshot.items():
                 if state["timer"] is not None:
@@ -1048,28 +1062,28 @@ class VisionLoggerNode(Node):
                         continue  # dentro de la ventana de gracia post-desbloqueo
                     with self._lock:
                         self._verify_state[conv]["timer"] = None
-                    detected = self._last_reality.get(conv, [])
-                    expected = sup_snapshot.get(conv)
-                    match = check_piece_match(expected, detected)
-                    debounce = ALARM_DEBOUNCE.get(conv, 0.0)
-                    print(f"[VERIFY] {conv}: match={match} exp={expected} got={detected}", flush=True)
-                    if match:
+                detected = self._last_reality.get(conv, [])
+                expected = sup_snapshot.get(conv)
+                match = check_piece_match(expected, detected)
+                debounce = ALARM_DEBOUNCE.get(conv, 0.0)
+                print(f"[VERIFY] {conv}: match={match} exp={expected} got={detected}", flush=True)
+                if match:
+                    with self._lock:
+                        self._verify_state[conv]["mismatch"] = False
+                        self._verify_state[conv]["mismatch_since"] = None
+                else:
+                    since = state.get("mismatch_since") or now
+                    if state.get("mismatch_since") is None:
                         with self._lock:
-                            self._verify_state[conv]["mismatch"] = False
-                            self._verify_state[conv]["mismatch_since"] = None
-                    else:
-                        since = state.get("mismatch_since") or now
-                        if state.get("mismatch_since") is None:
+                            self._verify_state[conv]["mismatch_since"] = now
+                        since = now
+                    if now - since >= debounce:
+                        if not state["mismatch"]:
+                            self.get_logger().warn(
+                                f"[VERIFY] {conv}: MISMATCH -- expected={expected} yolo={detected}"
+                            )
                             with self._lock:
-                                self._verify_state[conv]["mismatch_since"] = now
-                            since = now
-                        if now - since >= debounce:
-                            if not state["mismatch"]:
-                                self.get_logger().warn(
-                                    f"[VERIFY] {conv}: MISMATCH -- expected={expected} yolo={detected}"
-                                )
-                                with self._lock:
-                                    self._verify_state[conv]["mismatch"] = True
+                                self._verify_state[conv]["mismatch"] = True
 
             # ── Verificacion motion ML ───────────────────────────────
             with self._lock:

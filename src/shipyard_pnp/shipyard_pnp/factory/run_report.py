@@ -166,10 +166,32 @@ def build_report(run_id: str | None) -> dict:
         key = (c["entity"], _counter_key(c["entity"], c["task_name"]), c["cycle_number"])
         sim = sim_lookup.get(key)
         meta = c["metadata"] or {}
+        # 2026-07-08: piece_id is the ONLY reliable signal here -- map_outcome
+        # is missing entirely whenever the map ran out of pending entries by
+        # the time an intruder showed up (_map_resolve_dispatch returns early
+        # if _map_next() is None), which used to make a LATE intruder look
+        # identical to "no_sim" (a normal, harmless cycle the map never
+        # modeled) instead of what it actually is -- an unplanned piece
+        # forced to scrap. And when map_outcome WAS present ("intruder"), it
+        # fell through the generic "elif" below into the timeout branch,
+        # printing the literal string "esperó Nones" (map_wait_s is never
+        # set for the intruder outcome). Checking is_intruder first, before
+        # any map-derived branch, fixes both at once and never depends on
+        # map timing.
+        is_intruder = bool(c["piece_id"]) and c["piece_id"].startswith("intruder-")
 
         if c["is_discarded"]:
             status = "discarded"
             status_label = f"DESCARTADO ({c['discarded_reason'] or 's/d'})"
+        elif is_intruder:
+            status = "intruder"
+            expected_label = meta.get("map_expected")
+            status_label = (
+                f"INTRUSA -- pieza no planeada, forzada a SCRAP "
+                f"(el mapa seguía esperando {expected_label}, sigue pendiente)"
+                if expected_label else
+                "INTRUSA -- pieza no planeada, forzada a SCRAP"
+            )
         elif "map_outcome" in meta:
             status = meta["map_outcome"]  # "followed" | "timeout"
             wait_s = meta.get("map_wait_s")

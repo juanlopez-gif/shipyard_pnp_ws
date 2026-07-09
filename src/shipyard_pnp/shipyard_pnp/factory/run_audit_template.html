@@ -1,0 +1,404 @@
+<title>__TITLE__</title>
+<style>
+  :root {
+    --bg: #12161c; --surface: #1a1f27; --surface-2: #212833; --border: #2b323d;
+    --text: #e7ebf0; --text-dim: #8b95a5; --text-faint: #5e6779;
+    --accent: #d99a4e; --accent-soft: rgba(217,154,78,0.14);
+    --good: #4fbf8b; --good-soft: rgba(79,191,139,0.14);
+    --warn: #e0a940; --warn-soft: rgba(224,169,64,0.14);
+    --critical: #e2574c; --critical-soft: rgba(226,87,76,0.14);
+    --red-piece: #e2574c; --blue-piece: #5b9bf0; --green-piece: #52c98a;
+    --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f3f4f6; --surface: #ffffff; --surface-2: #f7f8fa; --border: #dde1e7;
+      --text: #1a1f27; --text-dim: #5b6472; --text-faint: #8992a0;
+      --accent: #ad6c1a; --accent-soft: rgba(173,108,26,0.10);
+      --good: #1f9d67; --good-soft: rgba(31,157,103,0.10);
+      --warn: #a66a10; --warn-soft: rgba(166,106,16,0.10);
+      --critical: #c23b30; --critical-soft: rgba(194,59,48,0.10);
+      --red-piece: #d1453b; --blue-piece: #2f6fcf; --green-piece: #2ea968;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12161c; --surface: #1a1f27; --surface-2: #212833; --border: #2b323d;
+    --text: #e7ebf0; --text-dim: #8b95a5; --text-faint: #5e6779;
+    --accent: #d99a4e; --accent-soft: rgba(217,154,78,0.14);
+    --good: #4fbf8b; --good-soft: rgba(79,191,139,0.14);
+    --warn: #e0a940; --warn-soft: rgba(224,169,64,0.14);
+    --critical: #e2574c; --critical-soft: rgba(226,87,76,0.14);
+    --red-piece: #e2574c; --blue-piece: #5b9bf0; --green-piece: #52c98a;
+  }
+  :root[data-theme="light"] {
+    --bg: #f3f4f6; --surface: #ffffff; --surface-2: #f7f8fa; --border: #dde1e7;
+    --text: #1a1f27; --text-dim: #5b6472; --text-faint: #8992a0;
+    --accent: #ad6c1a; --accent-soft: rgba(173,108,26,0.10);
+    --good: #1f9d67; --good-soft: rgba(31,157,103,0.10);
+    --warn: #a66a10; --warn-soft: rgba(166,106,16,0.10);
+    --critical: #c23b30; --critical-soft: rgba(194,59,48,0.10);
+    --red-piece: #d1453b; --blue-piece: #2f6fcf; --green-piece: #2ea968;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); line-height: 1.55; -webkit-font-smoothing: antialiased; }
+  ::selection { background: var(--accent-soft); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px 96px; }
+
+  header.top { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); }
+  .top-inner { max-width: 1180px; margin: 0 auto; padding: 16px 24px; display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .top-inner .eyebrow { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-faint); }
+  .top-inner h1 { font-family: var(--mono); font-size: 1.05rem; font-weight: 600; margin: 2px 0 0; color: var(--text); letter-spacing: -0.01em; }
+  .status-pill { font-family: var(--mono); font-size: 0.76rem; font-weight: 600; letter-spacing: 0.04em; padding: 5px 12px; border-radius: 999px; white-space: nowrap; }
+  .status-pill.good { background: var(--good-soft); color: var(--good); }
+  .status-pill.critical { background: var(--critical-soft); color: var(--critical); }
+
+  section { padding: 40px 0; border-bottom: 1px solid var(--border); }
+  section:last-of-type { border-bottom: none; }
+  section > .head { margin-bottom: 20px; }
+  section > .head .eyebrow { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin: 0 0 6px; }
+  section > .head h2 { font-size: 1.3rem; margin: 0; text-wrap: balance; font-weight: 650; letter-spacing: -0.01em; }
+  section > .head p.dek { margin: 8px 0 0; color: var(--text-dim); max-width: 66ch; font-size: 0.95rem; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .tile { background: var(--surface); padding: 18px 18px; }
+  .tile .label { font-family: var(--mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-faint); }
+  .tile .value { font-family: var(--mono); font-size: 1.6rem; font-weight: 600; margin-top: 6px; font-variant-numeric: tabular-nums; }
+  .tile .sub { font-size: 0.8rem; color: var(--text-dim); margin-top: 3px; }
+  .tile .value.good { color: var(--good); }
+  .tile .value.warn { color: var(--warn); }
+  .tile .value.critical { color: var(--critical); }
+
+  .order-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+  .order-row .order-label { font-family: var(--mono); font-size: 0.72rem; color: var(--text-faint); width: 140px; flex-shrink: 0; }
+  .chip-seq { display: flex; gap: 5px; flex-wrap: wrap; }
+  .chip { font-family: var(--mono); font-size: 0.72rem; font-weight: 700; padding: 3px 9px; border-radius: 5px; color: #fff; }
+  .chip.RED { background: var(--red-piece); }
+  .chip.BLUE { background: var(--blue-piece); }
+  .chip.GREEN { background: var(--green-piece); color: #0c1a12; }
+  .arrow-note { font-family: var(--mono); font-size: 0.85rem; display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+  .arrow-note.good { color: var(--good); }
+  .arrow-note.critical { color: var(--critical); }
+  .note-box { margin-top: 16px; padding: 12px 16px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; font-size: 0.86rem; color: var(--text-dim); }
+  .note-box strong { color: var(--text); }
+
+  .gantt-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+  .gantt { min-width: 920px; padding: 18px 20px 8px; }
+  .gantt-row { display: grid; grid-template-columns: 92px 1fr; align-items: center; gap: 12px; height: 34px; }
+  .gantt-row .lane-label { font-family: var(--mono); font-size: 0.74rem; color: var(--text-dim); text-align: right; }
+  .gantt-track { position: relative; height: 22px; background: var(--surface-2); border-radius: 4px; }
+  .gantt-bar { position: absolute; top: 2px; height: 18px; border-radius: 4px; cursor: default; display: flex; align-items: center; padding: 0 6px; overflow: hidden; font-family: var(--mono); font-size: 0.62rem; font-weight: 700; color: rgba(0,0,0,0.55); white-space: nowrap; text-overflow: ellipsis; box-shadow: 0 0 0 1px rgba(0,0,0,0.18) inset; }
+  .gantt-bar.RED { background: var(--red-piece); color: #2b0908; }
+  .gantt-bar.BLUE { background: var(--blue-piece); color: #071229; }
+  .gantt-bar.GREEN { background: var(--green-piece); color: #06210f; }
+  .gantt-bar.discarded { opacity: 0.45; background: repeating-linear-gradient(45deg, currentColor 0 4px, transparent 4px 8px); }
+  .gantt-axis { display: grid; grid-template-columns: 92px 1fr; margin-top: 6px; }
+  .gantt-axis .axis-track { position: relative; height: 18px; }
+  .gantt-axis .tick { position: absolute; font-family: var(--mono); font-size: 0.64rem; color: var(--text-faint); transform: translateX(-50%); }
+  .legend { display: flex; gap: 18px; margin-top: 14px; padding: 0 20px 16px; flex-wrap: wrap; }
+  .legend .item { display: flex; align-items: center; gap: 7px; font-size: 0.78rem; color: var(--text-dim); }
+  .legend .swatch { width: 11px; height: 11px; border-radius: 3px; }
+
+  .table-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
+  table { border-collapse: collapse; width: 100%; background: var(--surface); font-size: 0.85rem; }
+  thead th { text-align: left; font-family: var(--mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-faint); padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--surface-2); white-space: nowrap; }
+  tbody td { padding: 9px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+  td.num, th.num { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+  td.mono { font-family: var(--mono); font-size: 0.82rem; }
+  .path-chain { font-family: var(--mono); font-size: 0.78rem; color: var(--text-dim); }
+  .path-chain b { color: var(--text); font-weight: 600; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+  .dot.RED { background: var(--red-piece); } .dot.BLUE { background: var(--blue-piece); } .dot.GREEN { background: var(--green-piece); }
+
+  .badge { font-family: var(--mono); font-size: 0.68rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; letter-spacing: 0.02em; white-space: nowrap; }
+  .badge.ok { background: var(--good-soft); color: var(--good); }
+  .badge.warn { background: var(--warn-soft); color: var(--warn); }
+  .badge.critical { background: var(--critical-soft); color: var(--critical); }
+  .hint { font-size: 0.72rem; color: var(--text-dim); font-style: italic; }
+
+  .checklist { display: flex; flex-direction: column; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .check-item { background: var(--surface); padding: 13px 16px; display: flex; align-items: flex-start; gap: 12px; }
+  .check-item .mark { font-family: var(--mono); font-weight: 800; font-size: 0.8rem; flex-shrink: 0; width: 20px; height: 20px; border-radius: 5px; display: flex; align-items: center; justify-content: center; margin-top: 1px; }
+  .check-item .mark.pass { background: var(--good-soft); color: var(--good); }
+  .check-item .mark.info { background: var(--warn-soft); color: var(--warn); }
+  .check-item .mark.fail { background: var(--critical-soft); color: var(--critical); }
+  .check-item .body b { display: block; font-size: 0.9rem; margin-bottom: 2px; }
+  .check-item .body span { font-size: 0.84rem; color: var(--text-dim); }
+
+  details.alert-group { border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+  details.alert-group summary { cursor: pointer; padding: 14px 16px; list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  details.alert-group summary::-webkit-details-marker { display: none; }
+  details.alert-group summary .s-left { display: flex; align-items: center; gap: 10px; }
+  details.alert-group summary .chev { font-family: var(--mono); color: var(--text-faint); transition: transform 0.15s ease; }
+  details[open] .chev { transform: rotate(90deg); }
+  .alert-list { padding: 0 16px 16px; }
+  .alert-row { display: grid; grid-template-columns: 92px 90px 1fr auto; gap: 12px; padding: 7px 0; border-top: 1px solid var(--border); font-size: 0.82rem; align-items: center; }
+  .alert-row:first-child { border-top: none; }
+  .alert-row .t { font-family: var(--mono); color: var(--text-faint); }
+  .alert-row .r { font-family: var(--mono); color: var(--text-dim); }
+
+  code.inline { font-family: var(--mono); background: var(--surface-2); padding: 1px 6px; border-radius: 4px; font-size: 0.85em; border: 1px solid var(--border); }
+  .empty-note { padding: 14px 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text-dim); font-size: 0.88rem; }
+
+  footer.page-footer { max-width: 1180px; margin: 0 auto; padding: 28px 24px 40px; color: var(--text-faint); font-size: 0.78rem; font-family: var(--mono); }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<header class="top">
+  <div class="top-inner">
+    <div>
+      <div class="eyebrow">Auditoría de corrida — shipyard_pnp</div>
+      <h1 id="run-title">__TITLE__</h1>
+    </div>
+    <span class="status-pill" id="status-pill"></span>
+  </div>
+</header>
+
+<div class="wrap">
+
+<section id="overview">
+  <div class="head">
+    <div class="eyebrow">01 · Resumen</div>
+    <h2 id="overview-h2"></h2>
+    <p class="dek">Generado con <code class="inline">run_audit.py</code> a partir de <code class="inline">run_report.build_report()</code> (comparación ciclo a ciclo real vs. simulación) más las comprobaciones de integridad de datos crudos de Postgres.</p>
+  </div>
+  <div class="tiles" id="tiles"></div>
+</section>
+
+<section id="optimizer" style="display:none">
+  <div class="head">
+    <div class="eyebrow">02 · Optimizador</div>
+    <h2>Orden propuesto vs. orden ejecutado</h2>
+    <p class="dek">Comparado directamente contra <code class="inline">command_log</code> (lo que xarm2 realmente despachó), no solo contra el nombre de la corrida.</p>
+  </div>
+  <div id="optimizer-body"></div>
+</section>
+
+<section id="timeline">
+  <div class="head">
+    <div class="eyebrow">03 · Cronología real</div>
+    <h2 id="timeline-h2"></h2>
+    <p class="dek">Reconstruido de <code class="inline">cycle_event</code>, segundos desde el inicio real (t0). Color = color de la pieza que se está moviendo. Rayado = ciclo descartado.</p>
+  </div>
+  <div class="gantt-scroll"><div class="gantt" id="gantt"></div></div>
+  <div class="legend">
+    <div class="item"><span class="swatch" style="background:var(--red-piece)"></span>Pieza RED</div>
+    <div class="item"><span class="swatch" style="background:var(--blue-piece)"></span>Pieza BLUE</div>
+    <div class="item"><span class="swatch" style="background:var(--green-piece)"></span>Pieza GREEN</div>
+  </div>
+</section>
+
+<section id="failures" style="display:none">
+  <div class="head">
+    <div class="eyebrow">04 · Fallos de hardware</div>
+    <h2 id="failures-h2"></h2>
+  </div>
+  <div class="table-scroll">
+    <table><thead><tr><th>Hora</th><th>Recurso</th><th>Código</th><th>Motivo</th></tr></thead><tbody id="failures-body"></tbody></table>
+  </div>
+</section>
+
+<section id="alerts">
+  <div class="head">
+    <div class="eyebrow">05 · Alarmas en vivo vs. reconstrucción offline</div>
+    <h2 id="alerts-h2"></h2>
+    <p class="dek">El dashboard en vivo compara contra el horario simulado con un muestreo periódico; en los límites entre dos ciclos casi siempre hay 1-2s donde parece desalineado. Cada alarma se cruza aquí contra el ciclo real equivalente de <code class="inline">build_report()</code> (timestamps exactos, sin muestreo) — si ese ciclo aparece como <code class="inline">matched</code>/<code class="inline">followed</code>, la alarma es ruido, no una violación real.</p>
+  </div>
+  <div id="alerts-body"></div>
+</section>
+
+<section id="routing">
+  <div class="head">
+    <div class="eyebrow">06 · Trazabilidad de piezas</div>
+    <h2 id="routing-h2"></h2>
+    <p class="dek">De <code class="inline">piece_transfer</code>. Destino final verificado contra <code class="inline">unloading_rules._final_destination(color, shape)</code> — la regla real de producción, importada directamente, no reimplementada.</p>
+  </div>
+  <div class="table-scroll">
+    <table><thead><tr><th>Pieza</th><th>Forma</th><th>Ruta física</th><th>Destino final</th><th></th></tr></thead><tbody id="routing-body"></tbody></table>
+  </div>
+</section>
+
+<section id="vision">
+  <div class="head">
+    <div class="eyebrow">07 · Consistencia de visión</div>
+    <h2 id="vision-h2"></h2>
+    <p class="dek"><code class="inline">globalvision</code> (al alimentar) vs. <code class="inline">robot2_camera</code> (C2S2) vs. <code class="inline">robot1_camera</code> (C3/C4).</p>
+  </div>
+  <div class="table-scroll">
+    <table><thead><tr><th>Pieza</th><th>Color</th><th>globalvision</th><th>robot2_camera</th><th>robot1_camera</th><th></th></tr></thead><tbody id="vision-body"></tbody></table>
+  </div>
+</section>
+
+<section id="integrity">
+  <div class="head">
+    <div class="eyebrow">08 · Integridad de datos</div>
+    <h2>Checklist de la auditoría</h2>
+  </div>
+  <div class="checklist" id="checklist"></div>
+</section>
+
+</div>
+
+<footer class="page-footer" id="page-footer"></footer>
+
+<script type="application/json" id="audit-data">__AUDIT_JSON__</script>
+<script>
+const audit = JSON.parse(document.getElementById("audit-data").textContent);
+const esc = s => (s ?? "").toString().replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
+
+document.getElementById("run-title").textContent = audit.run_id;
+const isGood = audit.status === "COMPLETED";
+const pill = document.getElementById("status-pill");
+pill.className = "status-pill " + (isGood ? "good" : "critical");
+pill.textContent = (isGood ? "✓ " : "✗ ") + audit.status + (audit.failures.length ? " · fallos de hardware" : " · sin fallos de hardware");
+
+const nCycles = audit.cycles.length;
+const nDiscarded = audit.cycles.filter(c => c.status === "discarded").length;
+const nMatched = audit.cycles.filter(c => c.status === "matched" || c.status === "followed").length;
+const diffPct = (audit.real_total_s && audit.sim_total_s) ? ((audit.real_total_s - audit.sim_total_s) / audit.sim_total_s * 100) : null;
+const pieceColors = {};
+for (const v of audit.vision) pieceColors[v.piece_id] = v.color;
+const colorCounts = {};
+for (const c of Object.values(pieceColors)) colorCounts[c] = (colorCounts[c]||0)+1;
+
+document.getElementById("overview-h2").textContent = `${Object.keys(pieceColors).length} piezas, ${nCycles} ciclos, ${nDiscarded} descarte${nDiscarded===1?"":"s"}`;
+
+document.getElementById("tiles").innerHTML = `
+  <div class="tile"><div class="label">Duración real</div><div class="value">${audit.real_total_s ?? "—"}s</div><div class="sub">${audit.started_at?.slice(11,19) ?? ""} → ${audit.finished_at?.slice(11,19) ?? ""}</div></div>
+  <div class="tile"><div class="label">Duración simulada</div><div class="value">${audit.sim_total_s ?? "—"}s</div><div class="sub">${diffPct!==null ? (diffPct>=0?"+":"")+diffPct.toFixed(1)+"%" : "n/a"}</div></div>
+  <div class="tile"><div class="label">Ciclos entidad</div><div class="value ${nDiscarded===0?"good":"critical"}">${nCycles-nDiscarded} / ${nCycles}</div><div class="sub">${nDiscarded} descartados</div></div>
+  <div class="tile"><div class="label">Fallos hardware</div><div class="value ${audit.failures.length?"critical":"good"}">${audit.failures.length}</div><div class="sub">status_log / resource_state_change</div></div>
+  <div class="tile"><div class="label">Piezas</div><div class="value">${Object.keys(pieceColors).length}</div><div class="sub">${Object.entries(colorCounts).map(([c,n])=>n+" "+c).join(" · ")}</div></div>
+  <div class="tile"><div class="label">Alarmas en vivo</div><div class="value ${audit.alarms.length?"warn":"good"}">${audit.alarms.length}</div><div class="sub">${audit.alarms.filter(a=>a.confirmed_noise).length} ruido · ${audit.alarms.filter(a=>a.confirmed_intruder).length} intrusas</div></div>
+`;
+
+// Optimizer
+if (audit.optimizer) {
+  document.getElementById("optimizer").style.display = "";
+  const o = audit.optimizer;
+  const chips = arr => (arr||[]).map(c => `<span class="chip ${c}">${c[0]}</span>`).join("");
+  const matches = o.applied_matches_execution;
+  document.getElementById("optimizer-body").innerHTML = `
+    <div class="order-row"><span class="order-label">original_order</span><div class="chip-seq">${chips(o.original_order)}</div></div>
+    <div class="order-row"><span class="order-label">best_order</span><div class="chip-seq">${chips(o.best_order)}</div></div>
+    <div class="order-row"><span class="order-label">ejecutado (xarm2)</span><div class="chip-seq">${chips(o.executed_order)}</div></div>
+    <div class="arrow-note ${matches?'good':'critical'}">${matches?'✓ coincide':'✗ NO coincide'} exactamente${o.saving_s!=null?` — ahorro estimado ${o.saving_s}s (${o.saving_pct}%)`:''}</div>
+    ${(!o.applied_flag && matches) ? `<div class="note-box"><strong>Inconsistencia menor de bookkeeping (no afecta al comportamiento):</strong> <code class="inline">optimizer_run.applied</code> guarda <code class="inline">false</code> aunque el orden sí se aplicó y ejecutó tal cual.</div>` : ''}
+  `;
+}
+
+// Gantt
+const LANE_ORDER = ["xarm2","xarm1","laser","robot2","bantam","robot1"];
+const lanes = LANE_ORDER.filter(l => audit.cycles.some(c => c.entity === l));
+const durRef = audit.real_total_s || Math.max(...audit.cycles.map(c => c.real_t + (c.real_dur||0)));
+document.getElementById("timeline-h2").textContent = `Los ${nCycles} ciclos, por entidad`;
+let gh = "";
+for (const lane of lanes) gh += `<div class="gantt-row"><div class="lane-label">${lane}</div><div class="gantt-track" data-lane="${lane}"></div></div>`;
+const gantt = document.getElementById("gantt");
+gantt.innerHTML = gh;
+for (const lane of lanes) {
+  const track = gantt.querySelector(`.gantt-track[data-lane="${lane}"]`);
+  for (const c of audit.cycles.filter(c => c.entity === lane)) {
+    const left = (c.real_t / durRef) * 100;
+    const width = Math.max(((c.real_dur||0) / durRef) * 100, 1.1);
+    const bar = document.createElement("div");
+    bar.className = `gantt-bar ${c.color || ""} ${c.status === "discarded" ? "discarded" : ""}`;
+    bar.style.left = left + "%";
+    bar.style.width = width + "%";
+    bar.title = `${c.task} · ${c.piece_id||""} · t=${c.real_t}s · dur=${c.real_dur}s · ${c.status_label}`;
+    bar.textContent = width > 6 ? c.task.replace(/_/g, " ") : "";
+    track.appendChild(bar);
+  }
+}
+const axis = document.createElement("div");
+axis.className = "gantt-axis";
+axis.innerHTML = `<div></div><div class="axis-track"></div>`;
+gantt.appendChild(axis);
+const axisTrack = axis.querySelector(".axis-track");
+const step = durRef > 600 ? 120 : 60;
+for (let s = 0; s <= durRef; s += step) {
+  const tick = document.createElement("div");
+  tick.className = "tick";
+  tick.style.left = (s / durRef * 100) + "%";
+  tick.textContent = Math.round(s/60) + "m";
+  axisTrack.appendChild(tick);
+}
+
+// Failures
+if (audit.failures.length) {
+  document.getElementById("failures").style.display = "";
+  document.getElementById("failures-h2").textContent = `${audit.failures.length} fallo(s) detectado(s)`;
+  document.getElementById("failures-body").innerHTML = audit.failures.map(f => `
+    <tr><td class="mono">${esc(f.published_at)}</td><td class="mono">${esc(f.resource_id)}</td><td class="mono">${esc(f.code)}</td><td>${esc(f.reason)}</td></tr>
+  `).join("");
+}
+
+// Alerts
+document.getElementById("alerts-h2").textContent = audit.alarms.length
+  ? `${audit.alarms.length} alarmas — ${audit.alarms.filter(a=>a.confirmed_noise).length} ruido, ${audit.alarms.filter(a=>a.confirmed_intruder).length} intrusas, ${audit.alarms.filter(a=>!a.confirmed_noise&&!a.confirmed_intruder).length} sin confirmar`
+  : "Sin alarmas en esta corrida";
+if (audit.alarms.length) {
+  const rows = audit.alarms.map(a => {
+    const badge = a.confirmed_noise ? { cls: "ok", text: "ruido confirmado" }
+                : a.confirmed_intruder ? { cls: "warn", text: "INTRUSA (esperado)" }
+                : { cls: "critical", text: "sin confirmar" };
+    return `
+    <div class="alert-row">
+      <span class="t">${esc((a.triggered_at||"").slice(11,19))}</span>
+      <span class="r">${esc(a.resource_id)}</span>
+      <span>${esc(a.description.replace(/^[A-Z ]+\[[^\]]+\]: /,""))}</span>
+      <span class="badge ${badge.cls}">${badge.text}</span>
+    </div>
+  `;
+  }).join("");
+  document.getElementById("alerts-body").innerHTML = `
+    <details class="alert-group">
+      <summary><span class="s-left"><span class="badge warn">${audit.alarms.length} alarmas</span><span>Ver detalle cronológico</span></span><span class="chev">›</span></summary>
+      <div class="alert-list">${rows}</div>
+    </details>`;
+} else {
+  document.getElementById("alerts-body").innerHTML = `<div class="empty-note">alarm_event no registró nada para esta corrida.</div>`;
+}
+
+// Routing
+document.getElementById("routing-h2").textContent = `Las ${audit.routing.length} rutas físicas, extremo a extremo`;
+document.getElementById("routing-body").innerHTML = audit.routing.map(r => `
+  <tr>
+    <td class="mono"><span class="dot ${r.color||''}"></span><b>${esc(r.piece_id)}</b>${r.is_intruder?' <span class="badge warn">INTRUSA</span>':''}</td>
+    <td class="mono">${esc(r.shape)}</td>
+    <td class="path-chain">${esc(r.path).replace(new RegExp(esc(r.final_loc||"###"),"g"), m => `<b>${m}</b>`)}</td>
+    <td class="mono">${esc(r.final_loc)}${r.is_intruder?' <span class="hint">(esperado: scrap, no ruta por color)</span>':''}</td>
+    <td><span class="badge ${r.ok?'ok':'critical'}">${r.ok?'✓ correcto':'✗ revisar'}</span></td>
+  </tr>
+`).join("");
+
+// Vision
+document.getElementById("vision-h2").textContent = `Forma en las 3 estaciones — ${audit.vision.filter(v=>v.consistent).length}/${audit.vision.length} consistentes`;
+document.getElementById("vision-body").innerHTML = audit.vision.map(v => `
+  <tr>
+    <td class="mono"><span class="dot ${v.color||''}"></span><b>${esc(v.piece_id)}</b></td>
+    <td class="mono">${esc(v.color)}</td>
+    <td class="mono">${esc(v.globalvision) || "—"}</td>
+    <td class="mono">${esc(v.robot2_camera) || "—"}</td>
+    <td class="mono">${esc(v.robot1_camera) || "—"}</td>
+    <td><span class="badge ${v.consistent?'ok':'critical'}">${v.consistent?'✓ coincide':'✗ discrepancia'}</span></td>
+  </tr>
+`).join("");
+
+// Checklist
+document.getElementById("checklist").innerHTML = audit.checklist.map(c => `
+  <div class="check-item">
+    <span class="mark ${c.level}">${c.level==="pass"?"✓":c.level==="fail"?"✗":"i"}</span>
+    <div class="body"><b>${esc(c.title)}</b><span>${esc(c.detail)}</span></div>
+  </div>
+`).join("");
+
+document.getElementById("page-footer").textContent =
+  "shipyard_pnp_ws · run_audit.py sobre production_run / cycle_event / piece_transfer / vision_detection / alarm_event / status_log / queue_depth_sample / optimizer_run / command_log";
+</script>

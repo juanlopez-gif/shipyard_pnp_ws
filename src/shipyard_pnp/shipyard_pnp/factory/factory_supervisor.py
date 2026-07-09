@@ -45,11 +45,13 @@ from shipyard_pnp.shared.contracts import (
 # Define aquí las piezas que el xArm2 debe coger del stack inicial.
 # color/shape son opcionales: si se especifican, se usan como hint para globalvision.
 # Si se omiten (None), globalvision los detecta automáticamente con visión.
-INITIAL_STACK_ORDER = (
-    [{"id": f"piece-{i:03d}", "color": "RED",   "shape": None} for i in range(1, 7)]
-    + [{"id": f"piece-{i:03d}", "color": "BLUE",  "shape": None} for i in range(7, 13)]
-    + [{"id": f"piece-{i:03d}", "color": "GREEN", "shape": None} for i in range(13, 19)]
-)
+INITIAL_STACK_ORDER = [
+    {"id": f"piece-{i:03d}", "color": color, "shape": None}
+    for i, color in enumerate(
+        ["GREEN", "RED", "BLUE"] * 6,
+        start=1,
+    )
+]
 
 # entity -> gripper location in piece_tracker.PIPELINE_LOCATIONS. Used by
 # register_pick_source/_apply_resource_state to move a piece OUT of its
@@ -144,6 +146,25 @@ class FactorySupervisor(Node):
         # consume_place_done_flag() lets on_complete skip its own transfer
         # entirely when this hook already handled it.
         self._place_done_via_hook: dict = {}
+
+        # BUG FOUND 2026-07-08 (real DB evidence, piece-003 RED fed as
+        # CIRCLE but robot2/robot1's own vision both later confirmed SQUARE
+        # -- the exact shape of piece-006 BLUE, the piece that occupied the
+        # SAME slot s1.1 right before it): stack_status is only published at
+        # ~1 Hz (faster only while xarm2 is RETURNING_HOME, see ml_node.py).
+        # If a magazine-fed slot gets physically refilled with a new piece
+        # slightly AFTER xarm2 has already settled back to IDLE (the 1 Hz
+        # window), get_stack_status_shape(slot_id) can still be serving the
+        # PREVIOUS occupant's cached shape for that slot_id when
+        # LOCATE_NEXT_PIECE resolves the next piece there. Fixed by gating
+        # feeding_rules.evaluate() on stack_status_is_fresh(): xarm2 must
+        # not go for the next piece until at least one stack_status message
+        # has arrived AFTER it went IDLE -- see _apply_resource_state
+        # (resets this False the instant xarm2 reports IDLE) and
+        # _on_stack_status (sets it True, but ONLY if xarm2 is IDLE right
+        # now -- a message that arrives mid-cycle doesn't count, since the
+        # slot in question may not have been refilled yet at that point).
+        self._stack_status_fresh_since_idle: bool = False
 
         self.vendor_clients = {}
         self._command_publishers = {}
@@ -616,6 +637,13 @@ class FactorySupervisor(Node):
                 if self.pieces.transfer_piece(gripper_loc, target_loc):
                     self._place_done_via_hook[resource_id] = True
 
+        # See self._stack_status_fresh_since_idle comment in __init__. Reset
+        # the instant xarm2 reports IDLE -- feeding_rules.evaluate() won't
+        # dispatch the next piece until a stack_status message arrives while
+        # it's still in this state (set in _on_stack_status below).
+        if resource_id == "xarm2" and resource_state == "IDLE":
+            self._stack_status_fresh_since_idle = False
+
     def _apply_sensor_result(self, result: dict) -> bool:
         sensor_id = result.get("sensor_id")
         sensor_state = result.get("state") or result.get("sensor_state")
@@ -631,21 +659,33 @@ class FactorySupervisor(Node):
             return False
 
     def _apply_vision_result(self, resource_id: str, task: str, result: dict) -> None:
+        # 2026-07-08: EXPECTED (PieceTracker's tracked color/shape) is pure
+        # software state -- the pipeline's own record of what it planned/fed.
+        # No robot-mounted camera downstream of the initial feed decision is
+        # allowed to write into it; a camera's only job past that point is to
+        # be compared AGAINST it (see classification_rules.py's color_mismatch
+        # check). This used to also write into "conveyor2" (robot2's local
+        # vision at C2S2) and "c4_location" (robot1's local vision) -- and
+        # since this generic hook runs on EVERY incoming status message
+        # BEFORE the command's own on_complete callback fires (see
+        # _on_status_msg: _apply_vision_result at line ~508 runs before
+        # vc.on_status_received at ~524), it silently overwrote the tracked
+        # piece's color with the camera's own reading before classification_
+        # rules.py's _on_vision_complete ever got a chance to read the OLD
+        # value for comparison. Confirmed live: this made color_mismatch
+        # permanently undetectable -- expected_color was already equal to
+        # the camera's color by the time it was read, no matter what the
+        # piece actually was. Only initial_stack (GlobalVision at the stack)
+        # is the genuine first-time assignment of a piece's identity; every
+        # location after that must only ever be read and compared, never
+        # rewritten by vision.
         color = result.get("color")
         shape = result.get("shape")
         if not color or not shape:
             return
 
-        location = None
         if task in {"LOCATE_NEXT_PIECE", "SCAN_STACK"}:
-            location = "initial_stack"
-        elif resource_id in {"robot2", "vision_robot2"}:
-            location = "conveyor2"
-        elif resource_id in {"robot1", "vision_robot1"}:
-            location = "c4_location"
-
-        if location:
-            self.pieces.assign_color_shape(location, color, shape)
+            self.pieces.assign_color_shape("initial_stack", color, shape)
 
     def _mark_domain_initialized(self, domain_id: str) -> None:
         vc = self.vendor_clients[domain_id]
@@ -784,7 +824,7 @@ class FactorySupervisor(Node):
 
         # Log optimizer result if the dashboard sent stats alongside the order.
         if "original_time_s" in payload:
-            self.db.insert_optimizer_result(
+            optimizer_id = self.db.insert_optimizer_result(
                 original_order        = payload.get("original_order", list(order)),
                 best_order            = list(order),
                 original_time_s       = payload["original_time_s"],
@@ -795,6 +835,16 @@ class FactorySupervisor(Node):
                 permutations_evaluated= payload.get("permutations_evaluated", 0),
                 optimizer_runtime_s   = payload.get("optimizer_runtime_s", 0.0),
             )
+            # insert_optimizer_result() always inserts applied=FALSE (it just
+            # logs the numbers) -- but _on_optimized_order only runs at all
+            # when this exact order is being confirmed and applied to the
+            # live queue (reorder_initial_stack above), so mark it applied
+            # right here. Was never called anywhere before this fix -- see
+            # run_audit.py's checklist, which is what caught it (applied
+            # stayed FALSE in the DB on every run despite matching
+            # command_log exactly).
+            if optimizer_id is not None:
+                self.db.update_optimizer_applied(optimizer_id)
 
     # ------------------------------------------------------------------
     # External vision shape enrichment (ml_node.py, runs off-repo)
@@ -833,6 +883,23 @@ class FactorySupervisor(Node):
 
         with self._state_lock:
             self._stack_status = slots
+            # Only counts as "fresh" if xarm2 is ALREADY idle right now --
+            # a message that arrives mid-cycle says nothing about whether
+            # the slot xarm2 is about to look up has been refilled yet. See
+            # comment on self._stack_status_fresh_since_idle in __init__.
+            if self.state.get_robot("xarm2") == RobotState.IDLE:
+                self._stack_status_fresh_since_idle = True
+
+    def stack_status_is_fresh(self) -> bool:
+        """False right after xarm2 goes IDLE, until at least one
+        stack_status message has arrived while it's still idle -- see
+        _apply_resource_state/_on_stack_status. feeding_rules.evaluate()
+        must not dispatch the next initial_stack pick until this is True,
+        or LOCATE_NEXT_PIECE's slot resolution can pair a freshly-arrived
+        piece's real color with a stale cached shape left over from
+        whichever piece previously occupied that same slot."""
+        with self._state_lock:
+            return self._stack_status_fresh_since_idle
 
     def get_stack_status_shape(self, slot_id: Optional[str]) -> Optional[str]:
         if not slot_id:

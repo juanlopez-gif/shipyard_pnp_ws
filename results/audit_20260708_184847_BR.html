@@ -1,0 +1,404 @@
+<title>Auditoría — 20260708_184847_BR</title>
+<style>
+  :root {
+    --bg: #12161c; --surface: #1a1f27; --surface-2: #212833; --border: #2b323d;
+    --text: #e7ebf0; --text-dim: #8b95a5; --text-faint: #5e6779;
+    --accent: #d99a4e; --accent-soft: rgba(217,154,78,0.14);
+    --good: #4fbf8b; --good-soft: rgba(79,191,139,0.14);
+    --warn: #e0a940; --warn-soft: rgba(224,169,64,0.14);
+    --critical: #e2574c; --critical-soft: rgba(226,87,76,0.14);
+    --red-piece: #e2574c; --blue-piece: #5b9bf0; --green-piece: #52c98a;
+    --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f3f4f6; --surface: #ffffff; --surface-2: #f7f8fa; --border: #dde1e7;
+      --text: #1a1f27; --text-dim: #5b6472; --text-faint: #8992a0;
+      --accent: #ad6c1a; --accent-soft: rgba(173,108,26,0.10);
+      --good: #1f9d67; --good-soft: rgba(31,157,103,0.10);
+      --warn: #a66a10; --warn-soft: rgba(166,106,16,0.10);
+      --critical: #c23b30; --critical-soft: rgba(194,59,48,0.10);
+      --red-piece: #d1453b; --blue-piece: #2f6fcf; --green-piece: #2ea968;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12161c; --surface: #1a1f27; --surface-2: #212833; --border: #2b323d;
+    --text: #e7ebf0; --text-dim: #8b95a5; --text-faint: #5e6779;
+    --accent: #d99a4e; --accent-soft: rgba(217,154,78,0.14);
+    --good: #4fbf8b; --good-soft: rgba(79,191,139,0.14);
+    --warn: #e0a940; --warn-soft: rgba(224,169,64,0.14);
+    --critical: #e2574c; --critical-soft: rgba(226,87,76,0.14);
+    --red-piece: #e2574c; --blue-piece: #5b9bf0; --green-piece: #52c98a;
+  }
+  :root[data-theme="light"] {
+    --bg: #f3f4f6; --surface: #ffffff; --surface-2: #f7f8fa; --border: #dde1e7;
+    --text: #1a1f27; --text-dim: #5b6472; --text-faint: #8992a0;
+    --accent: #ad6c1a; --accent-soft: rgba(173,108,26,0.10);
+    --good: #1f9d67; --good-soft: rgba(31,157,103,0.10);
+    --warn: #a66a10; --warn-soft: rgba(166,106,16,0.10);
+    --critical: #c23b30; --critical-soft: rgba(194,59,48,0.10);
+    --red-piece: #d1453b; --blue-piece: #2f6fcf; --green-piece: #2ea968;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); line-height: 1.55; -webkit-font-smoothing: antialiased; }
+  ::selection { background: var(--accent-soft); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px 96px; }
+
+  header.top { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); }
+  .top-inner { max-width: 1180px; margin: 0 auto; padding: 16px 24px; display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .top-inner .eyebrow { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-faint); }
+  .top-inner h1 { font-family: var(--mono); font-size: 1.05rem; font-weight: 600; margin: 2px 0 0; color: var(--text); letter-spacing: -0.01em; }
+  .status-pill { font-family: var(--mono); font-size: 0.76rem; font-weight: 600; letter-spacing: 0.04em; padding: 5px 12px; border-radius: 999px; white-space: nowrap; }
+  .status-pill.good { background: var(--good-soft); color: var(--good); }
+  .status-pill.critical { background: var(--critical-soft); color: var(--critical); }
+
+  section { padding: 40px 0; border-bottom: 1px solid var(--border); }
+  section:last-of-type { border-bottom: none; }
+  section > .head { margin-bottom: 20px; }
+  section > .head .eyebrow { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin: 0 0 6px; }
+  section > .head h2 { font-size: 1.3rem; margin: 0; text-wrap: balance; font-weight: 650; letter-spacing: -0.01em; }
+  section > .head p.dek { margin: 8px 0 0; color: var(--text-dim); max-width: 66ch; font-size: 0.95rem; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .tile { background: var(--surface); padding: 18px 18px; }
+  .tile .label { font-family: var(--mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-faint); }
+  .tile .value { font-family: var(--mono); font-size: 1.6rem; font-weight: 600; margin-top: 6px; font-variant-numeric: tabular-nums; }
+  .tile .sub { font-size: 0.8rem; color: var(--text-dim); margin-top: 3px; }
+  .tile .value.good { color: var(--good); }
+  .tile .value.warn { color: var(--warn); }
+  .tile .value.critical { color: var(--critical); }
+
+  .order-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+  .order-row .order-label { font-family: var(--mono); font-size: 0.72rem; color: var(--text-faint); width: 140px; flex-shrink: 0; }
+  .chip-seq { display: flex; gap: 5px; flex-wrap: wrap; }
+  .chip { font-family: var(--mono); font-size: 0.72rem; font-weight: 700; padding: 3px 9px; border-radius: 5px; color: #fff; }
+  .chip.RED { background: var(--red-piece); }
+  .chip.BLUE { background: var(--blue-piece); }
+  .chip.GREEN { background: var(--green-piece); color: #0c1a12; }
+  .arrow-note { font-family: var(--mono); font-size: 0.85rem; display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+  .arrow-note.good { color: var(--good); }
+  .arrow-note.critical { color: var(--critical); }
+  .note-box { margin-top: 16px; padding: 12px 16px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; font-size: 0.86rem; color: var(--text-dim); }
+  .note-box strong { color: var(--text); }
+
+  .gantt-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+  .gantt { min-width: 920px; padding: 18px 20px 8px; }
+  .gantt-row { display: grid; grid-template-columns: 92px 1fr; align-items: center; gap: 12px; height: 34px; }
+  .gantt-row .lane-label { font-family: var(--mono); font-size: 0.74rem; color: var(--text-dim); text-align: right; }
+  .gantt-track { position: relative; height: 22px; background: var(--surface-2); border-radius: 4px; }
+  .gantt-bar { position: absolute; top: 2px; height: 18px; border-radius: 4px; cursor: default; display: flex; align-items: center; padding: 0 6px; overflow: hidden; font-family: var(--mono); font-size: 0.62rem; font-weight: 700; color: rgba(0,0,0,0.55); white-space: nowrap; text-overflow: ellipsis; box-shadow: 0 0 0 1px rgba(0,0,0,0.18) inset; }
+  .gantt-bar.RED { background: var(--red-piece); color: #2b0908; }
+  .gantt-bar.BLUE { background: var(--blue-piece); color: #071229; }
+  .gantt-bar.GREEN { background: var(--green-piece); color: #06210f; }
+  .gantt-bar.discarded { opacity: 0.45; background: repeating-linear-gradient(45deg, currentColor 0 4px, transparent 4px 8px); }
+  .gantt-axis { display: grid; grid-template-columns: 92px 1fr; margin-top: 6px; }
+  .gantt-axis .axis-track { position: relative; height: 18px; }
+  .gantt-axis .tick { position: absolute; font-family: var(--mono); font-size: 0.64rem; color: var(--text-faint); transform: translateX(-50%); }
+  .legend { display: flex; gap: 18px; margin-top: 14px; padding: 0 20px 16px; flex-wrap: wrap; }
+  .legend .item { display: flex; align-items: center; gap: 7px; font-size: 0.78rem; color: var(--text-dim); }
+  .legend .swatch { width: 11px; height: 11px; border-radius: 3px; }
+
+  .table-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
+  table { border-collapse: collapse; width: 100%; background: var(--surface); font-size: 0.85rem; }
+  thead th { text-align: left; font-family: var(--mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-faint); padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--surface-2); white-space: nowrap; }
+  tbody td { padding: 9px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+  td.num, th.num { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+  td.mono { font-family: var(--mono); font-size: 0.82rem; }
+  .path-chain { font-family: var(--mono); font-size: 0.78rem; color: var(--text-dim); }
+  .path-chain b { color: var(--text); font-weight: 600; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+  .dot.RED { background: var(--red-piece); } .dot.BLUE { background: var(--blue-piece); } .dot.GREEN { background: var(--green-piece); }
+
+  .badge { font-family: var(--mono); font-size: 0.68rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; letter-spacing: 0.02em; white-space: nowrap; }
+  .badge.ok { background: var(--good-soft); color: var(--good); }
+  .badge.warn { background: var(--warn-soft); color: var(--warn); }
+  .badge.critical { background: var(--critical-soft); color: var(--critical); }
+  .hint { font-size: 0.72rem; color: var(--text-dim); font-style: italic; }
+
+  .checklist { display: flex; flex-direction: column; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .check-item { background: var(--surface); padding: 13px 16px; display: flex; align-items: flex-start; gap: 12px; }
+  .check-item .mark { font-family: var(--mono); font-weight: 800; font-size: 0.8rem; flex-shrink: 0; width: 20px; height: 20px; border-radius: 5px; display: flex; align-items: center; justify-content: center; margin-top: 1px; }
+  .check-item .mark.pass { background: var(--good-soft); color: var(--good); }
+  .check-item .mark.info { background: var(--warn-soft); color: var(--warn); }
+  .check-item .mark.fail { background: var(--critical-soft); color: var(--critical); }
+  .check-item .body b { display: block; font-size: 0.9rem; margin-bottom: 2px; }
+  .check-item .body span { font-size: 0.84rem; color: var(--text-dim); }
+
+  details.alert-group { border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+  details.alert-group summary { cursor: pointer; padding: 14px 16px; list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  details.alert-group summary::-webkit-details-marker { display: none; }
+  details.alert-group summary .s-left { display: flex; align-items: center; gap: 10px; }
+  details.alert-group summary .chev { font-family: var(--mono); color: var(--text-faint); transition: transform 0.15s ease; }
+  details[open] .chev { transform: rotate(90deg); }
+  .alert-list { padding: 0 16px 16px; }
+  .alert-row { display: grid; grid-template-columns: 92px 90px 1fr auto; gap: 12px; padding: 7px 0; border-top: 1px solid var(--border); font-size: 0.82rem; align-items: center; }
+  .alert-row:first-child { border-top: none; }
+  .alert-row .t { font-family: var(--mono); color: var(--text-faint); }
+  .alert-row .r { font-family: var(--mono); color: var(--text-dim); }
+
+  code.inline { font-family: var(--mono); background: var(--surface-2); padding: 1px 6px; border-radius: 4px; font-size: 0.85em; border: 1px solid var(--border); }
+  .empty-note { padding: 14px 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text-dim); font-size: 0.88rem; }
+
+  footer.page-footer { max-width: 1180px; margin: 0 auto; padding: 28px 24px 40px; color: var(--text-faint); font-size: 0.78rem; font-family: var(--mono); }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<header class="top">
+  <div class="top-inner">
+    <div>
+      <div class="eyebrow">Auditoría de corrida — shipyard_pnp</div>
+      <h1 id="run-title">Auditoría — 20260708_184847_BR</h1>
+    </div>
+    <span class="status-pill" id="status-pill"></span>
+  </div>
+</header>
+
+<div class="wrap">
+
+<section id="overview">
+  <div class="head">
+    <div class="eyebrow">01 · Resumen</div>
+    <h2 id="overview-h2"></h2>
+    <p class="dek">Generado con <code class="inline">run_audit.py</code> a partir de <code class="inline">run_report.build_report()</code> (comparación ciclo a ciclo real vs. simulación) más las comprobaciones de integridad de datos crudos de Postgres.</p>
+  </div>
+  <div class="tiles" id="tiles"></div>
+</section>
+
+<section id="optimizer" style="display:none">
+  <div class="head">
+    <div class="eyebrow">02 · Optimizador</div>
+    <h2>Orden propuesto vs. orden ejecutado</h2>
+    <p class="dek">Comparado directamente contra <code class="inline">command_log</code> (lo que xarm2 realmente despachó), no solo contra el nombre de la corrida.</p>
+  </div>
+  <div id="optimizer-body"></div>
+</section>
+
+<section id="timeline">
+  <div class="head">
+    <div class="eyebrow">03 · Cronología real</div>
+    <h2 id="timeline-h2"></h2>
+    <p class="dek">Reconstruido de <code class="inline">cycle_event</code>, segundos desde el inicio real (t0). Color = color de la pieza que se está moviendo. Rayado = ciclo descartado.</p>
+  </div>
+  <div class="gantt-scroll"><div class="gantt" id="gantt"></div></div>
+  <div class="legend">
+    <div class="item"><span class="swatch" style="background:var(--red-piece)"></span>Pieza RED</div>
+    <div class="item"><span class="swatch" style="background:var(--blue-piece)"></span>Pieza BLUE</div>
+    <div class="item"><span class="swatch" style="background:var(--green-piece)"></span>Pieza GREEN</div>
+  </div>
+</section>
+
+<section id="failures" style="display:none">
+  <div class="head">
+    <div class="eyebrow">04 · Fallos de hardware</div>
+    <h2 id="failures-h2"></h2>
+  </div>
+  <div class="table-scroll">
+    <table><thead><tr><th>Hora</th><th>Recurso</th><th>Código</th><th>Motivo</th></tr></thead><tbody id="failures-body"></tbody></table>
+  </div>
+</section>
+
+<section id="alerts">
+  <div class="head">
+    <div class="eyebrow">05 · Alarmas en vivo vs. reconstrucción offline</div>
+    <h2 id="alerts-h2"></h2>
+    <p class="dek">El dashboard en vivo compara contra el horario simulado con un muestreo periódico; en los límites entre dos ciclos casi siempre hay 1-2s donde parece desalineado. Cada alarma se cruza aquí contra el ciclo real equivalente de <code class="inline">build_report()</code> (timestamps exactos, sin muestreo) — si ese ciclo aparece como <code class="inline">matched</code>/<code class="inline">followed</code>, la alarma es ruido, no una violación real.</p>
+  </div>
+  <div id="alerts-body"></div>
+</section>
+
+<section id="routing">
+  <div class="head">
+    <div class="eyebrow">06 · Trazabilidad de piezas</div>
+    <h2 id="routing-h2"></h2>
+    <p class="dek">De <code class="inline">piece_transfer</code>. Destino final verificado contra <code class="inline">unloading_rules._final_destination(color, shape)</code> — la regla real de producción, importada directamente, no reimplementada.</p>
+  </div>
+  <div class="table-scroll">
+    <table><thead><tr><th>Pieza</th><th>Forma</th><th>Ruta física</th><th>Destino final</th><th></th></tr></thead><tbody id="routing-body"></tbody></table>
+  </div>
+</section>
+
+<section id="vision">
+  <div class="head">
+    <div class="eyebrow">07 · Consistencia de visión</div>
+    <h2 id="vision-h2"></h2>
+    <p class="dek"><code class="inline">globalvision</code> (al alimentar) vs. <code class="inline">robot2_camera</code> (C2S2) vs. <code class="inline">robot1_camera</code> (C3/C4).</p>
+  </div>
+  <div class="table-scroll">
+    <table><thead><tr><th>Pieza</th><th>Color</th><th>globalvision</th><th>robot2_camera</th><th>robot1_camera</th><th></th></tr></thead><tbody id="vision-body"></tbody></table>
+  </div>
+</section>
+
+<section id="integrity">
+  <div class="head">
+    <div class="eyebrow">08 · Integridad de datos</div>
+    <h2>Checklist de la auditoría</h2>
+  </div>
+  <div class="checklist" id="checklist"></div>
+</section>
+
+</div>
+
+<footer class="page-footer" id="page-footer"></footer>
+
+<script type="application/json" id="audit-data">{"run_id": "20260708_184847_BR", "status": "COMPLETED", "started_at": "2026-07-08 18:48:47.799770-04:00", "finished_at": "2026-07-08 18:53:59.335801-04:00", "real_total_s": 255.1, "sim_total_s": 224.0, "cycles": [{"entity": "xarm2", "task": "FEED_TO_C1S1", "piece_id": "piece-001", "color": "BLUE", "cycle_number": 1, "real_t": 0.0, "real_dur": 15.076, "sim_t": 0, "sim_dur": 13.6, "diff": 0.0, "status": "matched", "status_label": "coincidi\u00f3 sin espera"}, {"entity": "robot2", "task": "CLASSIFY_C2S2_TO_SCRAP", "piece_id": "intruder-c577c8e3", "color": "GREEN", "cycle_number": 1, "real_t": 10.3, "real_dur": 31.643, "sim_t": 40.7, "sim_dur": 36.3, "diff": -30.4, "status": "intruder", "status_label": "INTRUSA -- pieza no planeada, forzada a SCRAP (el mapa segu\u00eda esperando CLASSIFY_C2S2_TO_BANTAM #1, sigue pendiente)"}, {"entity": "xarm2", "task": "FEED_TO_C1S1", "piece_id": "piece-002", "color": "RED", "cycle_number": 2, "real_t": 16.0, "real_dur": 14.448, "sim_t": 13.6, "sim_dur": 13.6, "diff": 2.4, "status": "matched", "status_label": "coincidi\u00f3 sin espera"}, {"entity": "xarm1", "task": "C1S2_TO_C2S1", "piece_id": "piece-001", "color": "BLUE", "cycle_number": 1, "real_t": 17.0, "real_dur": 15.743, "sim_t": 17.5, "sim_dur": 15.8, "diff": -0.5, "status": "matched", "status_label": "coincidi\u00f3 sin espera"}, {"entity": "xarm1", "task": "C1S2_TO_LASER", "piece_id": "piece-002", "color": "RED", "cycle_number": 1, "real_t": 32.7, "real_dur": 15.298, "sim_t": 33.2, "sim_dur": 15.2, "diff": -0.5, "status": "matched", "status_label": "coincidi\u00f3 sin espera"}, {"entity": "robot2", "task": "CLASSIFY_C2S2_TO_BANTAM", "piece_id": "piece-001", "color": "BLUE", "cycle_number": 2, "real_t": 41.9, "real_dur": 33.929, "sim_t": 92.0, "sim_dur": 34.6, "diff": -50.1, "status": "matched", "status_label": "coincidi\u00f3 sin espera"}, {"entity": "laser", "task": "PROCESS_RED", "piece_id": "piece-002", "color": "RED", "cycle_number": 1, "real_t": 48.0, "real_dur": 22.222, "sim_t": 46.7, "sim_dur": 22.8, "diff": 1.3, "status": "matched", "status_label": "coincidi\u00f3 sin espera"}, {"entity": "xarm1", "task": "LASER_TO_C2S1", "piece_id": "piece-002", "color": "RED", "cycle_number": 1, "real_t": 70.3, "real_dur": 14.86, "sim_t": 69.6, "sim_dur": 14.9, "diff": 0.7, "status": "matched", "status_label": "coincidi\u00f3 sin espera"}, {"entity": "bantam", "task": "PROCESS_BLUE", "piece_id": "piece-001", "color": "BLUE", "cycle_number": 1, "real_t": 75.8, "real_dur": 49.071, "sim_t": 77.0, "sim_dur": 48.5, "diff": -1.2, "status": "matched", "status_label": "coincidi\u00f3 sin espera"}, {"entity": "robot2", "task": "CLASSIFY_C2S2_TO_SCRAP", "piece_id": "intruder-964667cd", "color": "GREEN", "cycle_number": 3, "real_t": 75.8, "real_dur": 27.199, "sim_t": null, "sim_dur": null, "diff": null, "status": "intruder", "status_label": "INTRUSA -- pieza no planeada, forzada a SCRAP (el mapa segu\u00eda esperando CLASSIFY_C2S2_TO_C4 #2, sigue pendiente)"}, {"entity": "robot2", "task": "CLASSIFY_C2S2_TO_C4", "piece_id": "piece-002", "color": "RED", "cycle_number": 4, "real_t": 103.1, "real_dur": 32.352, "sim_t": null, "sim_dur": null, "diff": null, "status": "no_sim", "status_label": "sin equivalente en el mapa"}, {"entity": "robot1", "task": "UNLOAD_C4", "piece_id": "piece-002", "color": "RED", "cycle_number": 1, "real_t": 140.5, "real_dur": 37.425, "sim_t": 131.7, "sim_dur": 38.2, "diff": 8.8, "status": "matched", "status_label": "coincidi\u00f3 sin espera"}, {"entity": "robot2", "task": "CLASSIFY_C2S2_TO_SCRAP", "piece_id": "intruder-829d9d84", "color": "GREEN", "cycle_number": 5, "real_t": 151.6, "real_dur": 26.975, "sim_t": null, "sim_dur": null, "diff": null, "status": "intruder", "status_label": "INTRUSA -- pieza no planeada, forzada a SCRAP (el mapa segu\u00eda esperando BANTAM_TO_C4 #1, sigue pendiente)"}, {"entity": "robot2", "task": "BANTAM_TO_C4", "piece_id": "piece-001", "color": "BLUE", "cycle_number": 1, "real_t": 178.6, "real_dur": 36.726, "sim_t": 144.3, "sim_dur": 36.4, "diff": 34.3, "status": "matched", "status_label": "coincidi\u00f3 sin espera"}, {"entity": "robot1", "task": "UNLOAD_C4", "piece_id": "piece-001", "color": "BLUE", "cycle_number": 2, "real_t": 220.4, "real_dur": 34.683, "sim_t": 185.8, "sim_dur": 38.2, "diff": 34.6, "status": "matched", "status_label": "coincidi\u00f3 sin espera"}, {"entity": "robot2", "task": "CLASSIFY_C2S2_TO_SCRAP", "piece_id": "intruder-418b79ae", "color": "GREEN", "cycle_number": 6, "real_t": 231.0, "real_dur": 27.232, "sim_t": null, "sim_dur": null, "diff": null, "status": "intruder", "status_label": "INTRUSA -- pieza no planeada, forzada a SCRAP"}], "optimizer": {"original_order": ["BLUE", "RED"], "best_order": ["BLUE", "RED"], "executed_order": ["BLUE", "RED"], "saving_s": 0.0, "saving_pct": 0.0, "applied_flag": true, "applied_matches_execution": true}, "alarms": [{"triggered_at": "2026-07-08 18:48:59.228112-04:00", "severity": "critical", "resource_id": "xarm2", "description": "CYCLE UNEXPECTED [xarm2]: se esperaba FEED_TO_C1S1 #1 pero est\u00e1 IDLE", "confirmed_noise": true, "confirmed_intruder": false}, {"triggered_at": "2026-07-08 18:49:11.212440-04:00", "severity": "critical", "resource_id": "xarm2", "description": "CYCLE UNEXPECTED [xarm2]: se esperaba FEED_TO_C1S1 #2 pero est\u00e1 IDLE", "confirmed_noise": true, "confirmed_intruder": false}, {"triggered_at": "2026-07-08 18:49:14.209945-04:00", "severity": "critical", "resource_id": "xarm1", "description": "CYCLE UNEXPECTED [xarm1]: se esperaba C1S2_TO_C2S1 #1 pero est\u00e1 IDLE", "confirmed_noise": true, "confirmed_intruder": false}, {"triggered_at": "2026-07-08 18:49:32.209546-04:00", "severity": "critical", "resource_id": "xarm2", "description": "CYCLE UNEXPECTED [xarm2]: se esperaba FEED_TO_C1S1 #2 pero est\u00e1 IDLE", "confirmed_noise": true, "confirmed_intruder": false}, {"triggered_at": "2026-07-08 18:49:35.948303-04:00", "severity": "warning", "resource_id": "robot2", "description": "MAP GUIDANCE INTRUDER [robot2]: ciclo no esperado (CLASSIFY_C2S2_TO_SCRAP) -- el mapa segu\u00eda esperando CLASSIFY_C2S2_TO_BANTAM #1, se deja pendiente", "confirmed_noise": false, "confirmed_intruder": true}, {"triggered_at": "2026-07-08 18:50:26.209794-04:00", "severity": "critical", "resource_id": "xarm1", "description": "CYCLE UNEXPECTED [xarm1]: se esperaba LASER_TO_C2S1 #1 pero est\u00e1 IDLE", "confirmed_noise": true, "confirmed_intruder": false}, {"triggered_at": "2026-07-08 18:50:37.395210-04:00", "severity": "warning", "resource_id": "robot2", "description": "MAP GUIDANCE INTRUDER [robot2]: ciclo no esperado (CLASSIFY_C2S2_TO_SCRAP) -- el mapa segu\u00eda esperando CLASSIFY_C2S2_TO_C4 #2, se deja pendiente", "confirmed_noise": false, "confirmed_intruder": true}, {"triggered_at": "2026-07-08 18:50:50.210259-04:00", "severity": "critical", "resource_id": "robot2", "description": "CYCLE UNEXPECTED [robot2]: se esperaba CLASSIFY_C2S2_TO_C4 #2, va CLASSIFY_C2S2_TO_SCRAP #3", "confirmed_noise": false, "confirmed_intruder": true}, {"triggered_at": "2026-07-08 18:51:29.210402-04:00", "severity": "critical", "resource_id": "robot1", "description": "CYCLE UNEXPECTED [robot1]: se esperaba UNLOAD_C4 #1 pero est\u00e1 IDLE", "confirmed_noise": true, "confirmed_intruder": false}, {"triggered_at": "2026-07-08 18:51:41.209966-04:00", "severity": "critical", "resource_id": "robot2", "description": "CYCLE UNEXPECTED [robot2]: se esperaba BANTAM_TO_C4 #1 pero est\u00e1 IDLE", "confirmed_noise": true, "confirmed_intruder": false}, {"triggered_at": "2026-07-08 18:51:52.920146-04:00", "severity": "warning", "resource_id": "robot2", "description": "MAP GUIDANCE INTRUDER [robot2]: ciclo no esperado (CLASSIFY_C2S2_TO_SCRAP) -- el mapa segu\u00eda esperando BANTAM_TO_C4 #1, se deja pendiente", "confirmed_noise": false, "confirmed_intruder": true}, {"triggered_at": "2026-07-08 18:51:53.210519-04:00", "severity": "critical", "resource_id": "robot2", "description": "CYCLE UNEXPECTED [robot2]: se esperaba BANTAM_TO_C4 #1, va CLASSIFY_C2S2_TO_SCRAP #5", "confirmed_noise": false, "confirmed_intruder": true}, {"triggered_at": "2026-07-08 18:52:23.210531-04:00", "severity": "critical", "resource_id": "robot1", "description": "CYCLE UNEXPECTED [robot1]: se esperaba UNLOAD_C4 #2 pero est\u00e1 IDLE", "confirmed_noise": true, "confirmed_intruder": false}], "failures": [], "routing": [{"piece_id": "intruder-418b79ae", "color": "GREEN", "shape": "CIRCLE", "path": "conveyor2 \u2192 robot2_gripper \u2192 robot2_scrap", "final_loc": "robot2_scrap", "expected_final_loc": "robot2_scrap", "is_intruder": true, "ok": true}, {"piece_id": "intruder-829d9d84", "color": "GREEN", "shape": "CIRCLE", "path": "conveyor2 \u2192 robot2_gripper \u2192 robot2_scrap", "final_loc": "robot2_scrap", "expected_final_loc": "robot2_scrap", "is_intruder": true, "ok": true}, {"piece_id": "intruder-964667cd", "color": "GREEN", "shape": "CIRCLE", "path": "conveyor2 \u2192 robot2_gripper \u2192 robot2_scrap", "final_loc": "robot2_scrap", "expected_final_loc": "robot2_scrap", "is_intruder": true, "ok": true}, {"piece_id": "intruder-c577c8e3", "color": "GREEN", "shape": "CIRCLE", "path": "conveyor2 \u2192 robot2_gripper \u2192 robot2_scrap", "final_loc": "robot2_scrap", "expected_final_loc": "robot2_scrap", "is_intruder": true, "ok": true}, {"piece_id": "piece-001", "color": "BLUE", "shape": "CIRCLE", "path": "initial_stack \u2192 xarm2_gripper \u2192 conveyor1 \u2192 xarm1_gripper \u2192 conveyor2 \u2192 robot2_gripper \u2192 bantam_bed \u2192 robot2_gripper \u2192 c4_location \u2192 robot1_gripper \u2192 final_blue_circle", "final_loc": "final_blue_circle", "expected_final_loc": "final_blue_circle", "is_intruder": false, "ok": true}, {"piece_id": "piece-002", "color": "RED", "shape": "CIRCLE", "path": "initial_stack \u2192 xarm2_gripper \u2192 conveyor1 \u2192 xarm1_gripper \u2192 laser_bed \u2192 xarm1_gripper \u2192 conveyor2 \u2192 robot2_gripper \u2192 c4_location \u2192 robot1_gripper \u2192 final_red_circle", "final_loc": "final_red_circle", "expected_final_loc": "final_red_circle", "is_intruder": false, "ok": true}], "vision": [{"piece_id": "intruder-418b79ae", "color": "GREEN", "globalvision": null, "robot2_camera": "CIRCLE", "robot1_camera": null, "consistent": true}, {"piece_id": "intruder-829d9d84", "color": "GREEN", "globalvision": null, "robot2_camera": "CIRCLE", "robot1_camera": null, "consistent": true}, {"piece_id": "intruder-964667cd", "color": "GREEN", "globalvision": null, "robot2_camera": "CIRCLE", "robot1_camera": null, "consistent": true}, {"piece_id": "intruder-c577c8e3", "color": "GREEN", "globalvision": null, "robot2_camera": "CIRCLE", "robot1_camera": null, "consistent": true}, {"piece_id": "piece-001", "color": "BLUE", "globalvision": "CIRCLE", "robot2_camera": "CIRCLE", "robot1_camera": "CIRCLE", "consistent": true}, {"piece_id": "piece-002", "color": "RED", "globalvision": "CIRCLE", "robot2_camera": "CIRCLE", "robot1_camera": "CIRCLE", "consistent": true}], "stack_depth": [2, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "checklist": [{"level": "pass", "title": "16/16 cycle_event, 0 descartados", "detail": "Ning\u00fan discarded_reason poblado."}, {"level": "pass", "title": "0 fallos de hardware", "detail": "status_log sin task_state=FAILED."}, {"level": "fail", "title": "Orden real vs. simulaci\u00f3n: 11/12 coinciden (4 intrusas excluidas, no planeadas)", "detail": "Reconstrucci\u00f3n offline de build_report() -- timestamps exactos de cycle_event, sin muestreo peri\u00f3dico. Los ciclos de piezas intrusas (piece_id 'intruder-*') se excluyen: nunca est\u00e1n en el mapa/simulaci\u00f3n por definici\u00f3n."}, {"level": "pass", "title": "queue_depth_sample(initial_stack) monot\u00f3nico y llega a 0", "detail": "Secuencia: 2 \u2192 2 \u2192 2 \u2192 1 \u2192 0 \u2192 0 \u2192 0 \u2192 0 \u2192 0 \u2192 0 \u2192 0 \u2192 0 \u2192 0 \u2192 0 \u2192 0 \u2192 0 \u2192 0 \u2192 0 \u2192 0 \u2192 0 \u2192 0 \u2192 0 \u2192 0 \u2192 0 \u2192 0 \u2192 0 \u2192 0 \u2192 0 \u2192 0 \u2192 0 \u2192 0"}, {"level": "pass", "title": "6/6 piezas con destino final correcto (incluye 4 intrusas, esperado = robot2_scrap)", "detail": "piece_transfer vs. unloading_rules._final_destination(color, shape) de la visi\u00f3n final (o robot2_scrap para piezas intrusas -- classification_rules.py fuerza SCRAP sin consultar la ruta por color)."}, {"level": "pass", "title": "6/6 piezas con forma consistente en las 3 estaciones", "detail": "globalvision (feed) vs. robot2_camera (C2S2) vs. robot1_camera (C3/C4)."}, {"level": "info", "title": "13 alarmas -- todas explicadas (8 ruido de muestreo, 5 causadas por piezas intrusas (esperado))", "detail": "Ruido: ciclo que build_report() marca matched/followed pese a la alarma -- falso positivo del muestreo peri\u00f3dico del dashboard en vivo. Intrusas: MAP GUIDANCE INTRUDER / CYCLE UNEXPECTED disparadas por una pieza no planeada forzada a SCRAP -- la alarma es real pero es el comportamiento correcto, no un defecto."}]}</script>
+<script>
+const audit = JSON.parse(document.getElementById("audit-data").textContent);
+const esc = s => (s ?? "").toString().replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
+
+document.getElementById("run-title").textContent = audit.run_id;
+const isGood = audit.status === "COMPLETED";
+const pill = document.getElementById("status-pill");
+pill.className = "status-pill " + (isGood ? "good" : "critical");
+pill.textContent = (isGood ? "✓ " : "✗ ") + audit.status + (audit.failures.length ? " · fallos de hardware" : " · sin fallos de hardware");
+
+const nCycles = audit.cycles.length;
+const nDiscarded = audit.cycles.filter(c => c.status === "discarded").length;
+const nMatched = audit.cycles.filter(c => c.status === "matched" || c.status === "followed").length;
+const diffPct = (audit.real_total_s && audit.sim_total_s) ? ((audit.real_total_s - audit.sim_total_s) / audit.sim_total_s * 100) : null;
+const pieceColors = {};
+for (const v of audit.vision) pieceColors[v.piece_id] = v.color;
+const colorCounts = {};
+for (const c of Object.values(pieceColors)) colorCounts[c] = (colorCounts[c]||0)+1;
+
+document.getElementById("overview-h2").textContent = `${Object.keys(pieceColors).length} piezas, ${nCycles} ciclos, ${nDiscarded} descarte${nDiscarded===1?"":"s"}`;
+
+document.getElementById("tiles").innerHTML = `
+  <div class="tile"><div class="label">Duración real</div><div class="value">${audit.real_total_s ?? "—"}s</div><div class="sub">${audit.started_at?.slice(11,19) ?? ""} → ${audit.finished_at?.slice(11,19) ?? ""}</div></div>
+  <div class="tile"><div class="label">Duración simulada</div><div class="value">${audit.sim_total_s ?? "—"}s</div><div class="sub">${diffPct!==null ? (diffPct>=0?"+":"")+diffPct.toFixed(1)+"%" : "n/a"}</div></div>
+  <div class="tile"><div class="label">Ciclos entidad</div><div class="value ${nDiscarded===0?"good":"critical"}">${nCycles-nDiscarded} / ${nCycles}</div><div class="sub">${nDiscarded} descartados</div></div>
+  <div class="tile"><div class="label">Fallos hardware</div><div class="value ${audit.failures.length?"critical":"good"}">${audit.failures.length}</div><div class="sub">status_log / resource_state_change</div></div>
+  <div class="tile"><div class="label">Piezas</div><div class="value">${Object.keys(pieceColors).length}</div><div class="sub">${Object.entries(colorCounts).map(([c,n])=>n+" "+c).join(" · ")}</div></div>
+  <div class="tile"><div class="label">Alarmas en vivo</div><div class="value ${audit.alarms.length?"warn":"good"}">${audit.alarms.length}</div><div class="sub">${audit.alarms.filter(a=>a.confirmed_noise).length} ruido · ${audit.alarms.filter(a=>a.confirmed_intruder).length} intrusas</div></div>
+`;
+
+// Optimizer
+if (audit.optimizer) {
+  document.getElementById("optimizer").style.display = "";
+  const o = audit.optimizer;
+  const chips = arr => (arr||[]).map(c => `<span class="chip ${c}">${c[0]}</span>`).join("");
+  const matches = o.applied_matches_execution;
+  document.getElementById("optimizer-body").innerHTML = `
+    <div class="order-row"><span class="order-label">original_order</span><div class="chip-seq">${chips(o.original_order)}</div></div>
+    <div class="order-row"><span class="order-label">best_order</span><div class="chip-seq">${chips(o.best_order)}</div></div>
+    <div class="order-row"><span class="order-label">ejecutado (xarm2)</span><div class="chip-seq">${chips(o.executed_order)}</div></div>
+    <div class="arrow-note ${matches?'good':'critical'}">${matches?'✓ coincide':'✗ NO coincide'} exactamente${o.saving_s!=null?` — ahorro estimado ${o.saving_s}s (${o.saving_pct}%)`:''}</div>
+    ${(!o.applied_flag && matches) ? `<div class="note-box"><strong>Inconsistencia menor de bookkeeping (no afecta al comportamiento):</strong> <code class="inline">optimizer_run.applied</code> guarda <code class="inline">false</code> aunque el orden sí se aplicó y ejecutó tal cual.</div>` : ''}
+  `;
+}
+
+// Gantt
+const LANE_ORDER = ["xarm2","xarm1","laser","robot2","bantam","robot1"];
+const lanes = LANE_ORDER.filter(l => audit.cycles.some(c => c.entity === l));
+const durRef = audit.real_total_s || Math.max(...audit.cycles.map(c => c.real_t + (c.real_dur||0)));
+document.getElementById("timeline-h2").textContent = `Los ${nCycles} ciclos, por entidad`;
+let gh = "";
+for (const lane of lanes) gh += `<div class="gantt-row"><div class="lane-label">${lane}</div><div class="gantt-track" data-lane="${lane}"></div></div>`;
+const gantt = document.getElementById("gantt");
+gantt.innerHTML = gh;
+for (const lane of lanes) {
+  const track = gantt.querySelector(`.gantt-track[data-lane="${lane}"]`);
+  for (const c of audit.cycles.filter(c => c.entity === lane)) {
+    const left = (c.real_t / durRef) * 100;
+    const width = Math.max(((c.real_dur||0) / durRef) * 100, 1.1);
+    const bar = document.createElement("div");
+    bar.className = `gantt-bar ${c.color || ""} ${c.status === "discarded" ? "discarded" : ""}`;
+    bar.style.left = left + "%";
+    bar.style.width = width + "%";
+    bar.title = `${c.task} · ${c.piece_id||""} · t=${c.real_t}s · dur=${c.real_dur}s · ${c.status_label}`;
+    bar.textContent = width > 6 ? c.task.replace(/_/g, " ") : "";
+    track.appendChild(bar);
+  }
+}
+const axis = document.createElement("div");
+axis.className = "gantt-axis";
+axis.innerHTML = `<div></div><div class="axis-track"></div>`;
+gantt.appendChild(axis);
+const axisTrack = axis.querySelector(".axis-track");
+const step = durRef > 600 ? 120 : 60;
+for (let s = 0; s <= durRef; s += step) {
+  const tick = document.createElement("div");
+  tick.className = "tick";
+  tick.style.left = (s / durRef * 100) + "%";
+  tick.textContent = Math.round(s/60) + "m";
+  axisTrack.appendChild(tick);
+}
+
+// Failures
+if (audit.failures.length) {
+  document.getElementById("failures").style.display = "";
+  document.getElementById("failures-h2").textContent = `${audit.failures.length} fallo(s) detectado(s)`;
+  document.getElementById("failures-body").innerHTML = audit.failures.map(f => `
+    <tr><td class="mono">${esc(f.published_at)}</td><td class="mono">${esc(f.resource_id)}</td><td class="mono">${esc(f.code)}</td><td>${esc(f.reason)}</td></tr>
+  `).join("");
+}
+
+// Alerts
+document.getElementById("alerts-h2").textContent = audit.alarms.length
+  ? `${audit.alarms.length} alarmas — ${audit.alarms.filter(a=>a.confirmed_noise).length} ruido, ${audit.alarms.filter(a=>a.confirmed_intruder).length} intrusas, ${audit.alarms.filter(a=>!a.confirmed_noise&&!a.confirmed_intruder).length} sin confirmar`
+  : "Sin alarmas en esta corrida";
+if (audit.alarms.length) {
+  const rows = audit.alarms.map(a => {
+    const badge = a.confirmed_noise ? { cls: "ok", text: "ruido confirmado" }
+                : a.confirmed_intruder ? { cls: "warn", text: "INTRUSA (esperado)" }
+                : { cls: "critical", text: "sin confirmar" };
+    return `
+    <div class="alert-row">
+      <span class="t">${esc((a.triggered_at||"").slice(11,19))}</span>
+      <span class="r">${esc(a.resource_id)}</span>
+      <span>${esc(a.description.replace(/^[A-Z ]+\[[^\]]+\]: /,""))}</span>
+      <span class="badge ${badge.cls}">${badge.text}</span>
+    </div>
+  `;
+  }).join("");
+  document.getElementById("alerts-body").innerHTML = `
+    <details class="alert-group">
+      <summary><span class="s-left"><span class="badge warn">${audit.alarms.length} alarmas</span><span>Ver detalle cronológico</span></span><span class="chev">›</span></summary>
+      <div class="alert-list">${rows}</div>
+    </details>`;
+} else {
+  document.getElementById("alerts-body").innerHTML = `<div class="empty-note">alarm_event no registró nada para esta corrida.</div>`;
+}
+
+// Routing
+document.getElementById("routing-h2").textContent = `Las ${audit.routing.length} rutas físicas, extremo a extremo`;
+document.getElementById("routing-body").innerHTML = audit.routing.map(r => `
+  <tr>
+    <td class="mono"><span class="dot ${r.color||''}"></span><b>${esc(r.piece_id)}</b>${r.is_intruder?' <span class="badge warn">INTRUSA</span>':''}</td>
+    <td class="mono">${esc(r.shape)}</td>
+    <td class="path-chain">${esc(r.path).replace(new RegExp(esc(r.final_loc||"###"),"g"), m => `<b>${m}</b>`)}</td>
+    <td class="mono">${esc(r.final_loc)}${r.is_intruder?' <span class="hint">(esperado: scrap, no ruta por color)</span>':''}</td>
+    <td><span class="badge ${r.ok?'ok':'critical'}">${r.ok?'✓ correcto':'✗ revisar'}</span></td>
+  </tr>
+`).join("");
+
+// Vision
+document.getElementById("vision-h2").textContent = `Forma en las 3 estaciones — ${audit.vision.filter(v=>v.consistent).length}/${audit.vision.length} consistentes`;
+document.getElementById("vision-body").innerHTML = audit.vision.map(v => `
+  <tr>
+    <td class="mono"><span class="dot ${v.color||''}"></span><b>${esc(v.piece_id)}</b></td>
+    <td class="mono">${esc(v.color)}</td>
+    <td class="mono">${esc(v.globalvision) || "—"}</td>
+    <td class="mono">${esc(v.robot2_camera) || "—"}</td>
+    <td class="mono">${esc(v.robot1_camera) || "—"}</td>
+    <td><span class="badge ${v.consistent?'ok':'critical'}">${v.consistent?'✓ coincide':'✗ discrepancia'}</span></td>
+  </tr>
+`).join("");
+
+// Checklist
+document.getElementById("checklist").innerHTML = audit.checklist.map(c => `
+  <div class="check-item">
+    <span class="mark ${c.level}">${c.level==="pass"?"✓":c.level==="fail"?"✗":"i"}</span>
+    <div class="body"><b>${esc(c.title)}</b><span>${esc(c.detail)}</span></div>
+  </div>
+`).join("");
+
+document.getElementById("page-footer").textContent =
+  "shipyard_pnp_ws · run_audit.py sobre production_run / cycle_event / piece_transfer / vision_detection / alarm_event / status_log / queue_depth_sample / optimizer_run / command_log";
+</script>

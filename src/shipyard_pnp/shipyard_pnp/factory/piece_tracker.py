@@ -1,4 +1,5 @@
 import time
+import uuid
 from collections import deque
 from typing import Any, Deque, Dict, List, Optional
 
@@ -162,6 +163,53 @@ class PieceTracker:
             q[0]["color"] = color
             q[0]["shape"] = shape
 
+    def register_intruder(self, location: str, at_front: bool = False) -> str:
+        """2026-07-08: a sensor reading OCCUPIED with nothing tracked at
+        `location` (an intruder -- e.g. a piece placed at C2S2 by hand,
+        never fed through the normal pipeline) used to mean the planner
+        rule gating on count()>0 simply never fired, leaving it stuck
+        there forever with no vision, no routing, no way out except a
+        human physically removing it. Only call this when count(location)
+        is already 0 (i.e. the planner decided to act on the sensor alone,
+        see classification_rules.py) -- appends a synthetic piece, which
+        becomes index 0 automatically since the queue was empty, so every
+        existing assumption (peek_first_piece*, assign_color_shape,
+        transfer_piece/transfer_via_gripper, downstream unload routing)
+        keeps working completely unmodified from here on. The piece gets
+        vision-inspected and routed to a real final location like any
+        other -- it fully leaves the system instead of staying a phantom
+        the sensor remembers but nothing ever resolves.
+
+        at_front=True is for the OTHER case: count(location) > 0 (a real
+        piece IS tracked there) but vision proves the physical object
+        actually at the pickup point is not that piece (color mismatch --
+        it cut in line ahead of the tracked one, e.g. placed by hand
+        directly at the pickup point while the real piece is still
+        further back). appendleft() puts the intruder at index 0 without
+        disturbing the real piece behind it, so scrapping the intruder
+        via the normal transfer_piece/transfer_via_gripper pop only
+        consumes the intruder -- the real piece keeps its own identity,
+        shifts back to index 0 once the intruder is gone, and gets
+        correctly re-inspected on the next cycle instead of being
+        silently overwritten and scrapped under the wrong color."""
+        piece_id = f"intruder-{uuid.uuid4().hex[:8]}"
+        now = time.time()
+        piece = {
+            "id": piece_id,
+            "color": None,
+            "shape": None,
+            "slot_id": None,
+            "timestamp_created": now,
+            "current_location": location,
+            "history": [{"location": location, "timestamp": now, "color": None, "shape": None}],
+        }
+        if at_front:
+            self._queues[location].appendleft(piece)
+        else:
+            self._queues[location].append(piece)
+        self._all_pieces[piece_id] = piece
+        return piece_id
+
     # ------------------------------------------------------------------
     # Read-only accessors
     # ------------------------------------------------------------------
@@ -201,9 +249,26 @@ class PieceTracker:
     # ------------------------------------------------------------------
 
     def snapshot(self) -> dict:
+        # 2026-07-08: "queues" here is what gets published as pipeline.queues
+        # on /factory/system_state -- the ONLY source both dashboard_node.py
+        # and the external ml_node.py use to know "what piece is EXPECTED at
+        # this location" (see CLAUDE.md). An intruder registered via
+        # register_intruder() lives in self._queues (needed unmodified for
+        # peek_first_piece*/transfer_piece/assign_color_shape/count() --
+        # count() in particular is what classify_ready/bantam_ready gate on)
+        # but was never actually planned/fed -- it must never be reported as
+        # "expected". Confirmed live: without this filter, the moment vision
+        # assigns the intruder its own detected color, EXPECTED and Reality
+        # trivially match each other (the intruder's color mirrors itself),
+        # which silently defeated the exact mismatch alarm this session
+        # already fixed once for the untracked case. Filtering it out of the
+        # exposed queues here restores the correct signal: EXPECTED stays
+        # empty/null for that location for as long as only an intruder (no
+        # real tracked piece) occupies it.
         queues = {}
         for loc, q in self._queues.items():
-            if q:
+            visible = [p for p in q if not p["id"].startswith("intruder-")]
+            if visible:
                 queues[loc] = [
                     {
                         "id": p["id"],
@@ -211,7 +276,7 @@ class PieceTracker:
                         "shape": p.get("shape"),
                         "slot_id": p.get("slot_id"),
                     }
-                    for p in q
+                    for p in visible
                 ]
         return {
             "total_in_system": self.total_pieces_in_system(),

@@ -74,14 +74,32 @@ def evaluate(fs) -> None:
     # ready before falling back to whichever is actually available. c4 free
     # is checked either way; this never lets classify skip its own color-
     # safety check (see note below) or lets bantam retrieval start without c4.
+    # 2026-07-08: classify_ready deliberately does NOT require
+    # fs.pieces.count("conveyor2") > 0 anymore. It used to, which meant an
+    # intruder -- a physical object at C2S2 the pipeline never fed, so
+    # PieceTracker never tracked it -- made classify_ready false (nothing
+    # tracked) forever, with no way for robot2 to ever go inspect/clear it
+    # short of a human physically removing it. Now ANY physical occupancy
+    # at C2S2 triggers a real robot2 vision inspection, tracked piece or
+    # not; if untracked, evaluate() registers a synthetic piece for it
+    # right before dispatch (see fs.pieces.register_intruder below) so it
+    # gets routed to a real final location by its own detected color/shape
+    # like any other piece, instead of sitting there as a phantom forever.
     classify_ready = (
-        fs.pieces.count("conveyor2") > 0
-        and fs.state.get_sensor("c2s2") == SensorState.OCCUPIED
+        fs.state.get_sensor("c2s2") == SensorState.OCCUPIED
         and fs.state.get_sensor("c4") == SensorState.FREE
     )
+    # Gates on the tracked count, not the raw sensor: an intruder with
+    # nothing in PieceTracker's "conveyor2" queue must NOT block bantam
+    # retrieval (see the 2026-07-08 CLAUDE.md entry on the deadlock this
+    # used to cause) -- and since classify_ready above no longer needs a
+    # tracked piece either, the two conditions can now legitimately both be
+    # true at once when an intruder AND a finished bantam piece coexist;
+    # the tie-break below already resolves that in favor of classify
+    # (clearing C2S2 first), which is correct here too.
     bantam_ready = (
         fs._pending_bantam_piece is not None
-        and fs.state.get_sensor("c2s2") != SensorState.OCCUPIED
+        and fs.pieces.count("conveyor2") == 0
         and fs.state.get_sensor("c4") == SensorState.FREE
     )
 
@@ -126,6 +144,13 @@ def evaluate(fs) -> None:
             # bookkeeping). The actual match against what the map expected
             # happens later in _on_vision_complete, once X is known -- see
             # factory_supervisor._map_resolve_dispatch.
+            if fs.pieces.count("conveyor2") == 0:
+                intruder_id = fs.pieces.register_intruder("conveyor2")
+                fs.get_logger().warning(
+                    f"[classification] C2S2 ocupado sin pieza rastreada -- "
+                    f"registrada como {intruder_id}, se inspeccionará y "
+                    f"encaminará con la visión real de robot2"
+                )
             wait_info = fs._map_begin_dispatch("robot2")
             piece_id = fs.pieces.peek_first_piece_id("conveyor2")
             # Start robot2 entity cycle — first phase is vision at C2S2.
@@ -195,7 +220,7 @@ def _restore_classification_state(fs) -> None:
 
 # ── Vision ───────────────────────────────────────────────────────────────────
 
-def _on_vision_complete(fs, piece_id: str, wait_info: dict):
+def _on_vision_complete(fs, dispatched_piece_id: str, wait_info: dict):
     def on_complete(task_state: str, result: dict) -> None:
         if task_state != "COMPLETED":
             fs.get_logger().error(f"Robot2 local vision failed: {result}")
@@ -203,10 +228,86 @@ def _on_vision_complete(fs, piece_id: str, wait_info: dict):
             _restore_classification_state(fs)
             return
 
+        # Local var, deliberately NOT named piece_id: assigning to piece_id
+        # anywhere in this closure (even conditionally, even further down)
+        # makes Python treat it as local to the whole function -- so EVERY
+        # read of it, including this one, would raise UnboundLocalError
+        # ("cannot access local variable 'piece_id'") before ever reaching
+        # the line that assigns it. Confirmed live 2026-07-08: this exact
+        # crash silently killed on_complete before it logged anything,
+        # leaving _classification_state stuck at WAITING_VISION forever
+        # (robot2 physically went IDLE but the planner never dispatched
+        # again) -- see runtime_logs/full_system_20260708_182347.txt:152.
+        piece_id = dispatched_piece_id
+
+        # Capture what PieceTracker believed was there BEFORE this vision
+        # reading overwrites it -- this is the only chance to compare
+        # "expected" against "reality" instead of just trusting whatever
+        # the camera says. Only meaningful for a REAL tracked piece (not a
+        # registered intruder, which has no expectation at all by
+        # definition -- see the case below).
+        is_registered_intruder = bool(piece_id) and piece_id.startswith("intruder-")
+        expected_color = None if is_registered_intruder else fs.pieces.peek_first_piece_color("conveyor2")
+
         color = result.get("color", "UNKNOWN")
         shape = result.get("shape", "UNKNOWN")
-        fs.pieces.assign_color_shape("conveyor2", color, shape)
-        route = _decide_route(fs, color)
+
+        # 2026-07-08: two intruder cases, both forced to SCRAP, never routed
+        # through _decide_route() as if legitimate --
+        #  1) is_registered_intruder: nothing was tracked at all (count==0,
+        #     see register_intruder in piece_tracker.py) -- confirmed live
+        #     by the user: two GREEN intruders with nothing tracked got sent
+        #     to C4 instead of scrapped, because _decide_route("GREEN")
+        #     doesn't know it was unplanned.
+        #  2) color_mismatch: something WAS tracked (a real expected piece,
+        #     e.g. RED) but the camera sees a DIFFERENT color physically
+        #     sitting there (e.g. GREEN) right now. This is NOT a swap --
+        #     the tracked RED piece has NOT vanished, it's still queued
+        #     behind whatever this actually is (it cut in line ahead, e.g.
+        #     placed by hand directly at the pickup point). The first
+        #     version of this fix wrongly overwrote the tracked piece's own
+        #     color/shape and scrapped IT -- silently destroying a real,
+        #     still-valid piece and leaving PieceTracker with zero memory
+        #     it ever existed. Fixed: register a SEPARATE intruder AHEAD of
+        #     the tracked one (register_intruder(..., at_front=True)) so
+        #     scrapping it only pops the intruder -- the real piece keeps
+        #     its own id, shifts back to head, and gets correctly
+        #     re-inspected once this intruder is cleared. Matches
+        #     shipyard_core's design philosophy (any expected/reality
+        #     mismatch always scraps what's physically there) without
+        #     sacrificing the real piece's tracking to do it.
+        color_mismatch = (
+            not is_registered_intruder
+            and expected_color not in (None, "UNKNOWN")
+            and color != "UNKNOWN"
+            and color != expected_color
+        )
+
+        if color_mismatch:
+            real_piece_id = piece_id
+            piece_id = fs.pieces.register_intruder("conveyor2", at_front=True)
+            fs.get_logger().warning(
+                f"[classification] C2S2 color mismatch: se esperaba "
+                f"{expected_color} ({real_piece_id}, sigue rastreada intacta "
+                f"en cola) pero la cámara ve {color} -- registrado intruso "
+                f"{piece_id} para scrapear aparte"
+            )
+
+        # 2026-07-08: deliberately NOT calling fs.pieces.assign_color_shape
+        # here anymore. EXPECTED (PieceTracker's tracked color) is pure
+        # software state set once at initial_stack by GlobalVision -- robot2's
+        # OWN local camera at C2S2 must only ever be compared against it
+        # (color_mismatch above), never allowed to overwrite it. Writing here
+        # used to race ahead of _apply_vision_result's identical (now
+        # removed) write, which made expected_color above always equal
+        # `color` by the time it was read -- color_mismatch could never
+        # trigger for a real swap, no matter what. Every call below
+        # (_send_robot2_to_c4/_to_bantam/_to_ibs/_to_scrap, insert_vision_
+        # detection) already takes `color`/`shape` as plain local values from
+        # this vision result directly, not re-read from PieceTracker, so
+        # routing/logging behavior is completely unaffected by not writing.
+        is_intruder = is_registered_intruder or color_mismatch
+        route = "SCRAP" if is_intruder else _decide_route(fs, color)
 
         fs.db.insert_vision_detection(
             "robot2_camera",
@@ -216,9 +317,16 @@ def _on_vision_complete(fs, piece_id: str, wait_info: dict):
             success=True,
         )
 
+        if is_registered_intruder:
+            reason = " (INTRUDER sin pieza rastreada -> scrap forzado)"
+        elif color_mismatch:
+            reason = f" (INTRUDER: se esperaba {expected_color}, la cámara ve {color} -> scrap forzado)"
+        else:
+            reason = ""
         fs.get_logger().info(
             f"[classification] vision piece={piece_id} color={color} shape={shape} "
-            f"route={route} — c2s2_committed=True"
+            f"route={route}{reason} "
+            f"— c2s2_committed=True"
         )
 
         # Only now is the real route known -- confirm it against the map
@@ -228,7 +336,7 @@ def _on_vision_complete(fs, piece_id: str, wait_info: dict):
         task_name = f"CLASSIFY_C2S2_TO_{route}"
         fs._map_resolve_dispatch("robot2", task_name, wait_info)
         fs.cycles.update_entity_cycle(
-            "robot2", task_name=task_name, color=color, route=route,
+            "robot2", task_name=task_name, piece_id=piece_id, color=color, route=route,
             **fs._map_pop_dispatch_metadata("robot2"),
         )
 

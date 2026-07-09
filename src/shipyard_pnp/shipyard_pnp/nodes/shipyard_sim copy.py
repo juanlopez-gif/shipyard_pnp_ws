@@ -640,24 +640,9 @@ def robot2_process(env, system):
             set_idle(system, "robot2")
 
         # P2: empty Bantam → C4 (blocked if C4 full)
-        # 2026-07-08: gate on the WHOLE conveyor2 belt being empty (queued +
-        # at the pickup point), not just the pickup point -- this mirrors
-        # the real bantam_ready rule in classification_rules.py, which gates
-        # on fs.pieces.count("conveyor2") == 0 (PieceTracker's real FIFO
-        # across the entire belt), not just the c2s2 sensor. Traced via
-        # system.state_changes for run 20260703_184708 (order front-loaded
-        # with BLUE/BLUE/RED, RED-heavy tail): with the old "not
-        # c2s2_occupied"-only gate, P1 (classify) wins every single time
-        # robot2 goes IDLE for ~400s straight, because pieces_on_conveyor2
-        # keeps feeding a new occupant to c2s2 before P2 ever gets sampled --
-        # bantam_state stays "FINISHED" the whole time, completely starved,
-        # only firing once every last piece has been fed. The real system
-        # doesn't hit this because its gate additionally accounts for the
-        # whole belt/queue depth, not just the single pickup slot.
         elif (system.robot2_state == "IDLE"
               and system.bantam_state == "FINISHED"
               and not system.c2s2_occupied
-              and not system.pieces_on_conveyor2
               and not system.c4_occupied):
 
             piece = system.bantam_piece
