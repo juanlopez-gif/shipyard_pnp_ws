@@ -48,7 +48,7 @@ from shipyard_pnp.shared.contracts import (
 INITIAL_STACK_ORDER = [
     {"id": f"piece-{i:03d}", "color": color, "shape": None}
     for i, color in enumerate(
-        ["GREEN", "RED", "BLUE"] * 6,
+        ["GREEN", "RED", "BLUE"] * 3,
         start=1,
     )
 ]
@@ -202,7 +202,7 @@ class FactorySupervisor(Node):
         self._map_guidance_enabled = bool(
             self.get_parameter("map_guidance_enabled").get_parameter_value().bool_value
         )
-        self.MAP_GRACE_SEC = 10.0
+        self.MAP_GRACE_SEC = 15.0
         self._expected_schedule: dict = {}
         self._map_pointer: dict = {}
         self._map_wait_since: dict = {}

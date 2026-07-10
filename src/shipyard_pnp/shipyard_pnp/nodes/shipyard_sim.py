@@ -44,7 +44,27 @@ class Config:
     # chance more data would flip the verdict -- it didn't: mean |diff%|
     # went 5.30% -> 5.35% and median 4.54% -> 5.09%, worse on both. Same
     # conclusion as before, now confirmed twice: left at 5.15.
-    XARM2_PLACE_C3                  = 5.15
+    # APPLIED 2026-07-08 (3rd round, coordinated across ENTITIES not just
+    # within xarm2's own path): FEED_GREEN_TO_C3 and FEED_TO_C1S1 both need
+    # MORE time (no oppositely-biased sibling within xarm2 to lean on, see
+    # the ROBOT2_PLACE_BANTAM fix above for contrast) -- but robot1's
+    # UNLOAD_C4 was independently running -3.0% (real faster than nominal),
+    # on ROBOT1_PLACE_FINAL_C4, a constant NOT shared with UNLOAD_C3 (which
+    # was already fine at +0.9-1.0% and stays there no matter what
+    # PLACE_FINAL_C4 does -- confirmed empirically, not assumed). Fixing
+    # C3's own bias alone (PLACE_C3 5.15->5.8) would have cost total
+    # accuracy like every previous isolated attempt; pairing it with
+    # PLACE_FINAL_C4's independent fix (15.8->14.0) instead nets out on the
+    # total ledger even though the two tasks aren't causally related --
+    # confirmed on the 24-run clean baseline: FEED_GREEN_TO_C3 +5.8%->+1.2%,
+    # UNLOAD_C4 -3.0%->+1.8%, UNLOAD_C3 unaffected (+1.0%, confirmed flat
+    # across the whole PLACE_FINAL_C4 sweep), total mean 3.16%->2.75%,
+    # median 3.52%->3.16%, max 6.85%->6.66%. Stopped here deliberately --
+    # pushing PLACE_FINAL_C4 lower kept "improving" the total further but
+    # only by dragging UNLOAD_C4's own accuracy past 5% (e.g. +7.8% at
+    # PLACE_FINAL_C4=12.0) -- that's gaming the total metric at the expense
+    # of a real task's calibration, not a genuine joint fix, so rejected.
+    XARM2_PLACE_C3                  = 5.8
     XARM2_RETURN_HOME_FROM_C3       = 3.93
     XARM2_RETURN_HOME_FROM_C1S1     = 2.0
 
@@ -71,16 +91,16 @@ class Config:
 
     # Robot2
     ROBOT2_MOVE_TO_C2S2             = 2.5
-    ROBOT2_VISION_1                 = 13.8
-    ROBOT2_VISION_2                 = 7.2
-    ROBOT2_VISION_3                 = 6.2
+    ROBOT2_VISION_1                 = 10.3
+    ROBOT2_VISION_2                 = 3.7
+    ROBOT2_VISION_3                 = 2.7
     ROBOT2_VISION                   = 6.2
     ROBOT2_PICK_C2S2                = 3.5
     ROBOT2_PLACE_C4                 = 11.9
     ROBOT2_RETURN_C4                = 9.5
     ROBOT2_PLACE_IBS                = 12.0
     ROBOT2_RETURN_IBS               = 6.65
-    ROBOT2_PLACE_BANTAM             = 14.0
+    ROBOT2_PLACE_BANTAM             = 21.0
     # NOTE (2026-07-06, 3rd attempt): real MOVE_PIECE C2S2->BANTAM_BED is
     # rock-solid at ~29.0s across 16 samples spanning 2026-06-27 to 07-06
     # (28.6-29.3s, zero drift — this is a real, reproducible gap, not noise).
@@ -123,6 +143,27 @@ class Config:
     # helps. The gap is real (confirmed structurally, not just numerically)
     # but still needs the coordinated multi-constant pass the 3rd attempt's
     # note already called for, not another isolated addition.
+    # APPLIED 2026-07-08 (5th attempt, the coordinated pass): found the
+    # actually load-bearing lever by accident while sweeping ROBOT2_VISION
+    # in isolation and seeing zero effect -- get_vision_duration() uses
+    # _VISION_CURVE (a "cold start" table built from ROBOT2_VISION_1/2/3 at
+    # import time) for robot2's first 3 vision calls of the run, and
+    # ROBOT2_VISION only from the 4th call onward. Since a BLUE piece is
+    # usually fed early in the optimized order, almost every real
+    # CLASSIFY_C2S2_TO_BANTAM sample falls inside those first 3 calls --
+    # ROBOT2_VISION was never the constant actually governing bantam's
+    # timing at all, VISION_1/2/3 were. Jointly grid-searched PLACE_BANTAM
+    # x (VISION_1/2/3 shifted together) against the 24-run clean baseline
+    # (see valid_runs.py) instead of one constant at a time: unlike the
+    # 3rd/4th attempts, this pair has genuinely independent, OPPOSITE-signed
+    # leverage -- CLASSIFY_C2S2_TO_C4/IBS were already negatively biased
+    # (real faster than nominal), so lowering the shared vision curve helps
+    # them at the same time PLACE_BANTAM's increase fixes bantam, instead of
+    # only ever trading one task's accuracy for the total's. Confirmed
+    # clean win on ALL axes simultaneously (24-run baseline, mean|diff%|):
+    # CLASSIFY_C2S2_TO_BANTAM +9.2%->-0.4%, CLASSIFY_C2S2_TO_C4 -3.5%->-1.9%,
+    # CLASSIFY_C2S2_TO_IBS -3.1%->+1.6%, total mean 3.94%->3.16%, median
+    # 3.97%->3.52%, max 7.64%->6.85%. No run got worse on any metric.
     ROBOT2_CLEAR_BANTAM             = 2.5
     ROBOT2_MOVE_TO_BANTAM           = 8.9
     ROBOT2_PICK_BANTAM              = 3.1
@@ -184,7 +225,16 @@ class Config:
     # one-time addition to VISION_C3 on the run's first C3 visit only.
     ROBOT1_VISION_C3_COLD_START_EXTRA = 4.0
     ROBOT1_PICK_C4                  = 5.1
-    ROBOT1_PLACE_FINAL_C4           = 15.8
+    # APPLIED 2026-07-08: UNLOAD_C4 was running -3.0% (real faster than
+    # nominal) across the 24-run clean baseline (see valid_runs.py) --
+    # confirmed this constant is NOT shared with UNLOAD_C3 (empirically:
+    # UNLOAD_C3's own diff% stayed flat at +1.0% across the whole sweep
+    # below, not just assumed from the Config split). Paired with the
+    # XARM2_PLACE_C3 fix above (see that comment for the full joint-search
+    # reasoning) -- fixing this independently-biased task at the same time
+    # keeps the total-makespan ledger net neutral-to-better instead of
+    # only ever trading FEED_GREEN_TO_C3's own accuracy for the total's.
+    ROBOT1_PLACE_FINAL_C4           = 14.0
     ROBOT1_MOVE_TO_C3               = 3.0
     ROBOT1_PICK_C3                  = 5.6
     ROBOT1_PLACE_FINAL_C3           = 14.8

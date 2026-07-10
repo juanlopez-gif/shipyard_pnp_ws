@@ -65,10 +65,7 @@ def evaluate(fs) -> None:
         return
 
     # Priority 1 / 2 tie: piece waiting at C2S2 (classify+route) vs a
-    # finished bantam piece waiting to be moved to C4. Both need c4 free, so
-    # they're mutually exclusive at any given instant. Absolute rule when
-    # BOTH are truly ready: classify always wins (a piece at C2S2 blocks
-    # conveyor2 and everything upstream, so it's worse to leave it there).
+    # finished bantam piece waiting to be moved to C4. Both need c4 free.
     # When only ONE is ready, check whether the expected schedule wanted the
     # other one instead -- if so, give it up to MAP_GRACE_SEC to become
     # ready before falling back to whichever is actually available. c4 free
@@ -89,24 +86,35 @@ def evaluate(fs) -> None:
         fs.state.get_sensor("c2s2") == SensorState.OCCUPIED
         and fs.state.get_sensor("c4") == SensorState.FREE
     )
-    # Gates on the tracked count, not the raw sensor: an intruder with
-    # nothing in PieceTracker's "conveyor2" queue must NOT block bantam
-    # retrieval (see the 2026-07-08 CLAUDE.md entry on the deadlock this
-    # used to cause) -- and since classify_ready above no longer needs a
-    # tracked piece either, the two conditions can now legitimately both be
-    # true at once when an intruder AND a finished bantam piece coexist;
-    # the tie-break below already resolves that in favor of classify
-    # (clearing C2S2 first), which is correct here too.
+    # 2026-07-09: dropped the fs.pieces.count("conveyor2") == 0 gate that
+    # used to be here. Retrieving a finished bantam piece and placing it at
+    # C4 never touches C2S2/conveyor2 physically at all -- that gate was
+    # never a real precondition, only a priority hack ("don't call bantam
+    # ready until robot2 has fully drained the belt"). With continuous
+    # upstream feed, count("conveyor2") can stay > 0 indefinitely, so
+    # bantam_ready could never become true -- confirmed via run
+    # 20260709_220159_GRBGRBGRB (excluded, see CLAUDE.md): the map called
+    # for BANTAM_TO_C4 while a real piece kept the belt non-empty for
+    # ~2 minutes/2 classify cycles, robot2 grace-timed-out back to classify
+    # both times, and the map was never actually followed at that step. The
+    # only genuine physical preconditions are a finished piece sitting in
+    # the bed and c4 being free.
     bantam_ready = (
         fs._pending_bantam_piece is not None
-        and fs.pieces.count("conveyor2") == 0
         and fs.state.get_sensor("c4") == SensorState.FREE
     )
 
     if classify_ready or bantam_ready:
         do_classify = None
         if classify_ready and bantam_ready:
-            do_classify = True
+            # Both physically ready at the same instant -- no need to wait
+            # for anything, just ask the map which one it expects next and
+            # do that. Default to classify (a piece sitting at C2S2 blocks
+            # conveyor2 and everything upstream, so it's worse to leave it
+            # there) only when the map has no opinion either way.
+            expected = fs._map_next("robot2")
+            wants_bantam = expected is not None and expected["task"] == "BANTAM_TO_C4"
+            do_classify = not wants_bantam
         elif classify_ready:
             # If the map wants bantam retrieval next, give it up to
             # MAP_GRACE_SEC to actually finish and become ready, even if

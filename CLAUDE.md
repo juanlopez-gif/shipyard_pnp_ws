@@ -1,5 +1,118 @@
 # shipyard_pnp — notas de contexto para Claude
 
+## Bug real — `bantam_ready` bloqueaba indefinidamente por tráfico de conveyor2 no relacionado, el mapa dejaba de seguirse (2026-07-09)
+
+Corrida `20260709_220159_GRBGRBGRB` (9 piezas, GRBGRBGRB): el usuario sospechó,
+antes de mirar ningún log, que el mapa había pedido ir a por bantam y el
+sistema no fue por culpa de `bantam_ready`. Confirmado exactamente así con la
+metadata real de `cycle_event` (no inferencia): dos ciclos consecutivos de
+robot2, `CLASSIFY_C2S2_TO_C4` #5 y #6, llevan
+`{"map_wait_s": ~10.2, "map_outcome": "timeout", "map_expected":
+"BANTAM_TO_C4 #1"}` — el mapa quería que robot2 recogiera la pieza azul
+terminada en bantam ANTES de seguir clasificando, robot2 esperó
+`MAP_GRACE_SEC` (~10s) las dos veces y se rindió volviendo a clasificar,
+porque `bantam_ready` exigía `fs.pieces.count("conveyor2") == 0` y la
+alimentación continua de piezas rojas nunca dejó que ese conteo llegara a
+cero. Confirmado también con `alarm_event` (`MAP GUIDANCE TIMEOUT`, dos
+veces) y con los timestamps: `piece-003` (azul) terminó en bantam y no la
+recogió robot2 hasta **~2 minutos y 2 ciclos de clasificación después**.
+
+**Causa raíz real**: ese gate nunca fue una precondición física. Recoger una
+pieza terminada de bantam y depositarla en C4 no toca C2S2/conveyor2 para
+nada — era puramente una regla de prioridad ("no considerar bantam listo
+hasta vaciar la cinta del todo"), no una restricción del mundo físico (tal
+y como ya se había concluido en la discusión de esta misma sesión sobre
+despacho dinámico, sin haberlo llegado a arreglar en producción todavía).
+Con alimentación continua, `count("conveyor2")` casi nunca toca cero, así
+que `bantam_ready` podía quedarse permanentemente falso — y como el mapa SÍ
+llega a pedir bantam en ese punto de su propio horario simulado, el
+mecanismo de espera con gracia (`_map_should_wait`) solo podía agotarse una
+y otra vez, sin ninguna posibilidad real de cumplirse.
+
+**Arreglado en `classification_rules.py::evaluate()`**:
+- `bantam_ready` ya no depende de `conveyor2` en absoluto — solo exige
+  `fs._pending_bantam_piece is not None` y `c4` libre (las únicas
+  precondiciones físicas reales).
+- La rama `classify_ready and bantam_ready` (ambas listas a la vez, ahora el
+  caso normal en vez de solo el caso de intruso) ya no tiene "classify
+  siempre gana" fijo — pregunta al mapa cuál espera a continuación y hace
+  esa, sin necesidad de esperar nada porque ambas ya están físicamente
+  listas. Solo si el mapa no tiene opinión (`expected is None`) se usa
+  classify por defecto (una pieza en C2S2 bloquea la cinta y todo lo de
+  aguas arriba, así que es peor dejarla ahí).
+- No se ha tocado el simulador (`shipyard_sim.py`) — su `robot2_process`
+  genera el propio mapa con prioridad fija P1>P2>P3 y no consulta ningún
+  mapa (es la fuente, no un consumidor), así que el horario recalibrado de
+  ayer (`2026-07-08`) queda intacto; el fix solo afecta a si la ejecución
+  REAL puede seguir ese horario en el momento exacto que lo pide, no a qué
+  horario se genera.
+
+Corrida excluida permanentemente del set de calibración (`valid_runs.py` en
+scratchpad, mismo criterio ya usado para `20260703_184708_RRRRRRBBBBBB` y
+`20260708_171621_GGRRBB`): la desviación es el mecanismo de prioridad ya
+conocido y ahora corregido, no ruido de calibración de constantes de
+tiempo — incluirla contaminaría la señal real de calibración.
+
+## Recalibración coordinada CERRADA — las 14 tareas en OK, sin ningún intercambio (2026-07-08)
+
+Cierre del hilo de calibración de esta sesión (ver secciones de abajo para
+todo el proceso). Tras aclarar el propósito real de la simulación (generar
+un plan fiel en ORDEN y en TIEMPO para que el usuario pueda ir marcando
+ciclos previstos contra la realidad, no solo "un plan óptimo en abstracto"
+— ver la conversación sobre el mapa/margen de gracia) y depurar el set de
+corridas válidas a 24 (confirmado: 1207/1207 ciclos coinciden en orden con
+el plan, 100%), quedaban 2 tareas en REVISAR por tiempo:
+`CLASSIFY_C2S2_TO_BANTAM` (+9.2%) y `FEED_GREEN_TO_C3` (+5.8%). El estudio
+paramétrico de un solo punto (tocar una constante aislada) ya había
+demostrado 4 veces que arreglar la tarea empeoraba el total. La salida fue
+buscar CONJUNTAMENTE dos constantes a la vez, en dos rondas:
+
+**Ronda 1 — bantam (dentro del mismo ciclo de robot2):** un barrido de
+`ROBOT2_VISION` en solitario no movía nada — resultó que esa constante casi
+nunca se usa: `get_vision_duration()` tira de una curva de arranque en frío
+(`ROBOT2_VISION_1/2/3`, fijada en el import) para las primeras 3 llamadas de
+visión de robot2 en cada corrida, y como una pieza azul suele alimentarse
+pronto en el orden optimizado, casi todos los ciclos de bantam caen dentro
+de esas 3 primeras llamadas. `ROBOT2_VISION_1/2/3` eran las constantes que
+de verdad mandaban, no `ROBOT2_VISION`. Al mismo tiempo, `CLASSIFY_C2S2_TO_C4`
+e `IBS` ya estaban sesgadas en el sentido CONTRARIO (negativo) a bantam
+(positivo) — con signos opuestos, bajar la curva de visión compartida
+ayuda a los tres a la vez en vez de pelearse entre sí. Barrido conjunto
+`ROBOT2_PLACE_BANTAM` × curva de visión sobre las 24 corridas:
+`ROBOT2_VISION_1/2/3` 13.8/7.2/6.2 → 10.3/3.7/2.7, `ROBOT2_PLACE_BANTAM`
+14.0 → 21.0. Resultado: BANTAM +9.2%→-0.4%, C4 -3.5%→-1.9%, IBS -3.1%→+1.6%,
+mean total 3.94%→3.16%, mediana 3.97%→3.52%, máximo 7.64%→6.85% — **mejora
+en las tres tareas y las tres métricas de tiempo total a la vez, sin
+ningún intercambio**.
+
+**Ronda 2 — C3 (entre entidades distintas, no relacionadas causalmente):**
+`FEED_GREEN_TO_C3` y `FEED_TO_C1S1` comparten prefijo con xarm2 y las DOS
+necesitan más tiempo (mismo signo) — a diferencia de bantam, no hay ninguna
+tarea hermana con signo contrario DENTRO de la ruta de xarm2 de la que
+tirar. La palanca se encontró en otra parte de la línea, sin relación
+causal: `robot1/UNLOAD_C4` estaba en -3.0% (independiente, con su propia
+constante `ROBOT1_PLACE_FINAL_C4`, confirmado que NO se comparte con
+`UNLOAD_C3` — su +1.0% se quedó fijo en todo el barrido). Arreglar el sesgo
+de C3 (`XARM2_PLACE_C3` 5.15→5.8) Y el de UNLOAD_C4
+(`ROBOT1_PLACE_FINAL_C4` 15.8→14.0) A LA VEZ, aunque no tengan nada que ver
+entre sí mecánicamente, deja el balance de tiempo total neutro-o-mejor en
+vez de solo trasladar el error de un sitio a otro. Resultado: C3
++5.8%→+1.2%, UNLOAD_C4 -3.0%→+1.8% (UNLOAD_C3 sin cambios, confirmado
+plano), mean total 3.16%→2.75%, mediana 3.52%→3.16%, máximo 6.85%→6.66%.
+
+Se probó seguir bajando `ROBOT1_PLACE_FINAL_C4` por debajo de 14.0 — el
+total seguía "mejorando" pero solo porque `UNLOAD_C4` se alejaba de su
+propio valor real (+7.8% a 12.0) — eso es maquillar la métrica del total a
+costa de una tarea real, no una recalibración conjunta honesta. Se rechazó
+y se paró en el punto donde las dos tareas están genuinamente bien
+calibradas, no solo por debajo del umbral.
+
+**Estado final: las 14 tareas en OK (<5%), ninguna en REVISAR.** Total sobre
+las 24 corridas válidas: mean|diff%|=2.75%, mediana=3.16%, máximo=6.66%.
+Constantes tocadas, todas documentadas con la razón y las cifras exactas en
+el propio comentario de `shipyard_sim.py::Config`: `ROBOT2_VISION_1/2/3`,
+`ROBOT2_PLACE_BANTAM`, `XARM2_PLACE_C3`, `ROBOT1_PLACE_FINAL_C4`.
+
 ## Set de corridas válidas para calibración/total-time: filtro correcto y el porqué del -25.97% (2026-07-08)
 
 Tras el análisis de arriba, el usuario detectó dos fallos reales en mi
