@@ -1,0 +1,19 @@
+nohup: ignoring input
+=== overnight 15-piece dynamic map generation started at 2026-07-12T00:00:31-04:00 ===
+params: beam_width=80 max_rollouts=4000 max_levels=400 patience=8 top_k=10 sample_cap=2000 seed=42
+5 compositions queued
+
+[1/5] (2026-07-12T00:00:31-04:00) starting D1 (BBBBBBBBRRRRRRR) -> results/dynamic_map_generation_logs/D1_BBBBBBBBRRRRRRR_20260712_000031.log
+[1/5] (2026-07-12T03:06:34-04:00) OK   D1 (BBBBBBBBRRRRRRR)
+[2/5] (2026-07-12T03:06:34-04:00) starting D2 (BBBBBRRRRRGGGGG) -> results/dynamic_map_generation_logs/D2_BBBBBRRRRRGGGGG_20260712_030634.log
+[2/5] (2026-07-12T05:14:33-04:00) OK   D2 (BBBBBRRRRRGGGGG)
+[3/5] (2026-07-12T05:14:33-04:00) starting D3 (BBBBBBBBRRRRGGG) -> results/dynamic_map_generation_logs/D3_BBBBBBBBRRRRGGG_20260712_051433.log
+[3/5] (2026-07-12T08:08:11-04:00) OK   D3 (BBBBBBBBRRRRGGG)
+[4/5] (2026-07-12T08:08:11-04:00) starting D4 (BBBRRRRRRRRGGGG) -> results/dynamic_map_generation_logs/D4_BBBRRRRRRRRGGGG_20260712_080811.log
+[4/5] (2026-07-12T08:55:33-04:00) OK   D4 (BBBRRRRRRRRGGGG)
+[5/5] (2026-07-12T08:55:33-04:00) starting D5 (BBBBRRRGGGGGGGG) -> results/dynamic_map_generation_logs/D5_BBBBRRRGGGGGGGG_20260712_085533.log
+[5/5] (2026-07-12T10:54:28-04:00) OK   D5 (BBBBRRRGGGGGGGG)
+
+=== overnight 15-piece dynamic map generation finished at 2026-07-12T10:54:28-04:00 ===
+ok=5 / 5
+no failures

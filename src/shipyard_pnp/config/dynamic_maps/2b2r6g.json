@@ -1,0 +1,397 @@
+{
+  "map_id": "dynamic_2b2r6g_BGRBGGRGGG_v1",
+  "composition": {
+    "BLUE": 2,
+    "RED": 2,
+    "GREEN": 6
+  },
+  "requested_order": "BBRRGGGGGG",
+  "best_order": "BGRBGGRGGG",
+  "best_time_s": 421.5000000000004,
+  "fixed_reference_order": "BGRBGGRGGG",
+  "fixed_reference_time_s": 421.5,
+  "saving_s": -0.0,
+  "decision_path": [
+    [
+      "xarm1",
+      "C1"
+    ],
+    [
+      "robot1",
+      "C3"
+    ],
+    [
+      "robot2",
+      "P1"
+    ],
+    [
+      "xarm1",
+      "C1"
+    ],
+    [
+      "xarm1",
+      "C1"
+    ],
+    [
+      "robot1",
+      "C3"
+    ],
+    [
+      "xarm1",
+      "LASER"
+    ],
+    [
+      "robot2",
+      "P1"
+    ],
+    [
+      "robot2",
+      "P1"
+    ],
+    [
+      "robot1",
+      "C3"
+    ],
+    [
+      "xarm1",
+      "C1"
+    ],
+    [
+      "robot1",
+      "C4"
+    ],
+    [
+      "xarm1",
+      "LASER"
+    ],
+    [
+      "robot2",
+      "P2"
+    ],
+    [
+      "robot1",
+      "C3"
+    ],
+    [
+      "robot2",
+      "P3"
+    ],
+    [
+      "robot1",
+      "C4"
+    ],
+    [
+      "robot2",
+      "P1"
+    ],
+    [
+      "robot1",
+      "C3"
+    ],
+    [
+      "robot1",
+      "C4"
+    ],
+    [
+      "robot2",
+      "P2"
+    ],
+    [
+      "robot1",
+      "C3"
+    ],
+    [
+      "robot1",
+      "C4"
+    ]
+  ],
+  "expected_schedule": {
+    "xarm2": [
+      {
+        "task": "FEED_TO_C1S1",
+        "color": "BLUE",
+        "cycle_number": 1,
+        "t_start": 0,
+        "dur": 13.6
+      },
+      {
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "cycle_number": 1,
+        "t_start": 13.6,
+        "dur": 16.1
+      },
+      {
+        "task": "FEED_TO_C1S1",
+        "color": "RED",
+        "cycle_number": 2,
+        "t_start": 29.6,
+        "dur": 13.5
+      },
+      {
+        "task": "FEED_TO_C1S1",
+        "color": "BLUE",
+        "cycle_number": 3,
+        "t_start": 43.2,
+        "dur": 13.5
+      },
+      {
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "cycle_number": 2,
+        "t_start": 56.7,
+        "dur": 16.1
+      },
+      {
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "cycle_number": 3,
+        "t_start": 92.8,
+        "dur": 16.1
+      },
+      {
+        "task": "FEED_TO_C1S1",
+        "color": "RED",
+        "cycle_number": 4,
+        "t_start": 108.9,
+        "dur": 13.5
+      },
+      {
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "cycle_number": 4,
+        "t_start": 131.3,
+        "dur": 16.1
+      },
+      {
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "cycle_number": 5,
+        "t_start": 207.7,
+        "dur": 16.1
+      },
+      {
+        "task": "FEED_GREEN_TO_C3",
+        "color": "GREEN",
+        "cycle_number": 6,
+        "t_start": 284.2,
+        "dur": 16.1
+      }
+    ],
+    "xarm1": [
+      {
+        "task": "C1S2_TO_C2S1",
+        "color": "BLUE",
+        "cycle_number": 1,
+        "t_start": 17.5,
+        "dur": 15.8
+      },
+      {
+        "task": "C1S2_TO_LASER",
+        "color": "RED",
+        "cycle_number": 1,
+        "t_start": 47.2,
+        "dur": 15.2
+      },
+      {
+        "task": "C1S2_TO_C2S1",
+        "color": "BLUE",
+        "cycle_number": 2,
+        "t_start": 62.4,
+        "dur": 15.8
+      },
+      {
+        "task": "LASER_TO_C2S1",
+        "color": "RED",
+        "cycle_number": 1,
+        "t_start": 83.4,
+        "dur": 14.9
+      },
+      {
+        "task": "C1S2_TO_LASER",
+        "color": "RED",
+        "cycle_number": 2,
+        "t_start": 126.4,
+        "dur": 15.3
+      },
+      {
+        "task": "LASER_TO_C2S1",
+        "color": "RED",
+        "cycle_number": 2,
+        "t_start": 162.7,
+        "dur": 15.0
+      }
+    ],
+    "laser": [
+      {
+        "task": "PROCESS_RED",
+        "color": "RED",
+        "cycle_number": 1,
+        "t_start": 60.6,
+        "dur": 22.8
+      },
+      {
+        "task": "PROCESS_RED",
+        "color": "RED",
+        "cycle_number": 2,
+        "t_start": 139.8,
+        "dur": 22.8
+      }
+    ],
+    "robot2": [
+      {
+        "task": "CLASSIFY_C2S2_TO_BANTAM",
+        "color": "BLUE",
+        "cycle_number": 1,
+        "t_start": 40.7,
+        "dur": 39.8
+      },
+      {
+        "task": "CLASSIFY_C2S2_TO_IBS",
+        "color": "BLUE",
+        "cycle_number": 2,
+        "t_start": 85.6,
+        "dur": 28.4
+      },
+      {
+        "task": "CLASSIFY_C2S2_TO_C4",
+        "color": "RED",
+        "cycle_number": 3,
+        "t_start": 114.0,
+        "dur": 30.1
+      },
+      {
+        "task": "BANTAM_TO_C4",
+        "color": "BLUE",
+        "cycle_number": 1,
+        "t_start": 168.5,
+        "dur": 36.4
+      },
+      {
+        "task": "IBS_TO_BANTAM",
+        "color": "BLUE",
+        "cycle_number": 1,
+        "t_start": 204.9,
+        "dur": 36.9
+      },
+      {
+        "task": "CLASSIFY_C2S2_TO_C4",
+        "color": "RED",
+        "cycle_number": 4,
+        "t_start": 244.9,
+        "dur": 33.6
+      },
+      {
+        "task": "BANTAM_TO_C4",
+        "color": "BLUE",
+        "cycle_number": 2,
+        "t_start": 321.4,
+        "dur": 36.4
+      }
+    ],
+    "bantam": [
+      {
+        "task": "PROCESS_BLUE",
+        "color": "BLUE",
+        "cycle_number": 1,
+        "t_start": 80.5,
+        "dur": 48.5
+      },
+      {
+        "task": "PROCESS_BLUE",
+        "color": "BLUE",
+        "cycle_number": 2,
+        "t_start": 241.8,
+        "dur": 48.5
+      }
+    ],
+    "robot1": [
+      {
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "cycle_number": 1,
+        "t_start": 35.7,
+        "dur": 42.5
+      },
+      {
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "cycle_number": 2,
+        "t_start": 78.9,
+        "dur": 38.5
+      },
+      {
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "cycle_number": 3,
+        "t_start": 117.4,
+        "dur": 38.5
+      },
+      {
+        "task": "UNLOAD_C4",
+        "color": "RED",
+        "cycle_number": 1,
+        "t_start": 155.9,
+        "dur": 36.4
+      },
+      {
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "cycle_number": 4,
+        "t_start": 192.3,
+        "dur": 40.0
+      },
+      {
+        "task": "UNLOAD_C4",
+        "color": "BLUE",
+        "cycle_number": 2,
+        "t_start": 232.3,
+        "dur": 36.4
+      },
+      {
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "cycle_number": 5,
+        "t_start": 268.7,
+        "dur": 40.0
+      },
+      {
+        "task": "UNLOAD_C4",
+        "color": "RED",
+        "cycle_number": 3,
+        "t_start": 308.7,
+        "dur": 36.4
+      },
+      {
+        "task": "UNLOAD_C3",
+        "color": "GREEN",
+        "cycle_number": 6,
+        "t_start": 345.1,
+        "dur": 40.0
+      },
+      {
+        "task": "UNLOAD_C4",
+        "color": "BLUE",
+        "cycle_number": 4,
+        "t_start": 385.1,
+        "dur": 36.4
+      }
+    ]
+  },
+  "search_stats": {
+    "permutations_total": 1260,
+    "permutations_searched": 1260,
+    "sampled": false,
+    "sample_cap": 2000,
+    "top_k_searched": 20,
+    "completed_paths_for_winner": 13,
+    "beam_width": 80,
+    "max_levels": 400,
+    "patience": 8,
+    "max_rollouts": 4000,
+    "wall_time_s": 899.9
+  },
+  "config_hash": "652d176726263553",
+  "generated_at": "2026-07-11T09:14:45.937730+00:00",
+  "_correction_note": "fixed_reference_* corrected on 2026-07-12: previously stored the makespan of the arbitrary literal CLI input order, not the best fixed-priority order actually found in stage 1. Recovered from this run's own log (the '[stage 1/2] done' line)."
+}

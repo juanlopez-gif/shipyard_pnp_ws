@@ -70,43 +70,15 @@ def infer_task(entity: str, states: set, color: str) -> str:
     return entity
 
 
-def compute_expected_schedule(order: list) -> dict:
-    """Run the SimPy model for the confirmed order and group its raw
-    state_changes into per-entity cycles (task, color, cycle_number,
-    t_start, dur) -- same grouping used for the offline sim-vs-real
-    analyses, kept simple here since only order/timing matter for the
-    live comparison, not exact sub-phase duration accounting."""
-    import io
-    import contextlib
-    import simpy
-    from shipyard_pnp.nodes.shipyard_sim import (
-        System, bantam_machine_process, xarm2_process,
-        conveyor1_process, conveyor1_control,
-        conveyor2_process, conveyor2_control,
-        xarm1_process, robot2_process, robot1_process,
-    )
-
-    env = simpy.Environment()
-    system = System(env, list(order))
-    env.process(bantam_machine_process(env, system))
-    env.process(xarm2_process(env, system))
-    env.process(conveyor1_process(env, system))
-    env.process(conveyor1_control(env, system))
-    env.process(conveyor2_process(env, system))
-    env.process(conveyor2_control(env, system))
-    env.process(xarm1_process(env, system))
-    env.process(robot2_process(env, system))
-    env.process(robot1_process(env, system))
-    with contextlib.redirect_stdout(io.StringIO()):
-        env.run(until=2500)
-
+def build_schedule_from_state_changes(state_changes: list) -> dict:
+    """Group raw SimPy state_changes into live map-guidance cycles."""
     # Keep every event, including piece=None ones (e.g. the IDLE that marks
     # a RETURN_HOME actually finishing) -- dropping them here previously
     # made every cycle's dur/t_end stop at the START of its trailing
     # RETURN_HOME instead of its end, silently hiding that travel time as a
     # gap before the next cycle instead of counting it. See CLAUDE.md.
     entity_stream = defaultdict(list)
-    for c in sorted(system.state_changes, key=lambda x: x["time"]):
+    for c in sorted(state_changes, key=lambda x: x["time"]):
         entity_stream[c["entity"]].append(c)
 
     schedule = {}
@@ -165,6 +137,39 @@ def compute_expected_schedule(order: list) -> dict:
         schedule[entity] = entity_cycles
 
     return schedule
+
+
+def compute_expected_schedule(order: list) -> dict:
+    """Run the fixed SimPy model for the confirmed order and group its raw
+    state_changes into per-entity cycles (task, color, cycle_number,
+    t_start, dur) -- same grouping used for the offline sim-vs-real
+    analyses, kept simple here since only order/timing matter for the
+    live comparison, not exact sub-phase duration accounting."""
+    import io
+    import contextlib
+    import simpy
+    from shipyard_pnp.nodes.shipyard_sim import (
+        System, bantam_machine_process, xarm2_process,
+        conveyor1_process, conveyor1_control,
+        conveyor2_process, conveyor2_control,
+        xarm1_process, robot2_process, robot1_process,
+    )
+
+    env = simpy.Environment()
+    system = System(env, list(order))
+    env.process(bantam_machine_process(env, system))
+    env.process(xarm2_process(env, system))
+    env.process(conveyor1_process(env, system))
+    env.process(conveyor1_control(env, system))
+    env.process(conveyor2_process(env, system))
+    env.process(conveyor2_control(env, system))
+    env.process(xarm1_process(env, system))
+    env.process(robot2_process(env, system))
+    env.process(robot1_process(env, system))
+    with contextlib.redirect_stdout(io.StringIO()):
+        env.run(until=2500)
+
+    return build_schedule_from_state_changes(system.state_changes)
 
 
 def find_expected_now(cycle_list: list, elapsed: float):

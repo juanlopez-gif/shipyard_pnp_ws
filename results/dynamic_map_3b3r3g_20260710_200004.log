@@ -1,0 +1,47 @@
+[input] order=BRGBRGBRG composition=BLUE:3 RED:3 GREEN:3 (n=9)
+[stage 1/2] prefiltering 1680 unique permutations with the fixed-priority simulation...
+    [  5.0%] 84/1680 permutations scored -- best fixed_ms so far: 562.8s
+    [ 10.0%] 168/1680 permutations scored -- best fixed_ms so far: 562.8s
+    [ 15.0%] 252/1680 permutations scored -- best fixed_ms so far: 562.8s
+    [ 20.0%] 336/1680 permutations scored -- best fixed_ms so far: 562.8s
+    [ 25.0%] 420/1680 permutations scored -- best fixed_ms so far: 562.8s
+    [ 30.0%] 504/1680 permutations scored -- best fixed_ms so far: 562.8s
+    [ 35.0%] 588/1680 permutations scored -- best fixed_ms so far: 562.8s
+    [ 40.0%] 672/1680 permutations scored -- best fixed_ms so far: 562.8s
+    [ 45.0%] 756/1680 permutations scored -- best fixed_ms so far: 562.8s
+    [ 50.0%] 840/1680 permutations scored -- best fixed_ms so far: 562.8s
+    [ 55.0%] 924/1680 permutations scored -- best fixed_ms so far: 562.8s
+    [ 60.0%] 1008/1680 permutations scored -- best fixed_ms so far: 562.8s
+    [ 65.0%] 1092/1680 permutations scored -- best fixed_ms so far: 562.8s
+    [ 70.0%] 1176/1680 permutations scored -- best fixed_ms so far: 562.8s
+    [ 75.0%] 1260/1680 permutations scored -- best fixed_ms so far: 562.8s
+    [ 80.0%] 1344/1680 permutations scored -- best fixed_ms so far: 562.8s
+    [ 85.0%] 1428/1680 permutations scored -- best fixed_ms so far: 562.8s
+    [ 90.0%] 1512/1680 permutations scored -- best fixed_ms so far: 562.8s
+    [ 95.0%] 1596/1680 permutations scored -- best fixed_ms so far: 562.8s
+    [100.0%] 1680/1680 permutations scored -- best fixed_ms so far: 562.8s
+[stage 1/2] done in 409.4s. Top 20 candidates: BBGBGRRRG=562.8s, BBGBGRRGR=562.8s, BBGBGRGRR=562.8s, BBGBGGRRR=562.8s, BBBGGRRGR=562.8s ...
+[stage 2/2] running beam_search on 20 candidates (beam_width=40, max_rollouts=1800)...
+    [  5.0%] (1/20) BBGBGRRRG fixed=562.8s -> beam=514.4s (completed_paths=4, 16.6s) *** new best ***
+    [ 10.0%] (2/20) BBGBGRRGR fixed=562.8s -> beam=514.4s (completed_paths=4, 16.8s)
+    [ 15.0%] (3/20) BBGBGRGRR fixed=562.8s -> beam=514.4s (completed_paths=4, 16.6s)
+    [ 20.0%] (4/20) BBGBGGRRR fixed=562.8s -> beam=514.4s (completed_paths=4, 17.1s)
+    [ 25.0%] (5/20) BBBGGRRGR fixed=562.8s -> beam=514.4s (completed_paths=4, 17.0s)
+    [ 30.0%] (6/20) BBBGGRGRR fixed=562.8s -> beam=514.4s (completed_paths=4, 16.7s)
+    [ 35.0%] (7/20) BGBBRRGRG fixed=563.0s -> beam=514.5s (completed_paths=4, 16.4s)
+    [ 40.0%] (8/20) BGBBRRGGR fixed=563.0s -> beam=514.5s (completed_paths=4, 16.5s)
+    [ 45.0%] (9/20) BGBBRGRRG fixed=563.0s -> beam=514.5s (completed_paths=4, 16.4s)
+    [ 50.0%] (10/20) BGBBRGRGR fixed=563.0s -> beam=514.5s (completed_paths=4, 16.2s)
+    [ 55.0%] (11/20) BGBBRGGRR fixed=563.0s -> beam=514.5s (completed_paths=4, 16.3s)
+    [ 60.0%] (12/20) BGBBGRRRG fixed=563.0s -> beam=514.5s (completed_paths=4, 16.5s)
+    [ 65.0%] (13/20) BGBBGRRGR fixed=563.0s -> beam=514.5s (completed_paths=4, 16.6s)
+    [ 70.0%] (14/20) BGBBGRGRR fixed=563.0s -> beam=514.5s (completed_paths=4, 16.3s)
+    [ 75.0%] (15/20) BGBBGGRRR fixed=563.0s -> beam=514.5s (completed_paths=4, 17.1s)
+    [ 80.0%] (16/20) BGBBRRRGG fixed=563.0s -> beam=514.5s (completed_paths=4, 16.6s)
+    [ 85.0%] (17/20) BGBRBGGRR fixed=563.0s -> beam=514.5s (completed_paths=6, 26.9s)
+    [ 90.0%] (18/20) BBRGGBRRG fixed=563.0s -> beam=514.5s (completed_paths=4, 18.1s)
+    [ 95.0%] (19/20) BBRGGBRGR fixed=563.0s -> beam=514.5s (completed_paths=4, 17.3s)
+    [100.0%] (20/20) BRBGGBRRG fixed=563.0s -> beam=514.5s (completed_paths=4, 17.4s)
+[stage 2/2] done in 345.2s. Winner: BBGBGRRRG = 514.4s
+Saved map 'dynamic_3b3r3g_BBGBGRRRG_v1' to /home/isecapstone/shipyard_pnp_ws/src/shipyard_pnp/config/dynamic_maps_dataset.json (1 entries total).
+Total wall time: 755.1s

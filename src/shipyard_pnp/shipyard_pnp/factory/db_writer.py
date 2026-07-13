@@ -360,6 +360,7 @@ class StubDBWriter:
     def insert_optimizer_result(self, original_order, best_order, original_time_s, best_time_s, saving_s, saving_pct, method, permutations_evaluated, optimizer_runtime_s) -> Optional[int]: return None
     def update_optimizer_applied(self, optimizer_id: int) -> None: pass
     def insert_operator_event(self, event_type: str, description: str = "") -> None: pass
+    def update_production_run_config_snapshot(self, patch: dict) -> None: pass
     def insert_alarm(self, severity, resource_id, description, context_snapshot=None) -> Optional[int]: return None
     def resolve_alarm(self, alarm_id: int) -> None: pass
     def update_production_run_finished(self, status: str = "COMPLETED") -> None: pass
@@ -928,6 +929,14 @@ class RealDBWriter:
             f"""INSERT INTO {_SCHEMA}.operator_event (run_id, event_type, description, ts)
                 VALUES (%s,%s,%s,NOW())""",
             (self.run_id, event_type, description),
+        )
+
+    def update_production_run_config_snapshot(self, patch: dict) -> None:
+        self._exec(
+            f"""UPDATE {_SCHEMA}.production_run
+                SET config_snapshot = COALESCE(config_snapshot, '{{}}'::jsonb) || %s::jsonb
+                WHERE run_id=%s""",
+            (json.dumps(patch or {}), self.run_id),
         )
 
     # ── Alarms ───────────────────────────────────────────────────────────────

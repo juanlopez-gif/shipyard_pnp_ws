@@ -1,0 +1,48 @@
+[input] order=BBBBRRRRGGGG composition=BLUE:4 RED:4 GREEN:4 (n=12)
+[stage 1/2] 34650 unique permutations exceeds --sample-cap=2000 -- randomly sampling 2000 of them instead of enumerating all.
+[stage 1/2] prefiltering 2000 permutations (sampled) with the fixed-priority simulation...
+    [  5.0%] 100/2000 permutations scored -- best fixed_ms so far: 744.9s
+    [ 10.0%] 200/2000 permutations scored -- best fixed_ms so far: 744.9s
+    [ 15.0%] 300/2000 permutations scored -- best fixed_ms so far: 744.9s
+    [ 20.0%] 400/2000 permutations scored -- best fixed_ms so far: 744.9s
+    [ 25.0%] 500/2000 permutations scored -- best fixed_ms so far: 744.9s
+    [ 30.0%] 600/2000 permutations scored -- best fixed_ms so far: 744.9s
+    [ 35.0%] 700/2000 permutations scored -- best fixed_ms so far: 744.9s
+    [ 40.0%] 800/2000 permutations scored -- best fixed_ms so far: 744.9s
+    [ 45.0%] 900/2000 permutations scored -- best fixed_ms so far: 744.9s
+    [ 50.0%] 1000/2000 permutations scored -- best fixed_ms so far: 744.9s
+    [ 55.0%] 1100/2000 permutations scored -- best fixed_ms so far: 744.9s
+    [ 60.0%] 1200/2000 permutations scored -- best fixed_ms so far: 744.9s
+    [ 65.0%] 1300/2000 permutations scored -- best fixed_ms so far: 744.9s
+    [ 70.0%] 1400/2000 permutations scored -- best fixed_ms so far: 744.9s
+    [ 75.0%] 1500/2000 permutations scored -- best fixed_ms so far: 744.9s
+    [ 80.0%] 1600/2000 permutations scored -- best fixed_ms so far: 744.9s
+    [ 85.0%] 1700/2000 permutations scored -- best fixed_ms so far: 744.9s
+    [ 90.0%] 1800/2000 permutations scored -- best fixed_ms so far: 744.9s
+    [ 95.0%] 1900/2000 permutations scored -- best fixed_ms so far: 744.9s
+    [100.0%] 2000/2000 permutations scored -- best fixed_ms so far: 744.9s
+[stage 1/2] done in 437.8s. Top 20 candidates: BGGBGGRRRBRB=744.9s, BBGBGBRRGRGR=767.0s, BGBBBGGRRGRR=767.0s, BRBGGBBGGRRR=767.0s, BBRGGBBGGRRR=767.0s ...
+[stage 2/2] running beam_search on 20 candidates (beam_width=80, max_rollouts=4000)...
+    [  5.0%] (1/20) BGGBGGRRRBRB fixed=744.9s -> beam=682.1s (completed_paths=6, 25.8s) *** new best ***
+    [ 10.0%] (2/20) BBGBGBRRGRGR fixed=767.0s -> beam=670.0s (completed_paths=31, 145.4s) *** new best ***
+    [ 15.0%] (3/20) BGBBBGGRRGRR fixed=767.0s -> beam=670.0s (completed_paths=16, 73.1s)
+    [ 20.0%] (4/20) BRBGGBBGGRRR fixed=767.0s -> beam=670.0s (completed_paths=28, 134.5s)
+    [ 25.0%] (5/20) BBRGGBBGGRRR fixed=767.0s -> beam=670.0s (completed_paths=28, 134.0s)
+    [ 30.0%] (6/20) BBGBGBGGRRRR fixed=767.0s -> beam=670.0s (completed_paths=16, 74.5s)
+    [ 35.0%] (7/20) BBBGGGRBRGRR fixed=767.0s -> beam=670.0s (completed_paths=8, 34.8s)
+    [ 40.0%] (8/20) BGBBGRGGRBRR fixed=767.0s -> beam=670.0s (completed_paths=12, 54.2s)
+    [ 45.0%] (9/20) BBGBGRBRRGGR fixed=768.3s -> beam=671.3s (completed_paths=23, 108.0s)
+    [ 50.0%] (10/20) BBBGGBRRGGRR fixed=768.3s -> beam=671.3s (completed_paths=23, 108.6s)
+    [ 55.0%] (11/20) BGBGBGRBRRRG fixed=768.5s -> beam=671.5s (completed_paths=8, 34.8s)
+    [ 60.0%] (12/20) BGBGBGRBGRRR fixed=768.5s -> beam=671.5s (completed_paths=8, 34.8s)
+    [ 65.0%] (13/20) BGBGBBGRGRRR fixed=768.5s -> beam=671.5s (completed_paths=16, 73.3s)
+    [ 70.0%] (14/20) BBRGGBRBGGRR fixed=770.4s -> beam=670.0s (completed_paths=30, 142.2s)
+    [ 75.0%] (15/20) BGBBGRRGGRBR fixed=770.6s -> beam=659.3s (completed_paths=12, 53.9s) *** new best ***
+    [ 80.0%] (16/20) BBBGGBGRRRRG fixed=772.5s -> beam=675.5s (completed_paths=8, 34.6s)
+    [ 85.0%] (17/20) BGBBRRGBRRGG fixed=772.9s -> beam=675.9s (completed_paths=24, 113.4s)
+    [ 90.0%] (18/20) BGBBRGGBRRGR fixed=772.9s -> beam=675.9s (completed_paths=12, 53.2s)
+    [ 95.0%] (19/20) BBBGRGGBRRGR fixed=774.5s -> beam=677.5s (completed_paths=20, 93.3s)
+    [100.0%] (20/20) BGRBBGGRRBGR fixed=775.1s -> beam=666.6s (completed_paths=18, 83.1s)
+[stage 2/2] done in 1609.4s. Winner: BGBBGRRGGRBR = 659.3s
+Saved map 'dynamic_4b4r4g_BGBBGRRGGRBR_v1' to /home/isecapstone/shipyard_pnp_ws/src/shipyard_pnp/config/dynamic_maps/4b4r4g.json.
+Total wall time: 2047.7s

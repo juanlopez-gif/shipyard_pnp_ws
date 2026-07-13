@@ -1,0 +1,48 @@
+[input] order=BBBBBBRRRR composition=BLUE:6 RED:4 GREEN:0 (n=10)
+[stage 1/2] prefiltering 210 permutations (exhaustive) with the fixed-priority simulation...
+    [  4.8%] 10/210 permutations scored -- best fixed_ms so far: 1120.9s
+    [  9.5%] 20/210 permutations scored -- best fixed_ms so far: 1120.8s
+    [ 14.3%] 30/210 permutations scored -- best fixed_ms so far: 1120.8s
+    [ 19.0%] 40/210 permutations scored -- best fixed_ms so far: 1120.8s
+    [ 23.8%] 50/210 permutations scored -- best fixed_ms so far: 1120.8s
+    [ 28.6%] 60/210 permutations scored -- best fixed_ms so far: 1120.8s
+    [ 33.3%] 70/210 permutations scored -- best fixed_ms so far: 1072.1s
+    [ 38.1%] 80/210 permutations scored -- best fixed_ms so far: 1072.1s
+    [ 42.9%] 90/210 permutations scored -- best fixed_ms so far: 1072.1s
+    [ 47.6%] 100/210 permutations scored -- best fixed_ms so far: 1072.1s
+    [ 52.4%] 110/210 permutations scored -- best fixed_ms so far: 1072.1s
+    [ 57.1%] 120/210 permutations scored -- best fixed_ms so far: 1072.1s
+    [ 61.9%] 130/210 permutations scored -- best fixed_ms so far: 1069.3s
+    [ 66.7%] 140/210 permutations scored -- best fixed_ms so far: 1069.3s
+    [ 71.4%] 150/210 permutations scored -- best fixed_ms so far: 1069.3s
+    [ 76.2%] 160/210 permutations scored -- best fixed_ms so far: 1069.3s
+    [ 81.0%] 170/210 permutations scored -- best fixed_ms so far: 1069.3s
+    [ 85.7%] 180/210 permutations scored -- best fixed_ms so far: 1069.3s
+    [ 90.5%] 190/210 permutations scored -- best fixed_ms so far: 1069.3s
+    [ 95.2%] 200/210 permutations scored -- best fixed_ms so far: 1069.3s
+    [100.0%] 210/210 permutations scored -- best fixed_ms so far: 1069.3s
+[stage 1/2] done in 54.7s. Top 20 candidates: BRRRRBBBBB=1069.3s, BRRRBBBBBR=1069.4s, BRRRBBBBRB=1069.4s, BRRRBBBRBB=1069.4s, BRRRBBRBBB=1069.4s ...
+[stage 2/2] running beam_search on 20 candidates (beam_width=80, max_rollouts=4000)...
+    [  5.0%] (1/20) BRRRRBBBBB fixed=1069.3s -> beam=972.3s (completed_paths=29, 194.3s) *** new best ***
+    [ 10.0%] (2/20) BRRRBBBBBR fixed=1069.4s -> beam=923.9s (completed_paths=48, 322.0s) *** new best ***
+    [ 15.0%] (3/20) BRRRBBBBRB fixed=1069.4s -> beam=923.9s (completed_paths=56, 373.6s)
+    [ 20.0%] (4/20) BRRRBBBRBB fixed=1069.4s -> beam=923.9s (completed_paths=68, 467.4s)
+    [ 25.0%] (5/20) BRRRBBRBBB fixed=1069.4s -> beam=927.3s (completed_paths=64, 438.3s)
+    [ 30.0%] (6/20) BRRRBRBBBB fixed=1069.4s -> beam=927.3s (completed_paths=59, 402.2s)
+    [ 35.0%] (7/20) BBRRRBRBBB fixed=1072.1s -> beam=898.1s (completed_paths=82, 623.3s) *** new best ***
+    [ 40.0%] (8/20) BBRRRBBBBR fixed=1072.2s -> beam=898.1s (completed_paths=77, 558.3s)
+    [ 45.0%] (9/20) BBRRRBBBRB fixed=1072.2s -> beam=898.1s (completed_paths=81, 543.1s)
+    [ 50.0%] (10/20) BBRRRBBRBB fixed=1072.2s -> beam=898.1s (completed_paths=107, 734.4s)
+    [ 55.0%] (11/20) BBRRRRBBBB fixed=1072.3s -> beam=930.1s (completed_paths=75, 511.9s)
+    [ 60.0%] (12/20) BBBBRRRBRB fixed=1120.8s -> beam=898.1s (completed_paths=149, 996.4s) *** new best ***
+    [ 65.0%] (13/20) BBBRBRRBBR fixed=1120.8s -> beam=878.3s (completed_paths=117, 796.5s) *** new best ***
+    [ 70.0%] (14/20) BBBRBRRBRB fixed=1120.8s -> beam=898.1s (completed_paths=157, 985.0s)
+    [ 75.0%] (15/20) BBBRRBRBBR fixed=1120.8s -> beam=878.3s (completed_paths=136, 922.5s)
+    [ 80.0%] (16/20) BBBRRBRBRB fixed=1120.8s -> beam=898.1s (completed_paths=152, 1007.3s)
+    [ 85.0%] (17/20) BBRBBRRBBR fixed=1120.8s -> beam=878.3s (completed_paths=41, 970.3s)
+    [ 90.0%] (18/20) BBRBBRRBRB fixed=1120.8s -> beam=898.1s (completed_paths=25, 949.7s)
+    [ 95.0%] (19/20) BBRBRBBRRB fixed=1120.8s -> beam=863.9s (completed_paths=137, 956.6s) *** new best ***
+    [100.0%] (20/20) BBRRBBBRRB fixed=1120.8s -> beam=912.4s (completed_paths=153, 833.5s)
+[stage 2/2] done in 13586.8s. Winner: BBRBRBBRRB = 863.9s
+Saved map 'dynamic_6b4r0g_BBRBRBBRRB_v1' to /home/isecapstone/shipyard_pnp_ws/src/shipyard_pnp/config/dynamic_maps/6b4r0g.json.
+Total wall time: 13641.9s

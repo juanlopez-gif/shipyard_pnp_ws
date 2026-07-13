@@ -87,6 +87,23 @@ def _build_expected_schedule_async(order: list) -> None:
             _EXPECTED_SCHEDULE.update({"ready": False, "error": str(exc)})
 
 
+def _install_expected_schedule_from_result(result: dict) -> bool:
+    schedule = result.get("expected_schedule")
+    if not isinstance(schedule, dict) or not schedule:
+        return False
+    with _SCHED_LOCK:
+        _EXPECTED_SCHEDULE.update({
+            "ready": True,
+            "cycles": schedule,
+            "order": result.get("best_order", []),
+            "computed_at": time.time(),
+            "error": None,
+            "map_mode": result.get("map_mode", "dynamic"),
+            "map_id": result.get("map_id"),
+        })
+    return True
+
+
 # ─────────────────────────────────────────────────────────────────
 # OPTIMIZER THREAD
 # ─────────────────────────────────────────────────────────────────
@@ -369,6 +386,9 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
 .opt-btn-run     { background: linear-gradient(135deg,#8e44ad,#9b59b6); color: white; }
 .opt-btn-run:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(142,68,173,.4); }
 .opt-btn-run:disabled { opacity: .5; cursor: not-allowed; }
+.opt-btn-map     { background: linear-gradient(135deg,#2980b9,#3498db); color: white; }
+.opt-btn-map:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(41,128,185,.4); }
+.opt-btn-map:disabled { opacity: .5; cursor: not-allowed; }
 .opt-btn-confirm { background: linear-gradient(135deg,#27ae60,#2ecc71); color: white; }
 .opt-btn-confirm:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(39,174,96,.4); }
 .opt-btn-confirm:disabled { opacity: .5; cursor: not-allowed; }
@@ -420,7 +440,7 @@ _HTML = r"""<!DOCTYPE html>
 </header>
 
 <div id="waiting-banner" style="display:none;background:linear-gradient(135deg,#8e44ad,#2980b9);color:white;text-align:center;padding:14px 20px;font-size:1.05rem;font-weight:600;letter-spacing:.02em">
-  &#9888; System ready — run the optimizer and click <strong>Confirm &amp; Apply</strong> to start production
+  &#9888; System ready — optimize order or load a dynamic map, then click <strong>Confirm &amp; Apply</strong> to start production
 </div>
 <main class="dashboard-main">
   <div class="top-row">
@@ -477,6 +497,7 @@ _HTML = r"""<!DOCTYPE html>
                   </h4>
                   <div style="display:flex;gap:9px;flex-wrap:wrap;align-items:center">
                     <button class="opt-btn opt-btn-run" id="opt-run" onclick="runOptimizer()">Optimize Order</button>
+                    <button class="opt-btn opt-btn-map" id="opt-load-dynamic" onclick="loadDynamicMap()">Load Map Dynamic</button>
                     <button class="opt-btn opt-btn-confirm" id="opt-confirm" onclick="confirmOrder()" disabled>Confirm &amp; Apply</button>
                   </div>
                   <div id="opt-progress-wrap" style="display:none;margin-top:9px">
@@ -768,7 +789,7 @@ function computeState(data) {
 function buildAlerts(data) {
   const out = [];
   if ((data.planner_phase || "") === "WAITING_FOR_ORDER")
-    out.push({level:"warning", title:"Awaiting Order", msg:"All domains online. Run optimizer and click Confirm & Apply to start production."});
+    out.push({level:"warning", title:"Awaiting Order", msg:"All domains online. Optimize order or load a dynamic map, then click Confirm & Apply to start production."});
   for (const [name, s] of Object.entries(data.sensors || {})) {
     if ((s.occupied_duration_s || 0) > 25)
       out.push({level:"warning", title:`Sensor ${name}`, msg:`Occupied ${fmtS(s.occupied_duration_s)}`});
@@ -971,8 +992,32 @@ let _optDone = false;
 
 function _chipHtml(c) { return `<span class="opt-seq-chip ${c}">${c}</span>`; }
 
+function _renderOptimizerResult(r) {
+  const saving = (r.original_time - r.best_time).toFixed(1);
+  const pct = (100*(r.original_time-r.best_time)/r.original_time).toFixed(1);
+  const box = document.getElementById("opt-result");
+  const isDynamic = r.map_mode === "dynamic";
+  const refOrder = r.reference_order || r.original_order;
+  const refTime = r.reference_time || r.original_time;
+  box.className = "opt-result-box";
+  box.innerHTML = `
+    <div style="font-size:.78rem;color:#607284;margin-bottom:5px">
+      ${isDynamic ? "Fixed reference" : "Original"} (${refTime.toFixed(1)}s)
+    </div>
+    <div class="opt-seq">${refOrder.map(_chipHtml).join("")}</div>
+    <hr style="border:none;border-top:1px solid #dde6ee;margin:9px 0">
+    <div style="font-size:.78rem;color:#607284;margin-bottom:5px">
+      ${isDynamic ? "Dynamic map" : "Optimal"} (${r.best_time.toFixed(1)}s)
+      ${r.map_id ? `<span style="margin-left:6px;color:#2980b9;font-weight:700">${r.map_id}</span>` : ""}
+    </div>
+    <div class="opt-seq">${r.best_order.map(_chipHtml).join("")}</div>
+    <div class="opt-saving">&#10003; Saving: ${saving}s (${pct}% less makespan)</div>`;
+  box.style.display = "block";
+}
+
 async function runOptimizer() {
   document.getElementById("opt-run").disabled = true;
+  document.getElementById("opt-load-dynamic").disabled = true;
   document.getElementById("opt-confirm").disabled = true;
   document.getElementById("opt-progress-wrap").style.display = "block";
   document.getElementById("opt-result").style.display = "none";
@@ -982,12 +1027,54 @@ async function runOptimizer() {
   try {
     const resp = await fetch("/api/optimize", {method:"POST", headers:{"Content-Type":"application/json"}, body:"{}"});
     const j = await resp.json();
-    if (!j.ok) { document.getElementById("opt-status").textContent = "Error: " + (j.error||"?"); document.getElementById("opt-run").disabled=false; return; }
+    if (!j.ok) {
+      document.getElementById("opt-status").textContent = "Error: " + (j.error||"?");
+      document.getElementById("opt-run").disabled=false;
+      document.getElementById("opt-load-dynamic").disabled=false;
+      return;
+    }
     if (j.already_done) { await pollOptimizer(); return; }
-  } catch(e) { document.getElementById("opt-status").textContent = "Network error"; document.getElementById("opt-run").disabled=false; return; }
+  } catch(e) {
+    document.getElementById("opt-status").textContent = "Network error";
+    document.getElementById("opt-run").disabled=false;
+    document.getElementById("opt-load-dynamic").disabled=false;
+    return;
+  }
 
   if (_optPoll) clearInterval(_optPoll);
   _optPoll = setInterval(pollOptimizer, 1500);
+}
+
+async function loadDynamicMap() {
+  document.getElementById("opt-run").disabled = true;
+  document.getElementById("opt-load-dynamic").disabled = true;
+  document.getElementById("opt-confirm").disabled = true;
+  document.getElementById("opt-progress-wrap").style.display = "block";
+  document.getElementById("opt-result").style.display = "none";
+  document.getElementById("opt-status").textContent = "Loading dynamic map...";
+  document.getElementById("opt-bar").style.width = "15%";
+
+  try {
+    const resp = await fetch("/api/load_dynamic_map", {method:"POST", headers:{"Content-Type":"application/json"}, body:"{}"});
+    const j = await resp.json();
+    if (!j.ok) {
+      document.getElementById("opt-status").textContent = "Error: " + (j.error||"?");
+      document.getElementById("opt-run").disabled = false;
+      document.getElementById("opt-load-dynamic").disabled = false;
+      return;
+    }
+    _optDone = true;
+    document.getElementById("opt-bar").style.width = "100%";
+    document.getElementById("opt-status").textContent = "Dynamic map loaded. Confirm to apply.";
+    _renderOptimizerResult(j.result);
+    document.getElementById("opt-confirm").disabled = false;
+    document.getElementById("opt-run").disabled = false;
+    document.getElementById("opt-load-dynamic").disabled = false;
+  } catch(e) {
+    document.getElementById("opt-status").textContent = "Network error";
+    document.getElementById("opt-run").disabled = false;
+    document.getElementById("opt-load-dynamic").disabled = false;
+  }
 }
 
 async function pollOptimizer() {
@@ -1008,25 +1095,15 @@ async function pollOptimizer() {
       _optDone = true;
       bar.style.width = "100%";
       txt.textContent = "Optimization complete.";
-      const r = s.result;
-      const saving = (r.original_time - r.best_time).toFixed(1);
-      const pct = (100*(r.original_time-r.best_time)/r.original_time).toFixed(1);
-      const box = document.getElementById("opt-result");
-      box.className = "opt-result-box";
-      box.innerHTML = `
-        <div style="font-size:.78rem;color:#607284;margin-bottom:5px">Original (${r.original_time.toFixed(1)}s)</div>
-        <div class="opt-seq">${r.original_order.map(_chipHtml).join("")}</div>
-        <hr style="border:none;border-top:1px solid #dde6ee;margin:9px 0">
-        <div style="font-size:.78rem;color:#607284;margin-bottom:5px">Optimal (${r.best_time.toFixed(1)}s)</div>
-        <div class="opt-seq">${r.best_order.map(_chipHtml).join("")}</div>
-        <div class="opt-saving">&#10003; Saving: ${saving}s (${pct}% less makespan)</div>`;
-      box.style.display = "block";
+      _renderOptimizerResult(s.result);
       document.getElementById("opt-confirm").disabled = false;
       document.getElementById("opt-run").disabled = false;
+      document.getElementById("opt-load-dynamic").disabled = false;
     } else if (s.status === "error") {
       clearInterval(_optPoll);
       txt.textContent = "Error: " + (s.error||"?").substring(0,120);
       document.getElementById("opt-run").disabled = false;
+      document.getElementById("opt-load-dynamic").disabled = false;
     }
   } catch(e) {}
 }
@@ -1042,7 +1119,8 @@ async function confirmOrder() {
       badge.style.background = "#27ae60";
       document.getElementById("waiting-banner").style.display = "none";
       document.getElementById("opt-status").textContent =
-        "Order sent — supervisor starting production with: " + (j.order || []).join(" → ");
+        "Order sent — supervisor starting production with "
+        + (j.map_mode || "fixed") + ": " + (j.order || []).join(" → ");
       _productionStartTime = null;
       _expectedSchedule = null;
       setTimeout(fetchExpectedSchedule, 500);
@@ -1201,10 +1279,10 @@ class _Handler(BaseHTTPRequestHandler):
         if path == "/api/optimize":
             with _OPT_LOCK:
                 status = _OPT_STATE["status"]
-                if status in ("running", "done"):
+                if status == "running":
                     self._json({"ok": True,
-                                "already_running": status == "running",
-                                "already_done":    status == "done"})
+                                "already_running": True,
+                                "already_done":    False})
                     return
                 snap  = _Handler.state_fn() if _Handler.state_fn else {}
                 order = snap.get("initial_order", [])
@@ -1215,6 +1293,29 @@ class _Handler(BaseHTTPRequestHandler):
                                    "best_so_far": None, "result": None, "error": None})
             threading.Thread(target=_run_optimizer_thread, args=(order,), daemon=True).start()
             self._json({"ok": True, "order": order})
+
+        elif path == "/api/load_dynamic_map":
+            snap = _Handler.state_fn() if _Handler.state_fn else {}
+            order = snap.get("initial_order", [])
+            if not order:
+                self._json({"ok": False, "error": "initial_order empty — supervisor not publishing yet"})
+                return
+            try:
+                from shipyard_pnp.factory.dynamic_schedule import load_dynamic_map_result
+                result = load_dynamic_map_result(order)
+            except Exception as exc:
+                self._json({"ok": False, "error": str(exc)})
+                return
+            with _OPT_LOCK:
+                _OPT_STATE.update({
+                    "status": "done",
+                    "progress": result.get("permutations_evaluated", 0),
+                    "total": result.get("permutations_evaluated", 0),
+                    "best_so_far": result.get("best_time"),
+                    "result": result,
+                    "error": None,
+                })
+            self._json({"ok": True, "result": result})
 
         elif path == "/api/start_production":
             with _OPT_LOCK:
@@ -1237,6 +1338,11 @@ class _Handler(BaseHTTPRequestHandler):
                 "method":                  result.get("method", "unknown"),
                 "permutations_evaluated":  result.get("permutations_evaluated", 0),
                 "optimizer_runtime_s":     result.get("optimizer_runtime_s", 0.0),
+                "map_mode":                result.get("map_mode", "fixed"),
+                "map_id":                  result.get("map_id"),
+                "expected_schedule":       result.get("expected_schedule"),
+                "reference_order":         result.get("reference_order"),
+                "reference_time_s":        result.get("reference_time"),
             })
             pub.publish(msg)
 
@@ -1244,12 +1350,18 @@ class _Handler(BaseHTTPRequestHandler):
                 _PRODUCTION_START_TIME["t0"] = time.time()
                 _EXPECTED_SCHEDULE.update({"ready": False, "cycles": {}, "order": [],
                                            "computed_at": None, "error": None})
-            threading.Thread(
-                target=_build_expected_schedule_async,
-                args=(result["best_order"],), daemon=True,
-            ).start()
+            if not _install_expected_schedule_from_result(result):
+                threading.Thread(
+                    target=_build_expected_schedule_async,
+                    args=(result["best_order"],), daemon=True,
+                ).start()
 
-            self._json({"ok": True, "order": result["best_order"]})
+            self._json({
+                "ok": True,
+                "order": result["best_order"],
+                "map_mode": result.get("map_mode", "fixed"),
+                "map_id": result.get("map_id"),
+            })
 
         else:
             self.send_response(404); self.end_headers()

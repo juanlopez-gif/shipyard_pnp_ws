@@ -1,0 +1,43 @@
+nohup: ignoring input
+=== overnight dynamic map generation started at 2026-07-10T21:14:20-04:00 ===
+params: beam_width=80 max_rollouts=4000 max_levels=400 patience=8 top_k=20 sample_cap=2000 seed=42
+17 compositions queued (3b3r3g already done, not included)
+
+[1/17] (2026-07-10T21:14:20-04:00) starting A1 (BBBBBRRRR) -> results/dynamic_map_generation_logs/A1_BBBBBRRRR_20260710_211420.log
+[1/17] (2026-07-10T22:58:36-04:00) OK   A1 (BBBBBRRRR)
+[2/17] (2026-07-10T22:58:36-04:00) starting A2 (BBBBRRRRR) -> results/dynamic_map_generation_logs/A2_BBBBRRRRR_20260710_225836.log
+[2/17] (2026-07-10T23:51:38-04:00) OK   A2 (BBBBRRRRR)
+[3/17] (2026-07-10T23:51:38-04:00) starting A3 (BBBBBBRRRR) -> results/dynamic_map_generation_logs/A3_BBBBBBRRRR_20260710_235138.log
+[3/17] (2026-07-11T03:39:00-04:00) OK   A3 (BBBBBBRRRR)
+[4/17] (2026-07-11T03:39:00-04:00) starting A4 (BBBBRRRRRR) -> results/dynamic_map_generation_logs/A4_BBBBRRRRRR_20260711_033900.log
+[4/17] (2026-07-11T04:19:33-04:00) OK   A4 (BBBBRRRRRR)
+[5/17] (2026-07-11T04:19:33-04:00) starting C1 (BBBBBBRRGG) -> results/dynamic_map_generation_logs/C1_BBBBBBRRGG_20260711_041933.log
+[5/17] (2026-07-11T04:50:47-04:00) OK   C1 (BBBBBBRRGG)
+[6/17] (2026-07-11T04:50:47-04:00) starting C2 (BBRRRRRRGG) -> results/dynamic_map_generation_logs/C2_BBRRRRRRGG_20260711_045047.log
+[6/17] (2026-07-11T04:59:45-04:00) OK   C2 (BBRRRRRRGG)
+[7/17] (2026-07-11T04:59:45-04:00) starting C3 (BBRRGGGGGG) -> results/dynamic_map_generation_logs/C3_BBRRGGGGGG_20260711_045945.log
+[7/17] (2026-07-11T05:14:45-04:00) OK   C3 (BBRRGGGGGG)
+[8/17] (2026-07-11T05:14:45-04:00) starting B3 (BBBBRRRGGG) -> results/dynamic_map_generation_logs/B3_BBBBRRRGGG_20260711_051445.log
+[8/17] (2026-07-11T05:31:41-04:00) OK   B3 (BBBBRRRGGG)
+[9/17] (2026-07-11T05:31:41-04:00) starting B4 (BBBRRRRGGG) -> results/dynamic_map_generation_logs/B4_BBBRRRRGGG_20260711_053141.log
+[9/17] (2026-07-11T05:49:08-04:00) OK   B4 (BBBRRRRGGG)
+[10/17] (2026-07-11T05:49:08-04:00) starting B5 (BBBRRRGGGG) -> results/dynamic_map_generation_logs/B5_BBBRRRGGGG_20260711_054908.log
+[10/17] (2026-07-11T06:03:02-04:00) OK   B5 (BBBRRRGGGG)
+[11/17] (2026-07-11T06:03:02-04:00) starting B6 (BBBBRRRRGGG) -> results/dynamic_map_generation_logs/B6_BBBBRRRRGGG_20260711_060302.log
+[11/17] (2026-07-11T06:32:42-04:00) OK   B6 (BBBBRRRRGGG)
+[12/17] (2026-07-11T06:32:42-04:00) starting B7 (BBBBRRRGGGG) -> results/dynamic_map_generation_logs/B7_BBBBRRRGGGG_20260711_063242.log
+[12/17] (2026-07-11T06:53:24-04:00) OK   B7 (BBBBRRRGGGG)
+[13/17] (2026-07-11T06:53:24-04:00) starting B8 (BBBRRRRGGGG) -> results/dynamic_map_generation_logs/B8_BBBRRRRGGGG_20260711_065324.log
+[13/17] (2026-07-11T07:15:40-04:00) OK   B8 (BBBRRRRGGGG)
+[14/17] (2026-07-11T07:15:40-04:00) starting C4 (BBBBBRRRRRGG) -> results/dynamic_map_generation_logs/C4_BBBBBRRRRRGG_20260711_071540.log
+[14/17] (2026-07-11T08:59:50-04:00) OK   C4 (BBBBBRRRRRGG)
+[15/17] (2026-07-11T08:59:50-04:00) starting C5 (BBBBBRRGGGGG) -> results/dynamic_map_generation_logs/C5_BBBBBRRGGGGG_20260711_085950.log
+[15/17] (2026-07-11T09:29:44-04:00) OK   C5 (BBBBBRRGGGGG)
+[16/17] (2026-07-11T09:29:44-04:00) starting C6 (BBRRRRRGGGGG) -> results/dynamic_map_generation_logs/C6_BBRRRRRGGGGG_20260711_092944.log
+[16/17] (2026-07-11T09:50:03-04:00) OK   C6 (BBRRRRRGGGGG)
+[17/17] (2026-07-11T09:50:03-04:00) starting B2 (BBBBRRRRGGGG) -> results/dynamic_map_generation_logs/B2_BBBBRRRRGGGG_20260711_095003.log
+[17/17] (2026-07-11T10:24:11-04:00) OK   B2 (BBBBRRRRGGGG)
+
+=== overnight dynamic map generation finished at 2026-07-11T10:24:11-04:00 ===
+ok=17 / 17
+no failures

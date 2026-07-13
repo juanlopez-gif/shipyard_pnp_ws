@@ -48,7 +48,18 @@ from shipyard_pnp.shared.contracts import (
 INITIAL_STACK_ORDER = [
     {"id": f"piece-{i:03d}", "color": color, "shape": None}
     for i, color in enumerate(
-        ["GREEN", "RED", "BLUE"] * 3,
+        [
+            "BLUE",
+            "GREEN",
+            "RED",
+            "BLUE",
+            "GREEN",
+            "GREEN",
+            "RED",
+            "GREEN",
+            "GREEN",
+            "GREEN",
+        ],
         start=1,
     )
 ]
@@ -785,12 +796,21 @@ class FactorySupervisor(Node):
     def _on_optimized_order(self, msg: String) -> None:
         try:
             payload = json.loads(msg.data)
-            order = payload.get("order", payload)
+            if isinstance(payload, dict):
+                order = payload.get("order")
+            else:
+                order = payload
             if not isinstance(order, list) or not all(isinstance(p, str) for p in order):
                 raise ValueError("expected JSON list or {'order': [...]} payload")
         except Exception as exc:
             self.get_logger().warning(f"Invalid optimized order ignored: {exc}")
             return
+
+        if not isinstance(payload, dict):
+            payload = {"order": order}
+        map_mode = payload.get("map_mode", "fixed")
+        map_id = payload.get("map_id")
+        expected_schedule = payload.get("expected_schedule")
 
         with self._state_lock:
             self._optimized_order = list(order)
@@ -813,14 +833,34 @@ class FactorySupervisor(Node):
                 self._expected_schedule = {}
                 self._map_pointer = {}
                 self._map_wait_since = {}
-            threading.Thread(
-                target=self._build_expected_schedule_async,
-                args=(list(order),), daemon=True,
-            ).start()
+            if isinstance(expected_schedule, dict) and expected_schedule:
+                with self._state_lock:
+                    self._expected_schedule = expected_schedule
+                total_cycles = sum(len(v) for v in expected_schedule.values())
+                self.get_logger().info(
+                    f"[map] loaded {map_mode} expected schedule"
+                    f"{f' ({map_id})' if map_id else ''}: {total_cycles} cycles"
+                )
+            else:
+                threading.Thread(
+                    target=self._build_expected_schedule_async,
+                    args=(list(order),), daemon=True,
+                ).start()
 
         saving_s = payload.get("saving_s", 0.0)
-        self.db.insert_operator_event("APPLY_ORDER", f"order={order}")
+        detail = f"order={order}; map_mode={map_mode}"
+        if map_id:
+            detail += f"; map_id={map_id}"
+        self.db.insert_operator_event("APPLY_ORDER", detail)
         self.db.update_production_run_optimized_order(order, saving_s)
+        if isinstance(expected_schedule, dict) and expected_schedule:
+            self.db.update_production_run_config_snapshot({
+                "map_mode": map_mode,
+                "map_id": map_id,
+                "expected_schedule": expected_schedule,
+                "reference_order": payload.get("reference_order"),
+                "reference_time_s": payload.get("reference_time_s"),
+            })
 
         # Log optimizer result if the dashboard sent stats alongside the order.
         if "original_time_s" in payload:
