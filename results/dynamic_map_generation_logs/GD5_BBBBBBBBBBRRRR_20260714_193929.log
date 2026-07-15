@@ -25,3 +25,14 @@
 [stage 2/2] running beam_search on 10 candidates (beam_width=80, max_rollouts=4000)...
     [ 10.0%] (1/10) BRRRRBBBBBBBBB fixed=1680.5s -> beam=1486.4s (completed_paths=101, 2926.7s) *** new best ***
     [ 20.0%] (2/10) BRRRBBBBBBBBBR fixed=1680.6s -> beam=1437.9s (completed_paths=57, 2220.4s) *** new best ***
+    [ 30.0%] (3/10) BRRRBBBBBBBBRB fixed=1680.6s -> beam=1437.9s (completed_paths=47, 1760.0s)
+    [ 40.0%] (4/10) BRRRBBBBBBBRBB fixed=1680.6s -> beam=1437.9s (completed_paths=15, 1525.9s)
+    [ 50.0%] (5/10) BRRRBBBBBBRBBB fixed=1680.6s -> beam=1437.9s (completed_paths=7, 1542.2s)
+    [ 60.0%] (6/10) BRRRBBBBBRBBBB fixed=1680.6s -> beam=1437.9s (completed_paths=8, 1643.4s)
+    [ 70.0%] (7/10) BRRRBBBBRBBBBB fixed=1680.6s -> beam=1437.9s (completed_paths=6, 1427.1s)
+    [ 80.0%] (8/10) BRRRBBBRBBBBBB fixed=1680.6s -> beam=1437.9s (completed_paths=7, 1567.7s)
+    [ 90.0%] (9/10) BRRRBBRBBBBBBB fixed=1680.6s -> beam=1441.2s (completed_paths=19, 1467.0s)
+    [100.0%] (10/10) BRRRBRBBBBBBBB fixed=1680.6s -> beam=1441.2s (completed_paths=61, 1668.2s)
+[stage 2/2] done in 17748.7s. Winner: BRRRBBBBBBBBBR = 1437.9s
+Saved map 'dynamic_10b4r0g_BRRRBBBBBBBBBR_v1' to /home/isecapstone/shipyard_pnp_ws/src/shipyard_pnp/config/dynamic_maps/10b4r0g.json.
+Total wall time: 18307.9s

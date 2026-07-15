@@ -1,22 +1,24 @@
 # Dataset de mapas dinámicos — fixed vs. dinámico por composición
 
-Date: 2026-07-12 (última actualización de tabla: 2026-07-14)
+Date: 2026-07-12 (última actualización de tabla: 2026-07-15)
 
 Generado con `scripts/generate_dynamic_map.py` (búsqueda en dos etapas:
 prefiltro con la simulación fixed sobre las permutaciones de cada
 composición, luego `beam_search()` sobre las mejores `--top-k`) y los batch
 runners `scripts/run_overnight_dynamic_maps*.sh` /
 `run_parallel_dynamic_maps_12to15pc.sh` / `run_5lane_dynamic_maps_50comp.sh`.
-**52 composiciones en total** (9-18 piezas), incluida `BRRBRB` (3B/3R,
+**87 composiciones en total** (6-18 piezas), incluida `BRRBRB` (3B/3R,
 6 piezas, sin JSON propio por ser anterior al script). El registro vivo de
 qué composición está completada/validada/en curso vive en la tabla
 `shipyard_pnp_ws.dynamic_map_registry` (Postgres, ver
 `scripts/dynamic_map_registry.py`) — pensada para coordinar varios
-ordenadores generando tandas distintas sin repetir composiciones.
+ordenadores generando tandas distintas sin repetir composiciones. Estado
+actual del registro: 79 `COMPLETED` + 8 `VALIDATED`.
 
-**Tandas del 2026-07-13/14 todavía en curso al escribir esto:** quedan 35
-composiciones más corriendo en segundo plano (`run_5lane_dynamic_maps_50comp.sh`,
-5 carriles de 10) — esta tabla se irá ampliando según terminen.
+**Las dos tandas de 2026-07-13/14/15 terminaron por completo** (10/10 y
+50/50, sin fallos): `run_parallel_dynamic_maps_12to15pc.sh` (F1-F10, 12-15
+piezas) y `run_5lane_dynamic_maps_50comp.sh` (5 carriles de 10, 9-18
+piezas). Las 60 composiciones nuevas ya están en la tabla de abajo.
 
 **Corrida overnight de 18 piezas (2026-07-13):** las tres composiciones
 (`9B/9R/0G`, `6B/6R/6G`, `7B/6R/5G`) terminaron sin fallos, ~79 min cada una
@@ -71,17 +73,17 @@ sobre el fixed correcto (mismo orden, mismo tiempo).
 
 ## Aviso sobre `SAMPLED`
 
-38 de las 52 composiciones tienen más permutaciones únicas que el
+Muchas de las 87 composiciones tienen más permutaciones únicas que el
 `--sample-cap` usado para generarlas, así que tanto la etapa 1 (ranking
 fixed) como la etapa 2 (beam search, que solo explora los `--top-k` de esa
 muestra) operan sobre una muestra aleatoria, no el espacio completo. Para
 esas filas, "mejor fixed" y "mejor dinámico" son "mejor encontrado dentro de
 la muestra", no un óptimo global probado. **Ojo con mezclar generaciones**:
-las 27 primeras (2026-07-10/13) se generaron con `--sample-cap 2000`; las 25
-compuestas después (2026-07-13/14, `F1-F10` y `G*1-G*10`) usan
+las 27 primeras (2026-07-10/13) se generaron con `--sample-cap 2000`; las 60
+compuestas después (2026-07-13/14/15, `F1-F10` y `G*1-G*10`) usan
 `--sample-cap 20000` (10x más cobertura, ver commit del fix de
 `generate_dynamic_map.py` que evita enumerar espacios de millones de
-permutaciones antes de muestrear). Las filas `exhaustivo` (14 de 52) cubren
+permutaciones antes de muestrear). Las filas `exhaustivo` (42 de 87) cubren
 el 100% del espacio de permutaciones. **Caso especial, RESUELTO:** `13B/2R/2G`
 (17 piezas) tenía su fixed marcado como "no completa (>2000s)" con las
 14,280 permutaciones exhaustivas — era un artefacto del horizonte de
@@ -93,7 +95,7 @@ mapa dinámico no necesitó recalcularse: su `1753.1s` ya había completado
 dentro del horizonte original de 2000s, solo la referencia fixed estaba
 mal por el corte de horizonte.
 
-## Tabla completa (52 composiciones)
+## Tabla completa (87 composiciones)
 
 Incluye `BRRBRB` (3B/3R, 6 piezas, de `docs/dynamic_map_brrbrb/`),
 `4B/5R/0G` (9 piezas, de `docs/dynamic_map_4b5r0g/`), `5B/4R/0G`
@@ -110,40 +112,75 @@ tienen valor en esas ocho filas.
 | n | Composición | Fixed: sim | Fixed: real | Fixed: diff. | Fixed: mejor orden | Dinámico: sim | Dinámico: real | Dinámico: diff. | Dinámico: mejor orden | Ahorro (sim) | Ahorro (real) | Etapa 1 |
 |---:|---|---:|---:|---:|---|---:|---:|---:|---|---:|---:|---|
 | 6 | 3B/3R/0G | 560.2s | 552.962s | -1.29% | `BRRRBB` | 497.3s | 486.651s | -2.14% | `BRRBRB` | +11.2% | **+12.0%** | exhaustivo, validada en hardware, ver `docs/dynamic_map_brrbrb/` |
+| 9 | 2B/3R/4G | 425.4s | — | — | `BGRBGGRRG` | 425.4s | — | — | `BGRBGGRRG` | +0.0% | — | exhaustivo |
+| 9 | 2B/5R/2G | 512.3s | — | — | `BRGRGRBRR` | 512.3s | — | — | `BRGRGRBRR` | +0.0% | — | exhaustivo |
 | 9 | 3B/3R/3G | 562.8s | — | — | `BBGBGRRRG` | 514.4s | — | — | `BBGBGRRRG` | +8.6% | — | exhaustivo |
+| 9 | 3B/6R/0G | 713.8s | — | — | `BRRRRRRBB` | 651.0s | — | — | `BRRRRRBBR` | +8.8% | — | exhaustivo |
+| 9 | 4B/2R/3G | 664.4s | — | — | `BGBBBGGRR` | 615.9s | — | — | `BGBBBGGRR` | +7.3% | — | exhaustivo |
 | 9 | 4B/5R/0G | 815.2s | 797.620s | -2.16% | `BRRRRRBBB` | 689.7s | 668.900s | -3.02% | `BRRRBBRRB` | +15.4% | **+16.1%** | exhaustivo, validada en hardware, ver `docs/dynamic_map_4b5r0g/` |
+| 9 | 5B/2R/2G | 816.8s | — | — | `BBBBGGBRR` | 720.0s | — | — | `BBGBGRBBR` | +11.9% | — | exhaustivo |
 | 9 | 5B/4R/0G | 916.7s | 899.789s | -1.84% | `BRRRRBBBB` | 759.8s | 747.367s | -1.64% | `BBBBRRRBR` | +17.1% | **+16.9%** | exhaustivo, validada en hardware, ver `docs/dynamic_map_5b4r0g/` |
 | 10 | 2B/2R/6G | 421.5s | 430.423s | +2.12% | `BGRBGGRGGG` | 421.5s | 433.563s | +2.86% | `BGRBGGRGGG` | -0.0% | **-0.7%** | exhaustivo, validada en hardware, ver `docs/dynamic_map_2b2r6g/` |
 | 10 | 2B/6R/2G | 561.1s | — | — | `BRGRRBRRRG` | 561.1s | — | — | `BRGRRBRRRG` | -0.0% | — | exhaustivo |
+| 10 | 3B/2R/5G | 476.7s | — | — | `BBBGGRGGGR` | 476.7s | — | — | `BBBGGRGGGR` | +0.0% | — | exhaustivo |
 | 10 | 3B/3R/4G | 541.0s | — | — | `BGBGGGRRRB` | 514.4s | — | — | `BGBBGRGRGR` | +4.9% | — | muestreado |
 | 10 | 3B/4R/3G | 614.0s | — | — | `BBBGGRRGRR` | 554.6s | — | — | `BBRGRGRBGR` | +9.7% | — | muestreado |
+| 10 | 4B/2R/4G | 633.6s | — | — | `BBBGGGGBRR` | 585.1s | — | — | `BBBGGGGBRR` | +7.7% | — | exhaustivo |
 | 10 | 4B/3R/3G | 715.6s | — | — | `BBGBGGRRRB` | 604.3s | — | — | `BGBBGRRRGB` | +15.6% | — | muestreado |
 | 10 | 4B/6R/0G | 866.4s | — | — | `BRRRRRRBBB` | 740.9s | — | — | `BRRRRBBRRB` | +14.5% | — | exhaustivo |
+| 10 | 5B/2R/3G | 816.8s | — | — | `BGBBBBGGRR` | 720.0s | — | — | `BGBBBBGGRR` | +11.9% | — | exhaustivo |
 | 10 | 6B/2R/2G | 969.6s | — | — | `BBBBGGBRRB` | 841.9s | — | — | `BGBBRRGBBB` | +13.2% | — | exhaustivo |
 | 10 | 6B/4R/0G | 1069.3s | — | — | `BRRRRBBBBB` | 863.9s | — | — | `BBRBRBBRRB` | +19.2% | — | exhaustivo |
+| 10 | 7B/3R/0G | 1170.9s | — | — | `BRRRBBBBBB` | 979.6s | — | — | `BBBBBBBRRR` | +16.3% | — | exhaustivo |
+| 11 | 3B/3R/5G | 528.1s | — | — | `BBBGGRGGGRR` | 528.0s | — | — | `BBBGGRGGGRR` | +0.0% | — | exhaustivo |
 | 11 | 3B/4R/4G | 611.1s | — | — | `BGGGGBRRRRB` | 567.1s | — | — | `BGBGBRGRGRR` | +7.2% | — | muestreado |
 | 11 | 4B/3R/4G | 707.2s | — | — | `BBGGGGRRRBB` | 604.3s | — | — | `BGBBGGRGRRB` | +14.6% | — | muestreado |
 | 11 | 4B/4R/3G | 766.8s | 758.330s | -1.13% | `BBBBGGGRRRR` | 655.5s | 645.673s | -1.50% | `BBGBGRRRGRB` | +14.5% | **+14.9%** | muestreado, validada en hardware, ver `docs/dynamic_map_b6_4b4r3g/` |
+| 11 | 5B/2R/4G | 773.6s | — | — | `BBBGGGGBBRR` | 720.0s | — | — | `BBBBBGGRGRG` | +6.9% | — | exhaustivo |
+| 11 | 5B/4R/2G | 916.7s | — | — | `BRGRRBRBBGB` | 805.3s | — | — | `BRGRRBRBBGB` | +12.2% | — | exhaustivo |
+| 11 | 6B/2R/3G | 969.6s | — | — | `BGBBBBGGRRB` | 872.7s | — | — | `BBBGGBBBRRG` | +10.0% | — | exhaustivo |
+| 12 | 2B/2R/8G | 487.3s | — | — | `GBGBGRGRGGGG` | 487.3s | — | — | `GBGBGRGRGGGG` | +0.0% | — | exhaustivo |
 | 12 | 2B/5R/5G | 553.1s | — | — | `BGRBGGGRGRRR` | 548.3s | — | — | `GBRGGBRGRRGR` | +0.9% | — | muestreado |
+| 12 | 3B/2R/7G | 514.9s | — | — | `BGBGBGRGGGRG` | 514.9s | — | — | `BGBGBGRGGGRG` | +0.0% | — | exhaustivo |
+| 12 | 3B/7R/2G | 765.1s | — | — | `BRGRRBRRRGRB` | 702.1s | — | — | `BRGRRBRRRGRB` | +8.2% | — | exhaustivo |
 | 12 | 4B/4R/4G | 744.9s | — | — | `BGGBGGRRRBRB` | 659.3s | — | — | `BGBBGRRGGRBR` | +11.5% | — | muestreado |
 | 12 | 4B/6R/2G | 866.4s | — | — | `BRGRRRRBRBBG` | 740.8s | — | — | `BRGRRRBRBBGR` | +14.5% | — | exhaustivo |
 | 12 | 5B/2R/5G | 768.4s | — | — | `BBBGGGBRGBGR` | 720.0s | — | — | `BBBGGBRGBGRG` | +6.3% | — | muestreado |
 | 12 | 5B/5R/2G | 968.0s | 949.410s | -1.92% | `BRRRRBBBBRGG` | 796.7s | 775.495s | -2.66% | `BBRGRRBRBRGB` | +17.7% | **+18.3%** | muestreado, validada en hardware, ver `docs/dynamic_map_5b5r2g/` |
+| 12 | 6B/2R/4G | 926.3s | — | — | `BBBGGGGBBRRB` | 841.9s | — | — | `BBBGGGGBRRBB` | +9.1% | — | exhaustivo |
 | 12 | 6B/4R/2G | 1020.9s | — | — | `BRRRBBBBBGGR` | 923.9s | — | — | `BRRRBBBBBGGR` | +9.5% | — | exhaustivo |
+| 12 | 7B/2R/3G | 1122.3s | — | — | `BGBBBBGGRRBB` | 976.8s | — | — | `BGBBBBBBGGRR` | +13.0% | — | exhaustivo |
+| 12 | 8B/2R/2G | 1275.1s | — | — | `BBBBBGGRRBBB` | 1098.7s | — | — | `BGBBRRBBBBBG` | +13.8% | — | exhaustivo |
+| 13 | 3B/2R/8G | 537.2s | — | — | `BGBGBGRGGGRGG` | 537.2s | — | — | `BGBGBGRGGGRGG` | +0.0% | — | exhaustivo |
+| 13 | 3B/3R/7G | 562.6s | — | — | `BGRBGGGRGGBRG` | 562.6s | — | — | `BGRBGGGRGGBRG` | +0.0% | — | muestreado |
 | 13 | 4B/4R/5G | 732.0s | — | — | `BBBGGGRGGRRRB` | 669.0s | — | — | `BBBGGGRGGRRRB` | +8.6% | — | muestreado |
+| 13 | 5B/2R/6G | 753.2s | — | — | `BBBGGGRGGGBBR` | 720.0s | — | — | `BGBBGGBGBGGRR` | +4.4% | — | muestreado |
+| 13 | 5B/3R/5G | 819.7s | — | — | `BBGBGRBBGGGRR` | 722.8s | — | — | `BBGBGRBBGGGRR` | +11.8% | — | muestreado |
 | 13 | 5B/5R/3G | 942.1s | — | — | `BRRRBBBBGGGRR` | 822.6s | — | — | `BRRRBBBBGGGRR` | +12.7% | — | muestreado |
+| 13 | 6B/2R/5G | 921.2s | — | — | `BBBGGBBGGBGRR` | 849.7s | — | — | `BBBGBGGGBGBRR` | +7.8% | — | muestreado |
 | 13 | 6B/5R/2G | 1120.6s | — | — | `BRRRRRBBBBBGG` | 960.7s | — | — | `BRRRBRBBGBRBG` | +14.3% | — | muestreado |
+| 13 | 8B/5R/0G | 1426.2s | — | — | `BRRRRRBBBBBBB` | 1183.6s | — | — | `BRRRBBBBBBBRR` | +17.0% | — | exhaustivo |
+| 14 | 10B/2R/2G | 1580.6s | — | — | `BBBBBGGRRBBBBB` | 1355.8s | — | — | `BBBBBGGRRBBBBB` | +14.2% | — | exhaustivo |
+| 14 | 10B/4R/0G | 1680.5s | — | — | `BRRRRBBBBBBBBB` | 1437.9s | — | — | `BRRRBBBBBBBBBR` | +14.4% | — | exhaustivo |
+| 14 | 4B/2R/8G | 606.2s | — | — | `BGBGGBGGBGRGGR` | 606.2s | — | — | `BGBGGBGGBGRGGR` | +0.0% | — | muestreado |
 | 14 | 4B/6R/4G | 846.9s | — | — | `BRRRRBBBRGGGRG` | 757.6s | — | — | `BRGGRRBRBBGRRG` | +10.5% | — | muestreado |
+| 14 | 4B/8R/2G | 968.9s | — | — | `BRRRRRBRBBGRRG` | 843.2s | — | — | `BRGRRRRRBRBRGB` | +13.0% | — | muestreado |
 | 14 | 5B/5R/4G | 939.2s | — | — | `BRRRBBBRBGGGGR` | 823.3s | — | — | `BBRGRRBBRBGGGR` | +12.3% | — | muestreado |
 | 14 | 6B/4R/4G | 1041.5s | — | — | `BBBGGGGBRRRRBB` | 915.8s | — | — | `BBBGGGGBRRRRBB` | +12.1% | — | muestreado |
+| 14 | 8B/6R/0G | 1477.4s | — | — | `BRRRRRRBBBBBBB` | 1234.8s | — | — | `BRRRRBBBBBBBRR` | +16.4% | — | exhaustivo |
+| 15 | 11B/2R/2G | 1733.5s | — | — | `BBBBBGGRRBBBBBB` | 1490.9s | — | — | `BBBBBGGRRBBBBBB` | +14.0% | — | exhaustivo |
+| 15 | 3B/12R/0G | 1021.5s | — | — | `BRRRRRRRBBRRRRR` | 958.6s | — | — | `BRRRRRRRBBRRRRR` | +6.2% | — | exhaustivo |
 | 15 | 3B/6R/6G | 710.3s | — | — | `BBGGGBRGGRRRGRR` | 710.3s | — | — | `BBGGGBRGGRRRGRR` | +0.0% | — | muestreado |
 | 15 | 3B/8R/4G | 830.6s | — | — | `BGRGRRBRRBGRRRG` | 767.3s | — | — | `BGRGRRBRRBGRRRG` | +7.6% | — | muestreado |
+| 15 | 4B/11R/0G | 1123.0s | — | — | `BRRRRRRRBBBRRRR` | 997.1s | — | — | `BRRRRRRRBBRRBRR` | +11.2% | — | exhaustivo |
 | 15 | 4B/3R/8G | 672.7s | — | — | `BGBBRRGGGGGBGRG` | 666.1s | — | — | `BGBBRRGGGGGBGRG` | +1.0% | — | muestreado |
 | 15 | 5B/2R/8G | 746.4s | — | — | `BGBGBGGRGGBGBGR` | 722.2s | — | — | `BBBGBGGGGBRGGGR` | +3.2% | — | muestreado |
 | 15 | 5B/5R/5G | 963.8s | 952.436s | -1.18% | `RBBGGGGBGBRRRRB` | 811.7s | 800.218s | -1.41% | `BGRBGGGRRBRBRGB` | +15.8% | **+16.0%** | muestreado, validada en hardware, ver `docs/dynamic_map_5b5r5g/` |
 | 15 | 6B/6R/3G | 1126.5s | — | — | `BBRRRRBBBBGGRRG` | 963.6s | — | — | `BRRRBRBBGBRGRBG` | +14.5% | — | muestreado |
 | 15 | 7B/5R/3G | 1225.0s | — | — | `BRRRBBBBBGGRGBR` | 1049.7s | — | — | `BRRRBBBBBGGRGBR` | +14.3% | — | muestreado |
+| 15 | 7B/8R/0G | 1427.2s | — | — | `BRRRRRRRBBBBBBR` | 1218.7s | — | — | `BRRRRRRBBBBBRRB` | +14.6% | — | exhaustivo |
 | 15 | 8B/4R/3G | 1326.5s | — | — | `BRRRBBBBBBGGRGB` | 1120.8s | — | — | `BGBBBBGGRRRBRBB` | +15.5% | — | muestreado |
+| 15 | 8B/5R/2G | 1377.9s | — | — | `BRRRBBRBBBBBGGR` | 1206.3s | — | — | `BBRRRRBBBBBBGGR` | +12.5% | — | muestreado |
 | 15 | 8B/7R/0G | 1528.8s | — | — | `BRRRRRRBBRBBBBB` | 1257.4s | — | — | `BRRRRBBBRBBBRRB` | +17.8% | — | muestreado |
 | 16 | 11B/2R/3G | 1733.5s | — | — | `BBGBBBBRBBBBBGGR` | 1490.9s | — | — | `BGBBGBGBRRBBBBBB` | +14.0% | — | muestreado |
 | 16 | 4B/10R/2G | 1071.3s | — | — | `BRRRRBRBRGBRRGRR` | 945.7s | — | — | `BRRRRRRBRBRGRBRG` | +11.7% | — | muestreado |
@@ -182,24 +219,26 @@ simulada positiva el ahorro real es ligeramente mayor que el simulado; en
 simulación predecía `0.0%` de ahorro y el hardware quedó `0.7 pp` por debajo,
 una diferencia pequeña atribuible a variación natural entre corridas.
 
-**Resumen (52 filas, las 52 con % válido):** media +11.0%, mínimo −0.0%
-(`2B/2R/6G` y `2B/6R/2G`: el dinámico no encontró nada mejor que el fixed
-correcto), máximo +19.2% (`6B/4R/0G`).
-El rango de 16-18 piezas (+1.2% a +17.1%, la mayoría entre +11% y +17%)
-queda dentro del mismo rango que el resto del dataset — sin señal de que la
-ganancia colapse ni se dispare al crecer el tamaño, con la salvedad de que
-esas filas son también las más muestreadas (14 exhaustivas de 52 en total).
-Muy por debajo de la media de ~22% reportada antes del arreglo del bug de
-`fixed_reference_*` — esa cifra estaba inflada. Nótese que en varias filas
-el mejor orden fixed y el mejor orden dinámico son literalmente el mismo
-string: el beam search no encontró un orden inicial distinto, solo una
-política de despacho mejor (los `WAIT` de robot1/robot2) sobre el mismo
-orden que ya era el mejor bajo fixed.
+**Resumen (87 filas, las 87 con % válido):** media +9.96%, mínimo `+0.0%`
+(tres composiciones: `2B/2R/6G`, `2B/6R/2G` y `2B/3R/4G` — el dinámico no
+encontró nada mejor que el fixed correcto; las tres tienen solo 2 piezas
+BLUE, consistente con el hallazgo de que el mecanismo de `WAIT` necesita
+tráfico real por bantam para tener algo que optimizar), máximo +19.2%
+(`6B/4R/0G`). El rango de 16-18 piezas (+1.2% a +17.5%, la mayoría entre
++11% y +17%) queda dentro del mismo rango que el resto del dataset — sin
+señal de que la ganancia colapse ni se dispare al crecer el tamaño, con la
+salvedad de que esas filas son también las más muestreadas (42 exhaustivas
+de 87 en total). Muy por debajo de la media de ~22% reportada antes del
+arreglo del bug de `fixed_reference_*` — esa cifra estaba inflada. Nótese
+que en varias filas el mejor orden fixed y el mejor orden dinámico son
+literalmente el mismo string: el beam search no encontró un orden inicial
+distinto, solo una política de despacho mejor (los `WAIT` de robot1/robot2)
+sobre el mismo orden que ya era el mejor bajo fixed.
 
 ## Validación física
 
-Ocho de las 52 filas tienen corrida real confirmada contra hardware, con
-columnas de tiempo real y de fidelidad (`diff.`) propias. Las otras 44 —
+Ocho de las 87 filas tienen corrida real confirmada contra hardware, con
+columnas de tiempo real y de fidelidad (`diff.`) propias. Las otras 79 —
 incluidas las 25 generadas el 2026-07-13/14 — son por ahora pura simulación:
 
 - `BRRBRB` (6 piezas) — `docs/dynamic_map_brrbrb/README.md`. Ahorro real

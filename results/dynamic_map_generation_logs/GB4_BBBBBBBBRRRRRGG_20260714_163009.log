@@ -27,3 +27,12 @@
     [ 20.0%] (2/10) BBRRRRBBBBBBGGR fixed=1380.7s -> beam=1206.3s (completed_paths=59, 2899.1s) *** new best ***
     [ 30.0%] (3/10) BRRRRRBBBBBBGGB fixed=1426.2s -> beam=1283.9s (completed_paths=85, 1964.7s)
     [ 40.0%] (4/10) BRRRRRBBBBBBBGG fixed=1426.2s -> beam=1285.9s (completed_paths=70, 1421.2s)
+    [ 50.0%] (5/10) BRGRRRBRBBGBBBB fixed=1426.2s -> beam=1235.4s (completed_paths=173, 2111.0s)
+    [ 60.0%] (6/10) BRRRRBBBBBRBGGB fixed=1426.3s -> beam=1237.6s (completed_paths=50, 1669.5s)
+    [ 70.0%] (7/10) BRRRRBRBBGBBBBG fixed=1426.3s -> beam=1235.5s (completed_paths=173, 1933.9s)
+    [ 80.0%] (8/10) BRRRRBBBBBBGRGB fixed=1426.3s -> beam=1235.5s (completed_paths=86, 1511.9s)
+    [ 90.0%] (9/10) BRRRRBBBBBGGBBR fixed=1426.3s -> beam=1232.1s (completed_paths=105, 1396.7s)
+    [100.0%] (10/10) BRRRRBBBRBGGBBB fixed=1426.3s -> beam=1232.1s (completed_paths=36, 1595.2s)
+[stage 2/2] done in 18270.3s. Winner: BBRRRRBBBBBBGGR = 1206.3s
+Saved map 'dynamic_8b5r2g_BBRRRRBBBBBBGGR_v1' to /home/isecapstone/shipyard_pnp_ws/src/shipyard_pnp/config/dynamic_maps/8b5r2g.json.
+Total wall time: 26693.5s
