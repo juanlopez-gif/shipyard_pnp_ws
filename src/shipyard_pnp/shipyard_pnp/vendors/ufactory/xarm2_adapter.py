@@ -47,6 +47,8 @@ _XARM2_POSITIONS = {
     "pick_s3.6": [-0.1823, 0.9890, 2.0399, 0.0132, 0.4329, -1.6766, 0.0],
     "approach_c1s1": [-0.6683, 0.4351, 1.0470, 0.1187, 0.6829, -2.3069, 0.0],
     "place_c1s1": [-0.6573, 0.6776, 0.9809, 0.1797, 0.3599, -2.3673, 0.0],
+    "post_home": [-1.1528, -0.5555, 0.5890, -0.1615, 1.0249, 0.0652, 0.0],
+    "post_home_preapproach_bantam": [-1.8958, -0.5263, 0.9511, 0.0805, 1.1634, 0.0456, 0.0],
     "approach_c3": [-2.5459, 0.4384, 1.6066, -0.0023, 1.0910, -0.9033, 0.0],
     "preplace_c3": [-2.5342, 0.7958, 1.4726, -0.0970, 0.6843, -0.9129, 0.0],
     "place_c3": [-2.5791, 0.9619, 1.5154, -0.0660, 0.6067, -0.8245, 0.0],
@@ -71,6 +73,8 @@ class XArm2Adapter:
         if self._placed_at_c3:
             self._move("preplace_c3", "Retorno Pre-Place C3", 25.0, 80.0, status_cb)
             self._move("approach_c3", "Retorno C3", 30.0, 100.0, status_cb)
+            self._move("post_home_preapproach_bantam", "Retorno Post-Home Pre-Approach Bantam C3", 15.0, 50.0, status_cb)
+            self._move("post_home", "Retorno Post-Home C3", 15.0, 50.0, status_cb)
             self._placed_at_c3 = False
         self._move("home", "Volviendo a HOME", 30.0, 100.0, status_cb)
         self.driver.vacuum_off()
@@ -153,6 +157,8 @@ class XArm2Adapter:
 
     def _place_to_c3(self, status_cb: Optional[Callable]) -> None:
         self._status(status_cb, RobotState.GOING_TO_POSITION.value, "MOVING_TO_C3")
+        self._move("post_home", "Post-Home C3", 15.0, 50.0, status_cb)
+        self._move("post_home_preapproach_bantam", "Post-Home Pre-Approach Bantam C3", 15.0, 50.0, status_cb)
         self._move("approach_c3", "Approach C3", 30.0, 100.0, status_cb)
         self._move("preplace_c3", "Pre-Place C3", 25.0, 80.0, status_cb)
         self._move("place_c3", "Place C3", 20.0, 60.0, status_cb)

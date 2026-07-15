@@ -36,6 +36,7 @@ Usage:
 import argparse
 import hashlib
 import json
+import math
 import os
 import random
 import sys
@@ -78,6 +79,40 @@ def _tag(order) -> str:
     return "".join(c[0] for c in order)
 
 
+def _count_permutations(n_blue: int, n_red: int, n_green: int) -> int:
+    """Closed-form multinomial coefficient -- avoids ever materializing the
+    full permutation space just to count it (18-piece balanced compositions
+    have tens of millions of unique orders)."""
+    n = n_blue + n_red + n_green
+    return math.factorial(n) // (
+        math.factorial(n_blue) * math.factorial(n_red) * math.factorial(n_green)
+    )
+
+
+def _sample_permutations_directly(n_blue: int, n_red: int, n_green: int, k: int) -> list:
+    """Draw k DISTINCT random permutations of the composition without ever
+    enumerating the full space -- shuffle the multiset and dedupe by hand.
+    Only used when the full space is too large to build with
+    unique_color_orders() first (see _count_permutations)."""
+    base = ["BLUE"] * n_blue + ["RED"] * n_red + ["GREEN"] * n_green
+    seen = set()
+    out = []
+    # Collisions are vanishingly rare once the space is this large, but cap
+    # attempts so a pathological composition can't spin forever.
+    max_attempts = k * 20
+    attempts = 0
+    while len(out) < k and attempts < max_attempts:
+        attempts += 1
+        candidate = list(base)
+        random.shuffle(candidate)
+        key = tuple(candidate)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(candidate)
+    return out
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -111,16 +146,22 @@ def main() -> None:
     t_start = time.time()
 
     # Stage 1: cheap prefilter over every unique permutation of this composition.
-    all_permutations = list(bs.unique_color_orders(n_blue, n_red, n_green))
-    n_perms_total = len(all_permutations)
+    n_perms_total = _count_permutations(n_blue, n_red, n_green)
     sampled = n_perms_total > args.sample_cap
     if sampled:
-        permutations = random.sample(all_permutations, args.sample_cap)
+        # Never materialize the full space -- for balanced/near-balanced
+        # 15+ piece compositions it can be tens of millions of entries
+        # (e.g. 6B/6R/6G has ~17.2M), which would exhaust memory/time just
+        # to build the list before sampling from it.
+        permutations = _sample_permutations_directly(
+            n_blue, n_red, n_green, args.sample_cap
+        )
         print(f"[stage 1/2] {n_perms_total} unique permutations exceeds "
-              f"--sample-cap={args.sample_cap} -- randomly sampling "
-              f"{len(permutations)} of them instead of enumerating all.", flush=True)
+              f"--sample-cap={args.sample_cap} -- drew {len(permutations)} "
+              f"distinct random permutations directly (no full enumeration).",
+              flush=True)
     else:
-        permutations = all_permutations
+        permutations = list(bs.unique_color_orders(n_blue, n_red, n_green))
     n_perms = len(permutations)
     print(f"[stage 1/2] prefiltering {n_perms} permutations "
           f"({'sampled' if sampled else 'exhaustive'}) with the "

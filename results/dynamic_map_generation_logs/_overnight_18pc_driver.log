@@ -1,0 +1,15 @@
+nohup: ignoring input
+=== overnight 18-piece dynamic map generation started at 2026-07-13T00:37:22-04:00 ===
+params: beam_width=60 max_rollouts=3000 max_levels=400 patience=8 top_k=6 sample_cap=2000 seed=42
+3 compositions queued -- E2/E3 have 14-17M unique permutations, sampled at 2000
+
+[1/3] (2026-07-13T00:37:22-04:00) starting E1 (BBBBBBBBBRRRRRRRRR) -> results/dynamic_map_generation_logs/E1_BBBBBBBBBRRRRRRRRR_20260713_003722.log
+[1/3] (2026-07-13T01:56:38-04:00) OK   E1 (BBBBBBBBBRRRRRRRRR)
+[2/3] (2026-07-13T01:56:38-04:00) starting E2 (BBBBBBRRRRRRGGGGGG) -> results/dynamic_map_generation_logs/E2_BBBBBBRRRRRRGGGGGG_20260713_015638.log
+[2/3] (2026-07-13T03:14:28-04:00) OK   E2 (BBBBBBRRRRRRGGGGGG)
+[3/3] (2026-07-13T03:14:28-04:00) starting E3 (BBBBBBBRRRRRRGGGGG) -> results/dynamic_map_generation_logs/E3_BBBBBBBRRRRRRGGGGG_20260713_031428.log
+[3/3] (2026-07-13T04:31:52-04:00) OK   E3 (BBBBBBBRRRRRRGGGGG)
+
+=== overnight 18-piece dynamic map generation finished at 2026-07-13T04:31:52-04:00 ===
+ok=3 / 3
+no failures

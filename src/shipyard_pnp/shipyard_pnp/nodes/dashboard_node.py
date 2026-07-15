@@ -33,13 +33,13 @@ try:
 except ImportError:
     _HAS_PSYCOPG2 = False
 
-# ── DB credentials (same as database_node.py) ────────────────────
-DB_HOST     = os.environ.get("PGHOST",     "100.118.157.20")
-DB_USER     = os.environ.get("PGUSER",     "juan_lopez")
-DB_PASSWORD = os.environ.get("PGPASSWORD", "twin2025")
+# ── DB credentials for production analytics ──────────────────────
+DB_HOST     = os.environ.get("PGHOST",     "100.115.213.16")
+DB_USER     = os.environ.get("PGUSER",     "twin_mes_db")
+DB_PASSWORD = os.environ.get("PGPASSWORD", "postgres")
 DB_PORT     = int(os.environ.get("PGPORT", "5432"))
-DB_NAME     = os.environ.get("PGDATABASE", "digital_twin_db")
-DB_SCHEMA   = os.environ.get("PGSCHEMA",   "remote_database_capstone")
+DB_NAME     = os.environ.get("PGDATABASE", "twin_mes_db")
+DB_SCHEMA   = os.environ.get("DASHBOARD_SOURCE_SCHEMA", os.environ.get("MES_SOURCE_SCHEMA", "shipyard_pnp_ws"))
 
 # ── DB connection for cycle-tracking alarms (production DB, NOT the
 # possibly-stale DB_HOST/DB_NAME below used only by _refresh_analytics) --
@@ -1702,7 +1702,7 @@ class DashboardNode(Node):
                 )
                 self._db_conn.autocommit = True
                 with self._db_conn.cursor() as cur:
-                    cur.execute(f"SET search_path TO {DB_SCHEMA}, public;")
+                    cur.execute(f"SET search_path TO {DB_SCHEMA};")
 
             with self._db_conn.cursor() as cur:
                 cur.execute("""
@@ -1740,8 +1740,12 @@ class DashboardNode(Node):
                 ]
 
                 cur.execute("""
-                    SELECT ts, piece_id, color, from_loc, to_loc
-                    FROM piece_transfer_event ORDER BY ts DESC LIMIT 12;
+                    SELECT pt.ts, pt.piece_id, COALESCE(p.color, 'UNKNOWN') AS color,
+                           pt.from_loc, pt.to_loc
+                    FROM piece_transfer pt
+                    LEFT JOIN piece p
+                      ON p.run_id = pt.run_id AND p.piece_id = pt.piece_id
+                    ORDER BY pt.ts DESC LIMIT 12;
                 """)
                 analytics["recent_transfers"] = [
                     {"ts": r[0].strftime("%H:%M:%S") if r[0] else None,

@@ -1,0 +1,27 @@
+[input] order=BBBBRRGGGGGGGG composition=BLUE:4 RED:2 GREEN:8 (n=14)
+[stage 1/2] 45045 unique permutations exceeds --sample-cap=20000 -- drew 20000 distinct random permutations directly (no full enumeration).
+[stage 1/2] prefiltering 20000 permutations (sampled) with the fixed-priority simulation...
+    [  5.0%] 1000/20000 permutations scored -- best fixed_ms so far: 621.9s
+    [ 10.0%] 2000/20000 permutations scored -- best fixed_ms so far: 609.2s
+    [ 15.0%] 3000/20000 permutations scored -- best fixed_ms so far: 606.9s
+    [ 20.0%] 4000/20000 permutations scored -- best fixed_ms so far: 606.2s
+    [ 25.0%] 5000/20000 permutations scored -- best fixed_ms so far: 606.2s
+    [ 30.0%] 6000/20000 permutations scored -- best fixed_ms so far: 606.2s
+    [ 35.0%] 7000/20000 permutations scored -- best fixed_ms so far: 606.2s
+    [ 40.0%] 8000/20000 permutations scored -- best fixed_ms so far: 606.2s
+    [ 45.0%] 9000/20000 permutations scored -- best fixed_ms so far: 606.2s
+    [ 50.0%] 10000/20000 permutations scored -- best fixed_ms so far: 606.2s
+    [ 55.0%] 11000/20000 permutations scored -- best fixed_ms so far: 606.2s
+    [ 60.0%] 12000/20000 permutations scored -- best fixed_ms so far: 606.2s
+    [ 65.0%] 13000/20000 permutations scored -- best fixed_ms so far: 606.2s
+    [ 70.0%] 14000/20000 permutations scored -- best fixed_ms so far: 606.2s
+    [ 75.0%] 15000/20000 permutations scored -- best fixed_ms so far: 606.2s
+    [ 80.0%] 16000/20000 permutations scored -- best fixed_ms so far: 606.2s
+    [ 85.0%] 17000/20000 permutations scored -- best fixed_ms so far: 606.2s
+    [ 90.0%] 18000/20000 permutations scored -- best fixed_ms so far: 606.2s
+    [ 95.0%] 19000/20000 permutations scored -- best fixed_ms so far: 606.2s
+    [100.0%] 20000/20000 permutations scored -- best fixed_ms so far: 606.2s
+[stage 1/2] done in 9863.6s. Top 10 candidates: BGBGGBGGBGRGGR=606.2s, BGBGGBGGBRGGGR=606.2s, BGBGGGBGBRGGGR=606.2s, BGBGBGGGBGRGGR=606.2s, BGBBGGGBGGRGGR=606.9s ...
+[stage 2/2] running beam_search on 10 candidates (beam_width=80, max_rollouts=4000)...
+    [ 10.0%] (1/10) BGBGGBGGBGRGGR fixed=606.2s -> beam=606.2s (completed_paths=47, 393.9s) *** new best ***
+    [ 20.0%] (2/10) BGBGGBGGBRGGGR fixed=606.2s -> beam=606.2s (completed_paths=22, 171.5s)

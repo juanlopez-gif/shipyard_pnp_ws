@@ -1,0 +1,3 @@
+[input] order=BBBBRRRRRRRRGG composition=BLUE:4 RED:8 GREEN:2 (n=14)
+[stage 1/2] 45045 unique permutations exceeds --sample-cap=20000 -- drew 20000 distinct random permutations directly (no full enumeration).
+[stage 1/2] prefiltering 20000 permutations (sampled) with the fixed-priority simulation...

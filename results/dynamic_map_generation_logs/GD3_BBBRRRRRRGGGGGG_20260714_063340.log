@@ -1,0 +1,38 @@
+[input] order=BBBRRRRRRGGGGGG composition=BLUE:3 RED:6 GREEN:6 (n=15)
+[stage 1/2] 420420 unique permutations exceeds --sample-cap=20000 -- drew 20000 distinct random permutations directly (no full enumeration).
+[stage 1/2] prefiltering 20000 permutations (sampled) with the fixed-priority simulation...
+    [  5.0%] 1000/20000 permutations scored -- best fixed_ms so far: 719.6s
+    [ 10.0%] 2000/20000 permutations scored -- best fixed_ms so far: 719.6s
+    [ 15.0%] 3000/20000 permutations scored -- best fixed_ms so far: 719.6s
+    [ 20.0%] 4000/20000 permutations scored -- best fixed_ms so far: 719.6s
+    [ 25.0%] 5000/20000 permutations scored -- best fixed_ms so far: 719.6s
+    [ 30.0%] 6000/20000 permutations scored -- best fixed_ms so far: 719.6s
+    [ 35.0%] 7000/20000 permutations scored -- best fixed_ms so far: 710.3s
+    [ 40.0%] 8000/20000 permutations scored -- best fixed_ms so far: 710.3s
+    [ 45.0%] 9000/20000 permutations scored -- best fixed_ms so far: 710.3s
+    [ 50.0%] 10000/20000 permutations scored -- best fixed_ms so far: 710.3s
+    [ 55.0%] 11000/20000 permutations scored -- best fixed_ms so far: 710.3s
+    [ 60.0%] 12000/20000 permutations scored -- best fixed_ms so far: 710.3s
+    [ 65.0%] 13000/20000 permutations scored -- best fixed_ms so far: 710.3s
+    [ 70.0%] 14000/20000 permutations scored -- best fixed_ms so far: 710.3s
+    [ 75.0%] 15000/20000 permutations scored -- best fixed_ms so far: 710.3s
+    [ 80.0%] 16000/20000 permutations scored -- best fixed_ms so far: 710.3s
+    [ 85.0%] 17000/20000 permutations scored -- best fixed_ms so far: 710.3s
+    [ 90.0%] 18000/20000 permutations scored -- best fixed_ms so far: 710.3s
+    [ 95.0%] 19000/20000 permutations scored -- best fixed_ms so far: 710.3s
+    [100.0%] 20000/20000 permutations scored -- best fixed_ms so far: 710.3s
+[stage 1/2] done in 13355.5s. Top 10 candidates: BBGGGBRGGRRRGRR=710.3s, BGBGBGGGRRGRRRR=718.5s, BGBGBGGGRRRGRRR=718.5s, BGGBGGGBRRRGRRR=719.6s, BBRBGGGRGGGRRRR=720.8s ...
+[stage 2/2] running beam_search on 10 candidates (beam_width=80, max_rollouts=4000)...
+    [ 10.0%] (1/10) BBGGGBRGGRRRGRR fixed=710.3s -> beam=710.3s (completed_paths=5, 61.8s) *** new best ***
+    [ 20.0%] (2/10) BGBGBGGGRRGRRRR fixed=718.5s -> beam=718.5s (completed_paths=12, 176.1s)
+    [ 30.0%] (3/10) BGBGBGGGRRRGRRR fixed=718.5s -> beam=718.5s (completed_paths=12, 177.6s)
+    [ 40.0%] (4/10) BGGBGGGBRRRGRRR fixed=719.6s -> beam=719.6s (completed_paths=12, 171.3s)
+    [ 50.0%] (5/10) BBRBGGGRGGGRRRR fixed=720.8s -> beam=720.8s (completed_paths=99, 3152.0s)
+    [ 60.0%] (6/10) BBBGGGGRGRRGRRR fixed=722.1s -> beam=722.1s (completed_paths=59, 882.0s)
+    [ 70.0%] (7/10) BGGBGRGBGGRRRRR fixed=722.6s -> beam=722.6s (completed_paths=68, 1189.1s)
+    [ 80.0%] (8/10) BBGGGGGRBRRRGRR fixed=722.9s -> beam=722.9s (completed_paths=34, 522.3s)
+    [ 90.0%] (9/10) BGBGGGGRRRBRRRG fixed=722.9s -> beam=722.9s (completed_paths=8, 109.4s)
+    [100.0%] (10/10) BBGBGGGGRRGRRRR fixed=723.0s -> beam=723.0s (completed_paths=12, 169.5s)
+[stage 2/2] done in 6610.9s. Winner: BBGGGBRGGRRRGRR = 710.3s
+Saved map 'dynamic_3b6r6g_BBGGGBRGGRRRGRR_v1' to /home/isecapstone/shipyard_pnp_ws/src/shipyard_pnp/config/dynamic_maps/3b6r6g.json.
+Total wall time: 19967.0s

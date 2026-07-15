@@ -8,11 +8,16 @@ _XARM1_POSITIONS = {
     "home": [0.0000, 0.1733, 0.5550, 0.0000, 0.3816, 0.0000, 0.0],
     "preapproach_c1s2": [-0.0049, -0.6421, 1.2600, -0.1634, 1.8119, 0.6172, 0.0],
     "approach_c1s2": [-1.5077, 0.3618, 1.0069, 0.0027, 0.4845, 0.0228, 0.0],
-    "pick_c1s2": [-1.4889, 0.7262, 1.1279, 0.2642, 0.3876, 1.2726],
+    "pick_c1s2": [-1.4430, 0.8111, 1.2676, 0.0662, 0.5936, 1.7154],
     # "pick_c1s2": [-1.4721, 0.7055, 1.0129, -0.1615, 0.1161, 0.2261, 0.0],
     "preapproach_laser": [-0.1608, 0.7263, 1.9174, -0.0447, 1.1176, -0.0385, 0.0],
-    "approach_laser": [-0.2428, 1.3724, 2.1971, -0.0968, 0.7393, -0.2100, 0.0],
-    "place_laser": [-0.2356, 1.4958, 2.2759, 0.0102, 0.7348, -0.3820],
+    # Old shared laser positions used before separating pick/place laser paths:
+    # "approach_laser": [-0.2428, 1.3724, 2.1971, -0.0968, 0.7393, -0.2100, 0.0],
+    # "place_laser": [-0.2356, 1.4958, 2.2759, 0.0102, 0.7348, -0.3820],
+    "approach_laser_place": [-0.2544, 1.0460, 1.8157, -0.0431, 1.1936, -0.0015],
+    "place_laser": [-0.2623, 1.1955, 1.8083, -0.0585, 1.1387, -0.0832],
+    "approach_laser_pick": [-0.2425, 1.0884, 1.8137, 0.0470, 0.6531, -0.4516],
+    "pick_laser": [-0.2641, 1.3856, 2.0659, 0.1741, 0.6751, -0.6105],
     # "place_laser": [-0.2441, 1.5071, 2.1950, -0.0683, 0.6138, -0.1492, 0.0],
     "preapproach_c2s2": [0.9647, 0.3348, 2.1943, 0.0882, 1.7904, -0.5509, 0.0],
     "approach_c2s2": [0.7886, 0.8259, 1.5257, 0.0805, 0.5908, -1.0071, 0.0],
@@ -116,14 +121,14 @@ class XArm1Adapter:
     def _place_to_laser(self, status_cb: Optional[Callable]) -> None:
         self._status(status_cb, RobotState.GOING_TO_POSITION.value, "APPROACHING_LASER")
         self._move("preapproach_laser", "Pre-Approach LASER", 30.0, 100.0, status_cb)
-        self._move("approach_laser", "Approach LASER", 30.0, 100.0, status_cb)
+        self._move("approach_laser_place", "Approach LASER place", 30.0, 100.0, status_cb)
         self._move("place_laser", "Place LASER", 30.0, 100.0, status_cb)
 
         self._status(status_cb, RobotState.PLACING.value, "PLACING_LASER")
         self.driver.vacuum_off()
         self._status(status_cb, RobotState.PLACE_DONE.value, "PLACING_LASER_DONE")
 
-        self._move("approach_laser", "Retorno LASER", 30.0, 100.0, status_cb)
+        self._move("approach_laser_place", "Retorno LASER place", 30.0, 100.0, status_cb)
         self._move("preapproach_laser", "Retorno Pre-Approach LASER", 30.0, 100.0, status_cb)
         self.move_home(status_cb)
 
@@ -131,14 +136,14 @@ class XArm1Adapter:
         self._status(status_cb, RobotState.GOING_TO_POSITION.value, "APPROACHING_LASER")
         self._move("home", "HOME inicial PICK_LASER", 30.0, 100.0, status_cb)
         self._move("preapproach_laser", "Pre-Approach LASER", 30.0, 100.0, status_cb)
-        self._move("approach_laser", "Approach LASER", 30.0, 100.0, status_cb)
-        self._move("place_laser", "Pick LASER", 30.0, 100.0, status_cb)
+        self._move("approach_laser_pick", "Approach LASER pick", 30.0, 100.0, status_cb)
+        self._move("pick_laser", "Pick LASER", 30.0, 100.0, status_cb)
 
         self._status(status_cb, RobotState.PICKING.value, "PICKING_LASER")
         self.driver.vacuum_on()
         self._status(status_cb, RobotState.PICK_DONE.value, "PICKING_LASER_DONE")
 
-        self._move("approach_laser", "Retorno LASER", 30.0, 100.0, status_cb)
+        self._move("approach_laser_pick", "Retorno LASER pick", 30.0, 100.0, status_cb)
         self._move("preapproach_laser", "Retorno Pre-Approach LASER", 30.0, 100.0, status_cb)
         self._move("home", "HOME intermedio", 30.0, 100.0, status_cb)
 

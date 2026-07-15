@@ -1,0 +1,17 @@
+{
+  "composition": "6B/6R/6G",
+  "fixed_run": "20260713_193554_BBGBGBRGGGGRRBRRRB",
+  "dynamic_run": "20260713_195721_BBGBGBRGGGGRRBRRRB",
+  "fixed_order": "BBGBGBRGGGGRRBRRRB",
+  "dynamic_order": "BBGBGBRGGGGRRBRRRB",
+  "fixed_real_s": 1125.103,
+  "dynamic_real_s": 963.823,
+  "fixed_sim_s": 1137.8,
+  "dynamic_sim_s": 978.0,
+  "real_saving_s": 161.28,
+  "real_saving_pct": 14.335,
+  "sim_saving_s": 159.8,
+  "sim_saving_pct": 14.045,
+  "fixed_validation_ok": true,
+  "dynamic_validation_ok": true
+}

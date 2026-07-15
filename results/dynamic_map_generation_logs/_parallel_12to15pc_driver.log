@@ -1,0 +1,29 @@
+nohup: ignoring input
+=== parallel 12-15 piece dynamic map generation started at 2026-07-13T23:00:25-04:00 ===
+max_parallel=5 beam_width=80 max_rollouts=4000 max_levels=400 patience=8 sample_cap=20000 seed=42
+10 compositions queued, up to 5 running at once
+
+(2026-07-13T23:00:25-04:00) starting F1 (BBBBBBRRRRGG, top-k=20) -> results/dynamic_map_generation_logs/F1_BBBBBBRRRRGG_20260713_230025.log
+(2026-07-13T23:00:25-04:00) starting F2 (BBBBRRRRRRGG, top-k=20) -> results/dynamic_map_generation_logs/F2_BBBBRRRRRRGG_20260713_230025.log
+(2026-07-13T23:00:25-04:00) starting F3 (BBBBBRRRRRGGG, top-k=10) -> results/dynamic_map_generation_logs/F3_BBBBBRRRRRGGG_20260713_230025.log
+(2026-07-13T23:00:25-04:00) starting F4 (BBBBRRRRGGGGG, top-k=10) -> results/dynamic_map_generation_logs/F4_BBBBRRRRGGGGG_20260713_230025.log
+(2026-07-13T23:00:25-04:00) starting F5 (BBBBBBRRRRRGG, top-k=10) -> results/dynamic_map_generation_logs/F5_BBBBBBRRRRRGG_20260713_230025.log
+(2026-07-14T03:54:29-04:00) OK   F2
+(2026-07-14T03:54:29-04:00) starting F6 (BBBBBRRRRRGGGG, top-k=10) -> results/dynamic_map_generation_logs/F6_BBBBBRRRRRGGGG_20260714_035429.log
+(2026-07-14T04:04:20-04:00) OK   F4
+(2026-07-14T04:04:20-04:00) starting F7 (BBBBBBRRRRGGGG, top-k=10) -> results/dynamic_map_generation_logs/F7_BBBBBBRRRRGGGG_20260714_040420.log
+(2026-07-14T06:18:16-04:00) OK   F3
+(2026-07-14T06:18:16-04:00) starting F8 (BBBBRRRRRRGGGG, top-k=10) -> results/dynamic_map_generation_logs/F8_BBBBRRRRRRGGGG_20260714_061816.log
+(2026-07-14T06:51:15-04:00) OK   F5
+(2026-07-14T06:51:15-04:00) starting F9 (BBBBBBRRRRRRGGG, top-k=10) -> results/dynamic_map_generation_logs/F9_BBBBBBRRRRRRGGG_20260714_065115.log
+(2026-07-14T07:55:59-04:00) OK   F1
+(2026-07-14T07:55:59-04:00) starting F10 (BBBBBBBRRRRRGGG, top-k=10) -> results/dynamic_map_generation_logs/F10_BBBBBBBRRRRRGGG_20260714_075559.log
+(2026-07-14T13:08:54-04:00) OK   F6
+(2026-07-14T13:55:59-04:00) OK   F7
+(2026-07-14T14:07:11-04:00) OK   F8
+(2026-07-14T17:45:34-04:00) OK   F9
+(2026-07-14T17:52:40-04:00) OK   F10
+
+=== parallel 12-15 piece dynamic map generation finished at 2026-07-14T17:52:40-04:00 ===
+ok=10 / 10
+no failures

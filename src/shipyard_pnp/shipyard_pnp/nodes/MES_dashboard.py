@@ -18,7 +18,8 @@ import json
 import os
 import threading
 import time
-from datetime import datetime, timezone
+from collections import defaultdict
+from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
@@ -33,20 +34,38 @@ DB_PORT     = int(os.environ.get("PGPORT", "5432"))
 DB_NAME     = os.environ.get("PGDATABASE", "twin_mes_db")
 DB_SCHEMA   = os.environ.get("MES_PGSCHEMA", os.environ.get("PGSCHEMA", "mes_pnp_v2"))
 SOURCE_SCHEMA = os.environ.get("MES_SOURCE_SCHEMA", os.environ.get("MES_SRC_PGSCHEMA", "shipyard_pnp_ws"))
+ANALYTICS_HISTORY_STALE_S = float(os.environ.get("MES_ANALYTICS_HISTORY_STALE_S", "120"))
 
 HTTP_PORT   = int(os.environ.get("MES_HTTP_PORT", "8082"))
 
 ROBOTS = ["robot1", "robot2", "xarm1", "xarm2"]
-SCADA_TABLES = [
-    ("bantam_door_status", "Bantam Door"),
-    ("conveyor1_status", "Conveyor 1"),
-    ("conveyor2_status", "Conveyor 2"),
-    ("laser_status", "Laser"),
-    ("robot1_vacuum_state", "Robot1 Vacuum"),
-    ("robot2_vacuum_state", "Robot2 Vacuum"),
-    ("xarm1_vacuum_state", "xArm1 Vacuum"),
-    ("xarm2_vacuum_state", "xArm2 Vacuum"),
+SCADA_DEVICES = [
+    {"key": "laser_status",          "label": "Laser",         "resource_id": "laser",          "mode": "resource"},
+    {"key": "bantam_machine_status", "label": "Bantam CNC",    "resource_id": "bantam",         "mode": "resource"},
+    {"key": "bantam_door_status",    "label": "Bantam Door",   "resource_id": "bantam",         "mode": "door"},
+    {"key": "conveyor1_status",      "label": "Conveyor 1",    "resource_id": "conveyor1",      "mode": "resource"},
+    {"key": "conveyor2_status",      "label": "Conveyor 2",    "resource_id": "conveyor2",      "mode": "resource"},
+    {"key": "conveyor3_status",      "label": "Conveyor 3",    "resource_id": "conveyor3",      "mode": "resource"},
+    {"key": "conveyor4_status",      "label": "Conveyor 4",    "resource_id": "conveyor4",      "mode": "resource"},
+    {"key": "robot1_vacuum_state",   "label": "Robot1 Vacuum", "resource_id": "arduino_vacuum", "mode": "vacuum"},
+    {
+        "key": "robot2_vacuum_state", "label": "Robot2 Vacuum",
+        "resource_id": "robot2", "mode": "robot_vacuum",
+        "state_filter": ["PICK_DONE", "PLACE_DONE", "IDLE", "INITIALIZING", "ERROR"],
+    },
+    {
+        "key": "xarm1_vacuum_state", "label": "xArm1 Vacuum",
+        "resource_id": "xarm1", "mode": "robot_vacuum",
+        "state_filter": ["PICK_DONE", "PLACE_DONE", "IDLE", "INITIALIZING", "ERROR"],
+    },
+    {
+        "key": "xarm2_vacuum_state", "label": "xArm2 Vacuum",
+        "resource_id": "xarm2", "mode": "robot_vacuum",
+        "state_filter": ["PICK_DONE", "PLACE_DONE", "IDLE", "INITIALIZING", "ERROR"],
+    },
 ]
+SCADA_TABLES = [(d["key"], d["label"]) for d in SCADA_DEVICES]
+SCADA_BY_KEY = {d["key"]: d for d in SCADA_DEVICES}
 
 # ── CSS ─────────────────────────────────────────────────────────────
 STYLE_CSS = r"""
@@ -95,6 +114,11 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 .s-INITIALIZING{ background:#fdf2b3; color:#7d6608; }
 .s-ERROR       { background:#fadbd8; color:#922b21; }
 .s-UNKNOWN     { background:#eaecee; color:#566573; }
+.s-ON,.s-OPEN,.s-WORKING,.s-PREPARING,.s-OPENING,.s-CLOSING
+               { background:#d5f5e3; color:#1e8449; }
+.s-OFF,.s-STOPPED,.s-CLOSED
+               { background:#eaecee; color:#566573; }
+.s-FINISHED    { background:#d6eaf8; color:#1a5276; }
 .joint-table { width:100%; border-collapse:collapse; font-size:.8rem; margin-top:4px; }
 .joint-table th { color:#6b7785; font-size:.72rem; text-transform:uppercase;
                   letter-spacing:.05em; padding:4px 6px; border-bottom:1px solid #eee; }
@@ -147,7 +171,7 @@ table.data-tbl tr:hover td { background:#f6f9fd; }
 """
 
 # ── HTML ─────────────────────────────────────────────────────────────
-MES_HTML = r"""<!DOCTYPE html>                                                                                                                                                                                                                                                                                                                                      `````````````````                                                         1QQ
+MES_HTML = r"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -274,7 +298,7 @@ function renderCards(snap) {
             <thead><tr><th>Joint</th><th>Pos (rad)</th><th>Vel (r/s)</th><th>Effort</th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
-          <div class="ts-label">${r.ts ? r.ts.substring(0,19).replace('T',' ')+' UTC' : '—'}</div>
+          <div class="ts-label">${r.ts ? r.ts.substring(0,19).replace('T',' ') : '—'}</div>
         </div>
       </div>`;
     }).join('');
@@ -343,14 +367,17 @@ TELEMETRY_HTML = r"""<!DOCTYPE html>
           <option value="xarm2">xarm2</option>
         </optgroup>
         <optgroup label="SCADA Devices">
+          <option value="laser_status">Laser</option>
+          <option value="bantam_machine_status">Bantam CNC</option>
           <option value="bantam_door_status">Bantam Door</option>
           <option value="conveyor1_status">Conveyor 1</option>
           <option value="conveyor2_status">Conveyor 2</option>
-          <option value="laser_status">Laser</option>
-          <option value="robot1_vacuum_state">R1 Vacuum</option>
-          <option value="robot2_vacuum_state">R2 Vacuum</option>
-          <option value="xarm1_vacuum_state">X1 Vacuum</option>
-          <option value="xarm2_vacuum_state">X2 Vacuum</option>
+          <option value="conveyor3_status">Conveyor 3</option>
+          <option value="conveyor4_status">Conveyor 4</option>
+          <option value="robot1_vacuum_state">Robot1 Vacuum</option>
+          <option value="robot2_vacuum_state">Robot2 Vacuum</option>
+          <option value="xarm1_vacuum_state">xArm1 Vacuum</option>
+          <option value="xarm2_vacuum_state">xArm2 Vacuum</option>
         </optgroup>
       </select>
       <select id="tbl-window">
@@ -450,7 +477,7 @@ async function loadTable(page=1) {
     } else {
       setScadaHeader();
       const eff_limit = windowS !== '0' ? 500 : parseInt(limit);
-      data = await (await fetch(`/api/scada_history?device=${source}&limit=${eff_limit}&offset=${offset}`)).json();
+      data = await (await fetch(`/api/scada_history?device=${source}&limit=${eff_limit}&offset=${offset}&window_s=${windowS}`)).json();
     }
 
     const rows = data.rows||[];
@@ -680,6 +707,54 @@ class MESDatabase:
             print(f"⚠️  Robot telemetry query error: {e}")
         return result
 
+    def _scada_status_from_log_row(self, device: dict, row: dict) -> dict:
+        result = row.get("result") or {}
+        code = (result.get("code") or "").upper() if isinstance(result, dict) else ""
+        state = row.get("resource_state") or "UNKNOWN"
+        mode = device.get("mode", "resource")
+
+        if mode == "door":
+            if "CLOSING_DOOR" in code:
+                status = "CLOSING"
+            elif "OPENING_DOOR" in code:
+                status = "OPENING"
+            elif "DOOR_CLOSED" in code:
+                status = "CLOSED"
+            elif "DOOR_OPEN" in code or code == "JOB_COMPLETE":
+                status = "OPEN"
+            else:
+                status = state
+        elif mode == "vacuum":
+            if state in {"PICK_DONE", "GRIP_DONE", "VACUUM_ON", "ON"}:
+                status = "ON"
+            elif state in {"RELEASE_DONE", "VACUUM_OFF", "OFF", "IDLE"}:
+                status = "OFF"
+            else:
+                status = state
+        elif mode == "robot_vacuum":
+            if state == "PICK_DONE":
+                status = "ON"
+            elif state in {"PLACE_DONE", "RELEASE_DONE", "IDLE", "INITIALIZING", "OFF"}:
+                status = "OFF"
+            else:
+                status = state
+        else:
+            status = state
+
+        return {
+            "id": row.get("id"),
+            "ts": row["published_at"].isoformat() if row.get("published_at") else None,
+            "source_name": device["label"],
+            "resource_id": device["resource_id"],
+            "status": status,
+            "raw_state": state,
+            "task_state": row.get("task_state"),
+            "code": code or None,
+            "source_topic": row.get("topic"),
+            "received_at": row["published_at"].isoformat() if row.get("published_at") else None,
+            "run_id": row.get("run_id"),
+        }
+
     def get_scada_status(self) -> dict:
         self._reconnect_if_needed()
         result = {}
@@ -687,37 +762,57 @@ class MESDatabase:
             return result
         try:
             with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                for table, _ in SCADA_TABLES:
+                for device in SCADA_DEVICES:
+                    where = ["resource_id = %s", "resource_state IS NOT NULL"]
+                    args = [device["resource_id"]]
+                    state_filter = device.get("state_filter") or []
+                    if state_filter:
+                        where.append("resource_state = ANY(%s)")
+                        args.append(state_filter)
                     cur.execute(f"""
-                        SELECT id, ts, source_name, status, source_topic, received_at, run_id
-                        FROM {DB_SCHEMA}.{table}
-                        ORDER BY ts DESC NULLS LAST, id DESC
+                        SELECT id, run_id, resource_id, topic, resource_state,
+                               task_state, result, published_at
+                        FROM {SOURCE_SCHEMA}.status_log
+                        WHERE {' AND '.join(where)}
+                        ORDER BY published_at DESC NULLS LAST, id DESC
                         LIMIT 1;
-                    """)
+                    """, args)
                     row = cur.fetchone()
                     if row:
-                        result[table] = dict(row)
+                        result[device["key"]] = self._scada_status_from_log_row(device, dict(row))
         except Exception as e:
             print(f"⚠️  SCADA status query error: {e}")
         return result
 
-    def get_scada_history(self, table: str, limit: int, offset: int) -> dict:
+    def get_scada_history(self, table: str, limit: int, offset: int, window_s: int = 0) -> dict:
         self._reconnect_if_needed()
-        if table not in [t for t, _ in SCADA_TABLES]:
+        device = SCADA_BY_KEY.get(table)
+        if not device:
             return {"db_ok": False, "rows": [], "total_count": 0, "total_pages": 1}
         if not self._conn:
             return {"db_ok": False, "rows": [], "total_count": 0, "total_pages": 1}
         try:
+            where = ["resource_id = %s", "resource_state IS NOT NULL"]
+            args = [device["resource_id"]]
+            state_filter = device.get("state_filter") or []
+            if state_filter:
+                where.append("resource_state = ANY(%s)")
+                args.append(state_filter)
+            if window_s and window_s > 0:
+                where.append(f"published_at >= NOW() - INTERVAL '{int(window_s)} seconds'")
+            where_sql = " AND ".join(where)
             with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                cur.execute(f"SELECT COUNT(*) AS cnt FROM {DB_SCHEMA}.{table};")
-                total = cur.fetchone()["cnt"]
+                cur.execute(f"SELECT COUNT(*) AS cnt FROM {SOURCE_SCHEMA}.status_log WHERE {where_sql};", args)
+                total = int(cur.fetchone()["cnt"])
                 cur.execute(f"""
-                    SELECT id, ts, source_name, status, source_topic, received_at, run_id
-                    FROM {DB_SCHEMA}.{table}
-                    ORDER BY ts DESC NULLS LAST, id DESC
+                    SELECT id, run_id, resource_id, topic, resource_state,
+                           task_state, result, published_at
+                    FROM {SOURCE_SCHEMA}.status_log
+                    WHERE {where_sql}
+                    ORDER BY published_at DESC NULLS LAST, id DESC
                     LIMIT %s OFFSET %s;
-                """, (limit, offset))
-                rows = [dict(r) for r in cur.fetchall()]
+                """, args + [limit, offset])
+                rows = [self._scada_status_from_log_row(device, dict(r)) for r in cur.fetchall()]
             return {
                 "db_ok": True,
                 "rows": rows,
@@ -835,9 +930,102 @@ class MESDatabase:
             print(f"⚠️  Alarm query error: {e}")
             return {"db_ok": False, "rows": [], "total_count": 0, "total_pages": 1}
 
+    def get_latest_run_context(self) -> dict | None:
+        self._reconnect_if_needed()
+        if not self._conn:
+            return None
+        try:
+            with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(f"""
+                    SELECT pr.run_id, pr.status, pr.started_at, pr.finished_at,
+                           pr.total_pieces, pr.pieces_completed
+                    FROM {SOURCE_SCHEMA}.production_run pr
+                    WHERE EXISTS (
+                        SELECT 1
+                        FROM {SOURCE_SCHEMA}.cycle_event ce
+                        WHERE ce.run_id = pr.run_id
+                    )
+                    ORDER BY pr.started_at DESC NULLS LAST, pr.run_id DESC
+                    LIMIT 1;
+                """)
+                row = cur.fetchone()
+            return dict(row) if row else None
+        except Exception as e:
+            print(f"⚠️  latest run context query error: {e}")
+            return None
+
+    def get_run_context(self, run_id: str) -> dict | None:
+        self._reconnect_if_needed()
+        if not self._conn or not run_id:
+            return None
+        try:
+            with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(f"""
+                    SELECT run_id, status, started_at, finished_at,
+                           total_pieces, pieces_completed
+                    FROM {SOURCE_SCHEMA}.production_run
+                    WHERE run_id = %s
+                    LIMIT 1;
+                """, (run_id,))
+                row = cur.fetchone()
+            return dict(row) if row else None
+        except Exception as e:
+            print(f"⚠️  run context query error: {e}")
+            return None
+
+    def get_recent_runs(self, limit: int = 80) -> dict:
+        self._reconnect_if_needed()
+        if not self._conn:
+            return {"db_ok": False, "runs": []}
+        try:
+            limit = max(1, min(int(limit), 200))
+            with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(f"""
+                    WITH cycle_counts AS (
+                        SELECT run_id, COUNT(*) FILTER (WHERE is_discarded = false) AS cycle_count
+                        FROM {SOURCE_SCHEMA}.cycle_event
+                        GROUP BY run_id
+                    )
+                    SELECT pr.run_id, pr.status, pr.started_at, pr.finished_at,
+                           pr.total_pieces, pr.pieces_completed,
+                           COALESCE(cc.cycle_count, 0) AS cycle_count
+                    FROM {SOURCE_SCHEMA}.production_run pr
+                    LEFT JOIN cycle_counts cc ON cc.run_id = pr.run_id
+                    ORDER BY pr.started_at DESC NULLS LAST, pr.run_id DESC
+                    LIMIT %s;
+                """, (limit,))
+                rows = []
+                for row in cur.fetchall():
+                    d = dict(row)
+                    for key in ("started_at", "finished_at"):
+                        if d.get(key) is not None:
+                            d[key] = d[key].isoformat()
+                    rows.append(d)
+            return {"db_ok": True, "runs": rows}
+        except Exception as e:
+            print(f"⚠️  recent runs query error: {e}")
+            return {"db_ok": False, "runs": [], "error": str(e)}
+
+    def get_run_analytics(self, run_id: str) -> dict:
+        run_id = (run_id or "").strip()
+        if not run_id:
+            return self.get_latest_from_history()
+        run_context = self.get_run_context(run_id)
+        live = compute_analytics(run_id=run_id)
+        live["run_scope"] = "selected_run"
+        if run_context:
+            live["run_context"] = {
+                k: (v.isoformat() if hasattr(v, "isoformat") else v)
+                for k, v in run_context.items()
+            }
+        else:
+            live["no_data"] = True
+            live.setdefault("errors", []).append(f"run_id not found: {run_id}")
+        return live
+
     def get_latest_from_history(self) -> dict:
         EMPTY = {
-            "db_ok": True, "no_data": True, "workcenters": {}, "wc_order": list(WC_META.keys()),
+            "db_ok": True, "no_data": True, "workcenters": {}, "wc_order": wc_order_with_extras(),
             "color_metrics": {}, "bottleneck": "—", "scenarios": {},
             "total_cycles": 0, "total_transfers": 0, "bottleneck_share": {},
             "fetched_at": datetime.now(timezone.utc).isoformat(),
@@ -845,13 +1033,29 @@ class MESDatabase:
         self._reconnect_if_needed()
         if not self._conn:
             return {**EMPTY, "db_ok": False}
+        run_context = self.get_latest_run_context()
+        if run_context and run_context.get("run_id"):
+            live = compute_analytics(run_id=run_context["run_id"])
+            live["run_scope"] = "latest_run"
+            live["run_context"] = {
+                k: (v.isoformat() if hasattr(v, "isoformat") else v)
+                for k, v in run_context.items()
+            }
+            return live
         try:
             with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(f"SELECT MAX(window_end) AS latest FROM {DB_SCHEMA}.wc_metrics_history;")
                 row = cur.fetchone()
                 if not row or row["latest"] is None:
-                    return EMPTY
+                    return compute_analytics()
                 latest = row["latest"]
+                if ANALYTICS_HISTORY_STALE_S > 0:
+                    now = datetime.now(latest.tzinfo or timezone.utc)
+                    if now - latest > timedelta(seconds=ANALYTICS_HISTORY_STALE_S):
+                        live = compute_analytics()
+                        live["history_stale"] = True
+                        live["history_latest"] = latest.isoformat()
+                        return live
                 cur.execute(f"""
                     SELECT wc_name, rho, lq, wq, avg_s, sigma_s, lambda_s, n_samples, is_bottleneck
                     FROM {DB_SCHEMA}.wc_metrics_history WHERE window_end = %s;
@@ -865,7 +1069,7 @@ class MESDatabase:
         bn_name = None
         total_cycles = 0
         for r in rows:
-            wc      = r["wc_name"]
+            wc      = canonical_wc_name(r["wc_name"])
             rho     = float(r["rho"])     if r["rho"]     is not None else None
             avg_s   = float(r["avg_s"])   if r["avg_s"]   else 0.0
             sigma_s = float(r["sigma_s"]) if r["sigma_s"] else 0.0
@@ -887,7 +1091,7 @@ class MESDatabase:
             mg1_w  = round(wq + avg_s, 2) if wq is not None else None
             wcs[wc] = {
                 "label": wc, "source": "live_db",
-                "color":  WC_META.get(wc, {}).get("color", "#7f8c8d"),
+                "color":  wc_color(wc),
                 "rho": rho, "lam_s": lam_s, "lam": lam_hr,
                 "mu_s": mu_s, "sigma_s": round(sigma_s, 3), "cv": cv,
                 "n_samples": n, "stable": (rho < 1.0) if rho is not None else None,
@@ -964,15 +1168,20 @@ class MESDatabase:
                 """)
                 bn_rows = cur.fetchall()
             bn_total = sum(int(r["cnt"]) for r in bn_rows)
-            bottleneck_share = (
-                {r["wc_name"]: round(int(r["cnt"]) / bn_total, 4) for r in bn_rows}
-                if bn_total > 0 else {}
-            )
+            bottleneck_share = {}
+            if bn_total > 0:
+                raw_share = defaultdict(int)
+                for r in bn_rows:
+                    raw_share[canonical_wc_name(r["wc_name"])] += int(r["cnt"])
+                bottleneck_share = {
+                    wc: round(cnt / bn_total, 4)
+                    for wc, cnt in sorted(raw_share.items(), key=lambda item: -item[1])
+                }
         except Exception:
             bottleneck_share = {}
 
         return {
-            "db_ok": True, "workcenters": wcs, "wc_order": list(WC_META.keys()),
+            "db_ok": True, "workcenters": wcs, "wc_order": wc_order_with_extras(wcs),
             "bottleneck": bn_name or "—", "color_metrics": color_metrics,
             "scenarios": scenarios, "total_cycles": total_cycles, "total_transfers": 0,
             "bottleneck_share": bottleneck_share, "fetched_at": latest.isoformat(),
@@ -985,8 +1194,13 @@ class MESDatabase:
         renders it with the same code path.
         """
         import math as _math
+        live = compute_analytics(ts_start=ts_start, ts_end=ts_end)
+        if live.get("db_ok"):
+            live["run_scope"] = "range"
+            return live
+
         EMPTY = {
-            "db_ok": True, "no_data": True, "workcenters": {}, "wc_order": list(WC_META.keys()),
+            "db_ok": True, "no_data": True, "workcenters": {}, "wc_order": wc_order_with_extras(),
             "color_metrics": {}, "bottleneck": "—", "scenarios": {},
             "total_cycles": 0, "total_transfers": 0, "bottleneck_share": {},
             "fetched_at": datetime.now(timezone.utc).isoformat(),
@@ -1018,7 +1232,7 @@ class MESDatabase:
         # Group windows per WC
         wc_windows: dict = {}
         for r in rows:
-            wc = r["wc_name"]
+            wc = canonical_wc_name(r["wc_name"])
             avg_s   = float(r["avg_s"])    if r["avg_s"]    else None
             sigma_s = float(r["sigma_s"])  if r["sigma_s"]  else 0.0
             lam_s   = float(r["lambda_s"]) if r["lambda_s"] else None
@@ -1133,15 +1347,20 @@ class MESDatabase:
                 """, args2)
                 bn_rows = cur.fetchall()
             bn_total = sum(int(r["cnt"]) for r in bn_rows)
-            bottleneck_share = (
-                {r["wc_name"]: round(int(r["cnt"]) / bn_total, 4) for r in bn_rows}
-                if bn_total > 0 else {}
-            )
+            bottleneck_share = {}
+            if bn_total > 0:
+                raw_share = defaultdict(int)
+                for r in bn_rows:
+                    raw_share[canonical_wc_name(r["wc_name"])] += int(r["cnt"])
+                bottleneck_share = {
+                    wc: round(cnt / bn_total, 4)
+                    for wc, cnt in sorted(raw_share.items(), key=lambda item: -item[1])
+                }
         except Exception:
             bottleneck_share = {}
 
         return {
-            "db_ok": True, "workcenters": wcs, "wc_order": list(WC_META.keys()),
+            "db_ok": True, "workcenters": wcs, "wc_order": wc_order_with_extras(wcs),
             "bottleneck": bn_name or "—", "color_metrics": color_metrics,
             "scenarios": scenarios, "total_cycles": total_cycles, "total_transfers": 0,
             "bottleneck_share": bottleneck_share,
@@ -1171,6 +1390,8 @@ class MESDatabase:
                     LIMIT %s;
                 """, args + [limit])
                 rows = [dict(r) for r in cur.fetchall()]
+                for row in rows:
+                    row["wc_name"] = canonical_wc_name(row["wc_name"])
             return {"db_ok": True, "rows": rows}
         except Exception as e:
             print(f"⚠️  wc_history query error: {e}")
@@ -1180,19 +1401,33 @@ class MESDatabase:
     def get_db_stats(self) -> dict:
         TEL_TABLES = [
             "mes_alarms", "wc_metrics_history",
-            "bantam_door_status", "conveyor1_status", "conveyor2_status",
-            "globalvision_stack_snapshot", "laser_status",
-            "robot1_joint_telemetry", "robot1_vacuum_state",
-            "robot2_joint_telemetry", "robot2_vacuum_state",
-            "vision_conveyor_snapshot", "vision_slot_snapshot",
-            "xarm1_joint_telemetry", "xarm1_vacuum_state",
-            "xarm2_joint_telemetry", "xarm2_vacuum_state",
+            "robot1_joint_telemetry",
+            "robot2_joint_telemetry",
+            "xarm1_joint_telemetry",
+            "xarm2_joint_telemetry",
         ]
-        AN_TABLES = ["cycle_event", "piece_transfer"]
+        AN_TABLES = [
+            "production_run", "cycle_event", "piece_transfer", "piece_outcome",
+            "vision_detection", "vision_conveyor_snapshot", "vision_slot_snapshot",
+            "status_log", "resource_state_change",
+        ]
 
         result = {
             "telemetry": {"host": DB_HOST, "name": DB_NAME, "user": DB_USER,
+                          "schema": DB_SCHEMA,
                           "tables": {t: {"count": None} for t in TEL_TABLES}, "ok": False},
+            "live_status": {"host": DB_HOST, "name": DB_NAME, "user": DB_USER,
+                            "schema": SOURCE_SCHEMA, "table": "status_log",
+                            "devices": {
+                                d["key"]: {
+                                    "label": d["label"],
+                                    "resource_id": d["resource_id"],
+                                    "count": None,
+                                    "latest": None,
+                                }
+                                for d in SCADA_DEVICES
+                            },
+                            "ok": False},
             "analytics":  {"host": DB_HOST, "name": DB_NAME, "user": DB_USER,
                           "schema": SOURCE_SCHEMA,
                           "tables": {t: {"count": None} for t in AN_TABLES},  "ok": False},
@@ -1211,6 +1446,29 @@ class MESDatabase:
             result["telemetry"]["ok"] = True
 
         if self._conn:
+            for device in SCADA_DEVICES:
+                try:
+                    with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                        cur.execute(f"""
+                            SELECT COUNT(*) AS cnt, MAX(published_at) AS latest
+                            FROM {SOURCE_SCHEMA}.status_log
+                            WHERE resource_id = %s
+                              AND resource_state IS NOT NULL;
+                        """, (device["resource_id"],))
+                        row = cur.fetchone()
+                    result["live_status"]["devices"][device["key"]].update({
+                        "count": int(row["cnt"]),
+                        "latest": row["latest"].isoformat() if row["latest"] else None,
+                    })
+                except Exception as e:
+                    result["live_status"]["devices"][device["key"]].update({
+                        "count": None,
+                        "latest": None,
+                        "error": str(e),
+                    })
+            result["live_status"]["ok"] = True
+
+        if self._conn:
             for t in AN_TABLES:
                 try:
                     with self._conn.cursor() as cur:
@@ -1225,15 +1483,16 @@ class MESDatabase:
     def truncate_table(self, db_key: str, table: str) -> dict:
         TEL_OK = {
             "mes_alarms", "wc_metrics_history",
-            "bantam_door_status", "conveyor1_status", "conveyor2_status",
-            "globalvision_stack_snapshot", "laser_status",
-            "robot1_joint_telemetry", "robot1_vacuum_state",
-            "robot2_joint_telemetry", "robot2_vacuum_state",
-            "vision_conveyor_snapshot", "vision_slot_snapshot",
-            "xarm1_joint_telemetry", "xarm1_vacuum_state",
-            "xarm2_joint_telemetry", "xarm2_vacuum_state",
+            "robot1_joint_telemetry",
+            "robot2_joint_telemetry",
+            "xarm1_joint_telemetry",
+            "xarm2_joint_telemetry",
         }
-        AN_OK  = {"cycle_event", "piece_transfer"}
+        AN_OK  = {
+            "production_run", "cycle_event", "piece_transfer", "piece_outcome",
+            "vision_detection", "vision_conveyor_snapshot", "vision_slot_snapshot",
+            "status_log", "resource_state_change",
+        }
         if db_key == "telemetry":
             if table not in TEL_OK:
                 return {"ok": False, "error": f"'{table}' not in whitelist"}
@@ -1338,6 +1597,7 @@ TASK_TO_WC = {
     ("robot2", "CLASSIFY_C2S2_TO_C4"):      "Robot2 C2S2 to C4",
     ("robot2", "CLASSIFY_C2S2_TO_BANTAM"):  "Robot2 C2S2 to Bantam",
     ("robot2", "CLASSIFY_C2S2_TO_IBS"):     "Robot2 C2S2 to IBS",
+    ("robot2", "CLASSIFY_C2S2_TO_SCRAP"):   "Robot2 C2S2 to Scrap",
     ("robot2", "IBS_TO_BANTAM"):            "Robot2 IBS to Bantam",
     ("robot2", "BANTAM_TO_C4"):             "Robot2 Bantam to C4",
     ("bantam", "PROCESS_BLUE"):             "Bantam process blue",
@@ -1355,12 +1615,36 @@ WC_META = {
     "Robot2 C2S2 to C4":       {"color": "#e74c3c", "part_colors": ["RED", "GREEN"]},
     "Robot2 C2S2 to Bantam":   {"color": "#e74c3c", "part_colors": ["BLUE"]},
     "Robot2 C2S2 to IBS":      {"color": "#e74c3c", "part_colors": ["BLUE"]},
+    "Robot2 C2S2 to Scrap":    {"color": "#95a5a6", "part_colors": []},
     "Robot2 IBS to Bantam":    {"color": "#e74c3c", "part_colors": ["BLUE"]},
     "Robot2 Bantam to C4":     {"color": "#e74c3c", "part_colors": ["BLUE"]},
     "Bantam process blue":     {"color": "#e91e8c", "part_colors": ["BLUE"]},
     "Robot1 unload C3":        {"color": "#2980b9", "part_colors": ["GREEN", "RED", "BLUE"]},
     "Robot1 unload C4":        {"color": "#2980b9", "part_colors": ["RED", "BLUE", "GREEN"]},
 }
+
+WC_ALIASES = {
+    # Older analytics-worker fallback name, before CLASSIFY_C2S2_TO_SCRAP had
+    # an explicit logical work-center mapping.
+    "robot2:CLASSIFY_C2S2_TO_SCRAP": "Robot2 C2S2 to Scrap",
+}
+
+
+def canonical_wc_name(name: str) -> str:
+    return WC_ALIASES.get(name, name)
+
+
+def wc_color(name: str) -> str:
+    return WC_META.get(name, {}).get("color", "#7f8c8d")
+
+
+def wc_order_with_extras(wcs: dict | None = None) -> list:
+    order = list(WC_META.keys())
+    if wcs:
+        for wc in sorted(wcs.keys()):
+            if wc not in order:
+                order.append(wc)
+    return order
 
 # Color paths through logical work-centers (from code, not guessed)
 COLOR_PATHS = {
@@ -1383,12 +1667,13 @@ def _analytics_db_connect():
     )
 
 
-def compute_analytics(ts_start: str = None, ts_end: str = None) -> dict:
+def compute_analytics(ts_start: str = None, ts_end: str = None, run_id: str = None) -> dict:
     """
     Query the production source schema for real cycle and transfer data, then compute
     queueing theory metrics (M/M/1, M/G/1, Little's Law, what-if scenarios).
 
     ts_start / ts_end: optional ISO-8601 strings to restrict the time window.
+    run_id: optional production_run.run_id to scope metrics to one physical run.
     Every metric is tagged with its data source.
     """
     import math
@@ -1402,6 +1687,10 @@ def compute_analytics(ts_start: str = None, ts_end: str = None) -> dict:
     time_args: list = []
     time_filter_cycle = ""
     time_filter_xfer  = ""
+    if run_id:
+        time_filter_cycle += " AND run_id = %s"
+        time_filter_xfer  += " AND pt.run_id = %s"
+        time_args.append(run_id)
     if ts_start:
         time_filter_cycle += " AND ts >= %s"
         time_filter_xfer  += " AND pt.ts >= %s"
@@ -1734,11 +2023,14 @@ def compute_analytics(ts_start: str = None, ts_end: str = None) -> dict:
     return {
         "db_ok":          db_ok,
         "errors":         errors,
+        "run_id":         run_id,
+        "run_scope":      "run" if run_id else ("range" if (ts_start or ts_end) else "all_history"),
+        "no_data":        total_cycles == 0,
         "total_cycles":   total_cycles,
         "total_transfers":total_transfers,
         "fetched_at":     datetime.now(timezone.utc).isoformat(),
         "workcenters":    wc_metrics,
-        "wc_order":       list(WC_META.keys()),
+        "wc_order":       wc_order_with_extras(wc_metrics),
         "color_metrics":  color_metrics,
         "bottleneck":       bn_name,
         "bottleneck_share": bn_share,
@@ -1829,6 +2121,11 @@ ANALYTICS_HTML = """<!DOCTYPE html>
 <main class="main">
 
   <div style="background:white;border-radius:12px;border:2px solid #e0e6ed;box-shadow:0 3px 12px rgba(0,0,0,.06);padding:14px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+    <span style="font-size:.82rem;font-weight:700;color:#34495e;text-transform:uppercase;letter-spacing:.06em;">Run ID</span>
+    <select id="an-run-select" onchange="selectRunId(this.value)" style="padding:5px 8px;border:2px solid #e0e6ed;border-radius:8px;font-size:.82rem;min-width:270px;max-width:420px;">
+      <option value="">Latest Run</option>
+    </select>
+    <button type="button" onclick="refreshRunOptions()" style="padding:6px 12px;background:#eef2f7;color:#34495e;border:1px solid #d5dfe8;border-radius:8px;font-size:.82rem;cursor:pointer;">Refresh Runs</button>
     <span style="font-size:.82rem;font-weight:700;color:#34495e;text-transform:uppercase;letter-spacing:.06em;">Date Range</span>
     <label style="font-size:.82rem;color:#52606d;">From
       <input type="date" id="an-start-date" style="margin-left:6px;padding:5px 8px;border:2px solid #e0e6ed;border-radius:8px;font-size:.82rem;">
@@ -1839,12 +2136,12 @@ ANALYTICS_HTML = """<!DOCTYPE html>
       <input type="time" id="an-end-time" placeholder="23:59" style="margin-left:4px;padding:5px 8px;border:2px solid #e0e6ed;border-radius:8px;font-size:.82rem;width:100px;">
     </label>
     <button type="button" onclick="applyRange()" style="padding:6px 16px;background:linear-gradient(135deg,#2c3e50,#3498db);color:white;border:none;border-radius:8px;font-size:.82rem;cursor:pointer;">Apply Range</button>
-    <button type="button" onclick="clearRange()" style="padding:6px 16px;background:#eef2f7;color:#34495e;border:1px solid #d5dfe8;border-radius:8px;font-size:.82rem;cursor:pointer;">View All History</button>
+    <button type="button" onclick="clearRange()" style="padding:6px 16px;background:#eef2f7;color:#34495e;border:1px solid #d5dfe8;border-radius:8px;font-size:.82rem;cursor:pointer;">Latest Run</button>
     <span id="an-range-label" style="font-size:.78rem;color:#2980b9;font-style:italic;font-weight:600;"></span>
   </div>
 
   <div id="an-no-data-banner" style="display:none;background:#fff8e1;border:1px solid #f39c12;border-radius:8px;padding:14px 20px;margin-bottom:4px;color:#7d6608;font-size:.92rem;">
-    &#9203; <strong>Waiting for analytics worker</strong> — <code>wc_metrics_history</code> is empty. The worker publishes its first window after 30&nbsp;s of factory data.
+    &#9203; <strong>No analytics data for this selection</strong> — choose another run_id/range or run the factory with db_writer active.
   </div>
 
   <div class="bottleneck-banner">
@@ -1910,7 +2207,7 @@ ANALYTICS_HTML = """<!DOCTYPE html>
   <div class="chart-panel">
     <div class="panel-header">
       <h2>Queueing Model Summary &#8212; All Work Centers</h2>
-      <span style="font-size:.8rem;opacity:.8">M/M/1 &amp; M/G/1 &nbsp;&middot;&nbsp; source: shipyard_pnp_ws.cycle_event</span>
+      <span id="an-q-source" style="font-size:.8rem;opacity:.8">M/M/1 &amp; M/G/1 &nbsp;&middot;&nbsp; source: shipyard_pnp_ws.cycle_event</span>
     </div>
     <div class="panel-body" style="overflow-x:auto;padding:0;">
       <table class="q-table" id="q-table"></table>
@@ -2029,7 +2326,55 @@ function mkBar(id,labels,datasets,extra){
   });
 }
 
-var _rangeMode=false, _rangeStart='', _rangeEnd='';
+var _rangeMode=false, _rangeStart='', _rangeEnd='', _selectedRunId='';
+
+function clearDateInputs(){
+  document.getElementById('an-start-date').value='';
+  document.getElementById('an-start-time').value='';
+  document.getElementById('an-end-date').value='';
+  document.getElementById('an-end-time').value='';
+}
+
+function runLabel(r){
+  var started=r.started_at?String(r.started_at).substring(0,19).replace('T',' '):'no start';
+  var pieces=(r.pieces_completed!=null&&r.total_pieces!=null)?(' · '+r.pieces_completed+'/'+r.total_pieces+' pcs'):'';
+  return r.run_id+' · '+(r.status||'UNKNOWN')+pieces+' · cycles='+Number(r.cycle_count||0)+' · '+started;
+}
+
+async function loadRunOptions(preserveSelection){
+  var sel=document.getElementById('an-run-select');
+  if(!sel)return;
+  var current=preserveSelection?(_selectedRunId||sel.value):_selectedRunId;
+  try{
+    var d=await(await fetch('/api/analytics_runs?limit=100')).json();
+    var runs=d.runs||[];
+    sel.innerHTML='<option value="">Latest Run</option>'+runs.map(function(r){
+      return '<option value="'+r.run_id+'">'+runLabel(r)+'</option>';
+    }).join('');
+    if(current&&runs.some(function(r){return r.run_id===current;})){
+      sel.value=current;
+    }else{
+      sel.value='';
+      if(current)_selectedRunId='';
+    }
+  }catch(err){
+    console.error('loadRunOptions fetch error:',err);
+  }
+}
+
+function refreshRunOptions(){
+  loadRunOptions(true);
+}
+
+function selectRunId(runId){
+  _selectedRunId=runId||'';
+  _rangeMode=false;
+  _rangeStart='';
+  _rangeEnd='';
+  clearDateInputs();
+  document.getElementById('an-range-label').textContent=_selectedRunId?('Showing run_id '+_selectedRunId):'';
+  loadAnalytics();
+}
 
 function applyRange(){
   var sd=document.getElementById('an-start-date').value;
@@ -2040,6 +2385,9 @@ function applyRange(){
     document.getElementById('an-range-label').textContent='Select at least one date.';
     return;
   }
+  _selectedRunId='';
+  var sel=document.getElementById('an-run-select');
+  if(sel)sel.value='';
   _rangeMode=true;
   _rangeStart=sd?(sd+' '+(st||'00:00:00')):'';
   _rangeEnd=ed?(ed+' '+(et||'23:59:59')):'';
@@ -2054,13 +2402,13 @@ function applyRange(){
 }
 
 function clearRange(){
+  _selectedRunId='';
   _rangeMode=false;
   _rangeStart='';
   _rangeEnd='';
-  document.getElementById('an-start-date').value='';
-  document.getElementById('an-start-time').value='';
-  document.getElementById('an-end-date').value='';
-  document.getElementById('an-end-time').value='';
+  clearDateInputs();
+  var sel=document.getElementById('an-run-select');
+  if(sel)sel.value='';
   document.getElementById('an-range-label').textContent='';
   loadAnalytics();
 }
@@ -2074,6 +2422,8 @@ async function loadAnalytics(){
       if(_rangeStart) qs+='start='+encodeURIComponent(_rangeStart);
       if(_rangeEnd)   qs+=(qs?'&':'')+'end='+encodeURIComponent(_rangeEnd);
       d=await(await fetch('/api/analytics_range?'+qs)).json();
+    } else if(_selectedRunId){
+      d=await(await fetch('/api/analytics?run_id='+encodeURIComponent(_selectedRunId))).json();
     } else {
       d=await(await fetch('/api/analytics')).json();
     }
@@ -2084,9 +2434,14 @@ async function loadAnalytics(){
     return;
   }
 
-  document.getElementById('an-db-status').textContent=d.db_ok?'Connected':'Error';
+  var scopeLabel=d.run_id
+    ? 'run_id '+d.run_id
+    : (_rangeMode ? 'selected range' : (d.run_scope==='all_history' ? 'all history' : 'latest data'));
+  document.getElementById('an-db-status').textContent=d.db_ok?('Connected · '+scopeLabel):'Error';
   document.getElementById('an-cycle-count').textContent=(d.total_cycles||0).toLocaleString();
   document.getElementById('an-transfer-count').textContent=(d.total_transfers||0).toLocaleString();
+  var qSource=document.getElementById('an-q-source');
+  if(qSource) qSource.innerHTML='M/M/1 &amp; M/G/1 &nbsp;&middot;&nbsp; source: shipyard_pnp_ws.cycle_event &nbsp;&middot;&nbsp; '+scopeLabel;
 
   var noDataBanner=document.getElementById('an-no-data-banner');
   if(noDataBanner) noDataBanner.style.display=d.no_data?'':'none';
@@ -2104,8 +2459,8 @@ async function loadAnalytics(){
   document.getElementById('kpi-strip').innerHTML=
     '<div class="stat-card"><div class="label">Bottleneck rho</div><div class="value" style="color:'+(bnM.rho>0.8?'#e74c3c':bnM.rho>0.5?'#f39c12':'#2c3e50')+'">'+fmtRho(bnM.rho)+'</div><div class="sub">'+bn+' &middot; <span class="cite">cycle_event n='+bnM.n_samples+'</span></div></div>'+
     '<div class="stat-card"><div class="label">M/G/1 Wq (bottleneck)</div><div class="value">'+fmt2(bnMG.Wq)+'s</div><div class="sub">P-K formula &middot; mu='+fmt2(bnM.mu_s)+'s sigma='+fmt2(bnM.sigma_s)+'s</div></div>'+
-    '<div class="stat-card"><div class="label">Total Cycles Logged</div><div class="value">'+(d.total_cycles||0).toLocaleString()+'</div><div class="sub"><span class="cite">shipyard_pnp_ws.cycle_event</span></div></div>'+
-    '<div class="stat-card"><div class="label">Total Transfers</div><div class="value">'+(d.total_transfers||0).toLocaleString()+'</div><div class="sub"><span class="cite">shipyard_pnp_ws.piece_transfer</span></div></div>';
+    '<div class="stat-card"><div class="label">Total Cycles Logged</div><div class="value">'+(d.total_cycles||0).toLocaleString()+'</div><div class="sub"><span class="cite">'+scopeLabel+'</span></div></div>'+
+    '<div class="stat-card"><div class="label">Total Transfers</div><div class="value">'+(d.total_transfers||0).toLocaleString()+'</div><div class="sub"><span class="cite">'+scopeLabel+'</span></div></div>';
 
   document.getElementById('factory-svg-wrap').innerHTML=buildLayoutSVG(wcs,bn);
 
@@ -2279,7 +2634,7 @@ function buildLayoutSVG(wcs,bn){
      fill:'white', stroke:'#34495e', lw:2, label:'C4', wcs:[]},
     // R2 — Niryo Robot 2, dark blue square
     {id:'r2',    x:426, y:348, w:64, h:54, rx:4,
-     fill:'#5dade2', stroke:'#1a5276', lw:2.5, label:'R2', wcs:['Robot2 C2S2 to C4','Robot2 C2S2 to Bantam','Robot2 C2S2 to IBS','Robot2 Bantam to C4','Robot2 IBS to Bantam']},
+     fill:'#5dade2', stroke:'#1a5276', lw:2.5, label:'R2', wcs:['Robot2 C2S2 to C4','Robot2 C2S2 to Bantam','Robot2 C2S2 to IBS','Robot2 C2S2 to Scrap','Robot2 Bantam to C4','Robot2 IBS to Bantam']},
     // IBS — Intermediate Buffer Station, amber queue node between R2 and Bantam
     {id:'ibs',   x:516, y:355, w:52, h:38, rx:6,
      fill:'#fdebd0', stroke:'#d35400', lw:2, label:'IBS', wcs:[]},
@@ -2483,11 +2838,13 @@ function startCountdown(){
 
 function forceRefresh(){
   _cdSecs=30;
+  refreshRunOptions();
   loadAnalytics();
 }
 
 document.addEventListener('DOMContentLoaded',function(){
   setInterval(function(){var e=document.getElementById('clock');if(e)e.textContent=new Date().toLocaleTimeString();},1000);
+  loadRunOptions(false);
   loadAnalytics();
   startCountdown();
 });
@@ -2630,14 +2987,17 @@ SCADA_HTML = """<!DOCTYPE html>
 <script>
 // ── SCADA status cards ────────────────────────────────────────────────
 var SCADA_DEVICES=[
-  {key:'bantam_door_status',  label:'Bantam Door'},
-  {key:'conveyor1_status',    label:'Conveyor 1'},
-  {key:'conveyor2_status',    label:'Conveyor 2'},
-  {key:'laser_status',        label:'Laser'},
-  {key:'robot1_vacuum_state', label:'R1 Vacuum'},
-  {key:'robot2_vacuum_state', label:'R2 Vacuum'},
-  {key:'xarm1_vacuum_state',  label:'X1 Vacuum'},
-  {key:'xarm2_vacuum_state',  label:'X2 Vacuum'},
+  {key:'laser_status',          label:'Laser'},
+  {key:'bantam_machine_status', label:'Bantam CNC'},
+  {key:'bantam_door_status',    label:'Bantam Door'},
+  {key:'conveyor1_status',      label:'Conveyor 1'},
+  {key:'conveyor2_status',      label:'Conveyor 2'},
+  {key:'conveyor3_status',      label:'Conveyor 3'},
+  {key:'conveyor4_status',      label:'Conveyor 4'},
+  {key:'robot1_vacuum_state',   label:'Robot1 Vacuum'},
+  {key:'robot2_vacuum_state',   label:'Robot2 Vacuum'},
+  {key:'xarm1_vacuum_state',    label:'xArm1 Vacuum'},
+  {key:'xarm2_vacuum_state',    label:'xArm2 Vacuum'},
 ];
 
 function statusClass(st){
@@ -2648,6 +3008,7 @@ function statusClass(st){
   if(s==='on')       return 'on';
   if(s==='off')      return 'off';
   if(s==='working')  return 'working';
+  if(s==='preparing'||s==='opening'||s==='closing') return 'working';
   if(s==='finished') return 'finished';
   if(s==='idle')     return 'idle';
   if(s==='open')     return 'open';
@@ -2668,6 +3029,10 @@ function buildScadaCards(){
   }).join('');
 }
 
+function fmtScadaTs(ts){
+  return ts ? String(ts).substring(0,19).replace('T',' ') : '&#8212;';
+}
+
 function updateScadaCards(data){
   SCADA_DEVICES.forEach(function(d){
     var row=data[d.key];
@@ -2680,7 +3045,7 @@ function updateScadaCards(data){
       var st=row.status||'UNKNOWN';
       pill.className='sc-status ss-'+statusClass(st);
       stEl.textContent=st;
-      tsEl.textContent=(row.ts?row.ts.substring(0,19).replace('T',' ')+' UTC':'&#8212;');
+      tsEl.textContent=fmtScadaTs(row.ts);
       runEl.textContent=row.run_id||'';
     } else {
       pill.className='sc-status ss-nodata';
@@ -2810,7 +3175,7 @@ function renderRobot(r,s){
   var st=document.getElementById(r.id+'-st');
   if(st){var sf=(s.status||'UNKNOWN').replace(/[^A-Z_]/g,'');st.className='status-pill s-'+sf;st.textContent=s.status||'UNKNOWN';}
   var ts=document.getElementById(r.id+'-ts');
-  if(ts&&s.ts)ts.textContent=s.ts.substring(0,19).replace('T',' ')+' UTC';
+  if(ts&&s.ts)ts.textContent=s.ts.substring(0,19).replace('T',' ');
   var ri=document.getElementById(r.id+'-rid');if(ri)ri.textContent='row '+s.lastId;
   var dot=document.getElementById(r.id+'-dot');
   if(dot){dot.className='ldot'+(s.ts&&(Date.now()-new Date(s.ts).getTime())>5000?' stale':'');}
@@ -3102,9 +3467,17 @@ class Handler(BaseHTTPRequestHandler):
             device = params.get("device", [SCADA_TABLES[0][0]])[0]
             limit  = min(int(params.get("limit", ["50"])[0]), 200)
             offset = int(params.get("offset", ["0"])[0])
-            self._send_json(Handler.db.get_scada_history(device, limit, offset))
+            window_s = int(params.get("window_s", ["0"])[0])
+            self._send_json(Handler.db.get_scada_history(device, limit, offset, window_s))
         elif path == "/api/analytics":
-            self._send_json(Handler.db.get_latest_from_history())
+            run_id = params.get("run_id", [None])[0] or None
+            if run_id:
+                self._send_json(Handler.db.get_run_analytics(run_id))
+            else:
+                self._send_json(Handler.db.get_latest_from_history())
+        elif path == "/api/analytics_runs":
+            limit = min(int(params.get("limit", ["80"])[0]), 200)
+            self._send_json(Handler.db.get_recent_runs(limit))
         elif path == "/api/analytics_range":
             ts_start = params.get("start", [None])[0] or None
             ts_end   = params.get("end",   [None])[0] or None
@@ -3156,11 +3529,14 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(404); self.end_headers()
 
     def _send(self, data: bytes, ct: str):
-        self.send_response(200)
-        self.send_header("Content-Type", f"{ct}; charset=utf-8")
-        self.send_header("Content-Length", str(len(data)))
-        self.end_headers()
-        self.wfile.write(data)
+        try:
+            self.send_response(200)
+            self.send_header("Content-Type", f"{ct}; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+            return
 
     def _send_json(self, obj):
         self._send(json.dumps(obj, default=str).encode(), "application/json")

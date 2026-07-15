@@ -1,0 +1,48 @@
+nohup: ignoring input
+=== 5-lane 50-composition dynamic map generation started at 2026-07-13T23:06:09-04:00 ===
+sample_cap=20000 patience=8 max_levels=400 seed=42
+5 lanes x 10 compositions each, running concurrently
+
+[lane B 1/10] (2026-07-13T23:06:09-04:00) starting GB1 (BBBBBBBBBBBRRGGGGG, top-k=6) -> results/dynamic_map_generation_logs/GB1_BBBBBBBBBBBRRGGGGG_20260713_230609.log
+[lane E 1/10] (2026-07-13T23:06:09-04:00) starting GE1 (BBBBBRRRRGGGGGGGG, top-k=6) -> results/dynamic_map_generation_logs/GE1_BBBBBRRRRGGGGGGGG_20260713_230609.log
+[lane C 1/10] (2026-07-13T23:06:09-04:00) starting GC1 (BBBBBBBBBBBRRRRRGG, top-k=6) -> results/dynamic_map_generation_logs/GC1_BBBBBBBBBBBRRRRRGG_20260713_230609.log
+[lane D 1/10] (2026-07-13T23:06:09-04:00) starting GD1 (BBBRRRRRRRRRRRRRRR, top-k=6) -> results/dynamic_map_generation_logs/GD1_BBBRRRRRRRRRRRRRRR_20260713_230609.log
+[lane A 1/10] (2026-07-13T23:06:09-04:00) starting GA1 (BBBBBBBBBRRRRRRRGG, top-k=6) -> results/dynamic_map_generation_logs/GA1_BBBBBBBBBRRRRRRRGG_20260713_230609.log
+[lane D 1/10] (2026-07-13T23:35:32-04:00) OK   GD1
+[lane D 2/10] (2026-07-13T23:35:32-04:00) starting GD2 (BBBBBBRRRRRRRRRGG, top-k=6) -> results/dynamic_map_generation_logs/GD2_BBBBBBRRRRRRRRRGG_20260713_233532.log
+[lane B 1/10] (2026-07-14T06:06:30-04:00) OK   GB1
+[lane B 2/10] (2026-07-14T06:06:30-04:00) starting GB2 (BBBBBBBBBBBBBRRGG, top-k=6) -> results/dynamic_map_generation_logs/GB2_BBBBBBBBBBBBBRRGG_20260714_060630.log
+[lane C 1/10] (2026-07-14T06:11:40-04:00) OK   GC1
+[lane C 2/10] (2026-07-14T06:11:40-04:00) starting GC2 (BBBRRRRRRRRRRRRRR, top-k=6) -> results/dynamic_map_generation_logs/GC2_BBBRRRRRRRRRRRRRR_20260714_061140.log
+[lane A 1/10] (2026-07-14T06:17:26-04:00) OK   GA1
+[lane A 2/10] (2026-07-14T06:17:26-04:00) starting GA2 (BBBBBBBBBBBRRGGGG, top-k=6) -> results/dynamic_map_generation_logs/GA2_BBBBBBBBBBBRRGGGG_20260714_061726.log
+[lane D 2/10] (2026-07-14T06:33:40-04:00) OK   GD2
+[lane D 3/10] (2026-07-14T06:33:40-04:00) starting GD3 (BBBRRRRRRGGGGGG, top-k=10) -> results/dynamic_map_generation_logs/GD3_BBBRRRRRRGGGGGG_20260714_063340.log
+[lane C 2/10] (2026-07-14T06:34:02-04:00) OK   GC2
+[lane C 3/10] (2026-07-14T06:34:02-04:00) starting GC3 (BBBBBBRRGGGGGGGG, top-k=6) -> results/dynamic_map_generation_logs/GC3_BBBBBBRRGGGGGGGG_20260714_063402.log
+[lane E 1/10] (2026-07-14T06:40:27-04:00) OK   GE1
+[lane E 2/10] (2026-07-14T06:40:27-04:00) starting GE2 (BBBBBBBBBRRRRRGG, top-k=6) -> results/dynamic_map_generation_logs/GE2_BBBBBBBBBRRRRRGG_20260714_064027.log
+[lane B 2/10] (2026-07-14T12:04:30-04:00) OK   GB2
+[lane B 3/10] (2026-07-14T12:04:30-04:00) starting GB3 (BBBBRRRRRRRRRRGG, top-k=6) -> results/dynamic_map_generation_logs/GB3_BBBBRRRRRRRRRRGG_20260714_120430.log
+[lane D 3/10] (2026-07-14T12:06:28-04:00) OK   GD3
+[lane D 4/10] (2026-07-14T12:06:28-04:00) starting GD4 (BBBBBBBBBBBRRGG, top-k=10) -> results/dynamic_map_generation_logs/GD4_BBBBBBBBBBBRRGG_20260714_120628.log
+[lane C 3/10] (2026-07-14T12:42:18-04:00) OK   GC3
+[lane C 4/10] (2026-07-14T12:42:18-04:00) starting GC4 (BBBBBRRGGGGGGGG, top-k=10) -> results/dynamic_map_generation_logs/GC4_BBBBBRRGGGGGGGG_20260714_124218.log
+[lane A 2/10] (2026-07-14T13:16:48-04:00) OK   GA2
+[lane A 3/10] (2026-07-14T13:16:48-04:00) starting GA3 (BBBBBBBBBBBRRGGG, top-k=6) -> results/dynamic_map_generation_logs/GA3_BBBBBBBBBBBRRGGG_20260714_131648.log
+[lane E 2/10] (2026-07-14T14:08:42-04:00) OK   GE2
+[lane E 3/10] (2026-07-14T14:08:42-04:00) starting GE3 (BBBBBBBRRRRRRRR, top-k=10) -> results/dynamic_map_generation_logs/GE3_BBBBBBBRRRRRRRR_20260714_140842.log
+[lane B 3/10] (2026-07-14T16:30:09-04:00) OK   GB3
+[lane B 4/10] (2026-07-14T16:30:09-04:00) starting GB4 (BBBBBBBBRRRRRGG, top-k=10) -> results/dynamic_map_generation_logs/GB4_BBBBBBBBRRRRRGG_20260714_163009.log
+[lane A 3/10] (2026-07-14T18:33:12-04:00) OK   GA3
+[lane A 4/10] (2026-07-14T18:33:12-04:00) starting GA4 (BBBRRRRRRRRRRRR, top-k=10) -> results/dynamic_map_generation_logs/GA4_BBBRRRRRRRRRRRR_20260714_183312.log
+[lane C 4/10] (2026-07-14T18:44:07-04:00) OK   GC4
+[lane C 5/10] (2026-07-14T18:44:07-04:00) starting GC5 (BBBBRRGGGGGGGG, top-k=10) -> results/dynamic_map_generation_logs/GC5_BBBBRRGGGGGGGG_20260714_184407.log
+[lane A 4/10] (2026-07-14T19:05:44-04:00) OK   GA4
+[lane A 5/10] (2026-07-14T19:05:44-04:00) starting GA5 (BBBBBBBBBBRRGG, top-k=10) -> results/dynamic_map_generation_logs/GA5_BBBBBBBBBBRRGG_20260714_190544.log
+[lane E 3/10] (2026-07-14T19:39:11-04:00) OK   GE3
+[lane E 4/10] (2026-07-14T19:39:11-04:00) starting GE4 (BBBBRRRRRRRRRRR, top-k=10) -> results/dynamic_map_generation_logs/GE4_BBBBRRRRRRRRRRR_20260714_193911.log
+[lane D 4/10] (2026-07-14T19:39:29-04:00) OK   GD4
+[lane D 5/10] (2026-07-14T19:39:29-04:00) starting GD5 (BBBBBBBBBBRRRR, top-k=10) -> results/dynamic_map_generation_logs/GD5_BBBBBBBBBBRRRR_20260714_193929.log
+[lane E 4/10] (2026-07-14T21:34:20-04:00) OK   GE4
+[lane E 5/10] (2026-07-14T21:34:20-04:00) starting GE5 (BBBBRRRRRRRRGG, top-k=10) -> results/dynamic_map_generation_logs/GE5_BBBBRRRRRRRRGG_20260714_213420.log

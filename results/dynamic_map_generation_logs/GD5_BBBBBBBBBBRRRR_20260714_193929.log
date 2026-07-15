@@ -1,0 +1,27 @@
+[input] order=BBBBBBBBBBRRRR composition=BLUE:10 RED:4 GREEN:0 (n=14)
+[stage 1/2] prefiltering 1001 permutations (exhaustive) with the fixed-priority simulation...
+    [  5.0%] 50/1001 permutations scored -- best fixed_ms so far: 1732.0s
+    [ 10.0%] 100/1001 permutations scored -- best fixed_ms so far: 1732.0s
+    [ 15.0%] 150/1001 permutations scored -- best fixed_ms so far: 1732.0s
+    [ 20.0%] 200/1001 permutations scored -- best fixed_ms so far: 1732.0s
+    [ 25.0%] 250/1001 permutations scored -- best fixed_ms so far: 1731.9s
+    [ 30.0%] 300/1001 permutations scored -- best fixed_ms so far: 1731.9s
+    [ 35.0%] 350/1001 permutations scored -- best fixed_ms so far: 1731.9s
+    [ 40.0%] 400/1001 permutations scored -- best fixed_ms so far: 1731.9s
+    [ 45.0%] 450/1001 permutations scored -- best fixed_ms so far: 1731.9s
+    [ 50.0%] 500/1001 permutations scored -- best fixed_ms so far: 1683.2s
+    [ 54.9%] 550/1001 permutations scored -- best fixed_ms so far: 1683.2s
+    [ 59.9%] 600/1001 permutations scored -- best fixed_ms so far: 1683.2s
+    [ 64.9%] 650/1001 permutations scored -- best fixed_ms so far: 1683.2s
+    [ 69.9%] 700/1001 permutations scored -- best fixed_ms so far: 1683.2s
+    [ 74.9%] 750/1001 permutations scored -- best fixed_ms so far: 1680.5s
+    [ 79.9%] 800/1001 permutations scored -- best fixed_ms so far: 1680.5s
+    [ 84.9%] 850/1001 permutations scored -- best fixed_ms so far: 1680.5s
+    [ 89.9%] 900/1001 permutations scored -- best fixed_ms so far: 1680.5s
+    [ 94.9%] 950/1001 permutations scored -- best fixed_ms so far: 1680.5s
+    [ 99.9%] 1000/1001 permutations scored -- best fixed_ms so far: 1680.5s
+    [100.0%] 1001/1001 permutations scored -- best fixed_ms so far: 1680.5s
+[stage 1/2] done in 558.8s. Top 10 candidates: BRRRRBBBBBBBBB=1680.5s, BRRRBBBBBBBBBR=1680.6s, BRRRBBBBBBBBRB=1680.6s, BRRRBBBBBBBRBB=1680.6s, BRRRBBBBBBRBBB=1680.6s ...
+[stage 2/2] running beam_search on 10 candidates (beam_width=80, max_rollouts=4000)...
+    [ 10.0%] (1/10) BRRRRBBBBBBBBB fixed=1680.5s -> beam=1486.4s (completed_paths=101, 2926.7s) *** new best ***
+    [ 20.0%] (2/10) BRRRBBBBBBBBBR fixed=1680.6s -> beam=1437.9s (completed_paths=57, 2220.4s) *** new best ***

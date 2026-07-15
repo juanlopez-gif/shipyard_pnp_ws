@@ -49,16 +49,10 @@ INITIAL_STACK_ORDER = [
     {"id": f"piece-{i:03d}", "color": color, "shape": None}
     for i, color in enumerate(
         [
-            "BLUE",
-            "GREEN",
             "RED",
-            "BLUE",
-            "GREEN",
-            "GREEN",
             "RED",
-            "GREEN",
-            "GREEN",
-            "GREEN",
+            
+            
         ],
         start=1,
     )
