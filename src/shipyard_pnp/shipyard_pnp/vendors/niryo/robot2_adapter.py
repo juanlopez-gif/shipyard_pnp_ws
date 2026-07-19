@@ -1,3 +1,4 @@
+import time
 from typing import Callable, Optional
 
 from shipyard_pnp.shared.contracts import RobotState, VisionState
@@ -39,12 +40,24 @@ _ROBOT2_POSITIONS = {
     # "pick_bantam": [1.6094, -0.9473, 0.4749, 0.0246, -1.1551, 0.3176],
 
 
+def get_default_c2s2_pick_positions() -> dict:
+    return {
+        "prepick_c2s2": list(_ROBOT2_POSITIONS["prepick_c2s2"]),
+        "pick_c2s2": list(_ROBOT2_POSITIONS["pick_c2s2"]),
+    }
+
+
 class Robot2Adapter:
     """Robot2 adapter with internal Niryo vacuum control."""
 
-    def __init__(self, driver: NiryoServiceDriver):
+    def __init__(
+        self,
+        driver: NiryoServiceDriver,
+        c2s2_capture_settle_sec: float = 1.0,
+    ):
         self.driver = driver
         self._placed_at_c4 = False
+        self.c2s2_capture_settle_sec = max(0.0, float(c2s2_capture_settle_sec))
 
     def initialize(self, status_cb: Optional[Callable] = None) -> dict:
         self._status(status_cb, RobotState.INITIALIZING.value, "INITIALIZING")
@@ -64,6 +77,13 @@ class Robot2Adapter:
         self._move("at_capture_c2s2", "Robot2 capture C2S2", status_cb)
         if vision_status_cb:
             vision_status_cb(VisionState.SCANNING.value, {"code": "SCANNING"})
+        self._status(
+            status_cb,
+            RobotState.WAITING_FOR_VISION.value,
+            "C2S2_CAPTURE_SETTLE",
+            settle_s=self.c2s2_capture_settle_sec,
+        )
+        time.sleep(self.c2s2_capture_settle_sec)
         result = vision_adapter.capture(vision_status_cb)
         self._status(status_cb, RobotState.IDLE.value, "VISION_RESULT_READY")
         return {
@@ -77,13 +97,14 @@ class Robot2Adapter:
         self,
         source: str,
         target: str,
+        dynamic_pick: Optional[dict] = None,
         status_cb: Optional[Callable] = None,
     ) -> dict:
         source = self._normalize_location(source)
         target = self._normalize_location(target)
 
         if source == "C2S2":
-            self._pick_c2s2(status_cb)
+            self._pick_c2s2(status_cb, dynamic_pick=dynamic_pick)
             if target == "C4":
                 self._place_c4(status_cb)
             elif target == "BANTAM_BED":
@@ -134,13 +155,34 @@ class Robot2Adapter:
     def reset(self, status_cb: Optional[Callable] = None) -> dict:
         return self.move_home(status_cb)
 
-    def _pick_c2s2(self, status_cb: Optional[Callable]) -> None:
-        self._status(status_cb, RobotState.PICKING.value, "PICKING_C2S2")
-        self._move("prepick_c2s2", "Robot2 pre-pick C2S2", status_cb)
-        self._move("pick_c2s2", "Robot2 pick C2S2", status_cb)
+    def _pick_c2s2(
+        self,
+        status_cb: Optional[Callable],
+        dynamic_pick: Optional[dict] = None,
+    ) -> None:
+        prepick = self._dynamic_pose(dynamic_pick, "prepick_c2s2")
+        pick = self._dynamic_pose(dynamic_pick, "pick_c2s2")
+        if prepick is None or pick is None:
+            prepick = None
+            pick = None
+        pose_source = "dynamic" if prepick is not None and pick is not None else "fixed"
+
+        self._status(
+            status_cb,
+            RobotState.PICKING.value,
+            "PICKING_C2S2",
+            pose_source=pose_source,
+        )
+        self._move("prepick_c2s2", "Robot2 pre-pick C2S2", status_cb, joints=prepick)
+        self._move("pick_c2s2", "Robot2 pick C2S2", status_cb, joints=pick)
         self.driver.vacuum("pull")
-        self._status(status_cb, RobotState.PICK_DONE.value, "PICKING_C2S2_DONE")
-        self._move("prepick_c2s2", "Robot2 post-pick C2S2", status_cb)
+        self._status(
+            status_cb,
+            RobotState.PICK_DONE.value,
+            "PICKING_C2S2_DONE",
+            pose_source=pose_source,
+        )
+        self._move("prepick_c2s2", "Robot2 post-pick C2S2", status_cb, joints=prepick)
 
     def _pick_bantam(self, status_cb: Optional[Callable]) -> None:
         self._status(status_cb, RobotState.PICKING.value, "PICKING_BANTAM")
@@ -212,17 +254,32 @@ class Robot2Adapter:
         position: str,
         description: str,
         status_cb: Optional[Callable],
+        joints: Optional[list] = None,
     ) -> None:
         if position not in _ROBOT2_POSITIONS:
             raise ValueError(f"Unsupported robot2 position: {position}")
+        target_joints = joints if joints is not None else _ROBOT2_POSITIONS[position]
         self._status(
             status_cb,
             RobotState.GOING_TO_POSITION.value,
             "MOVING",
             position=position,
             description=description,
+            pose_source="dynamic" if joints is not None else "fixed",
         )
-        self.driver.move_joints(_ROBOT2_POSITIONS[position], description)
+        self.driver.move_joints(target_joints, description)
+
+    @staticmethod
+    def _dynamic_pose(payload: Optional[dict], key: str) -> Optional[list]:
+        if not isinstance(payload, dict):
+            return None
+        value = payload.get(key)
+        if not isinstance(value, list) or len(value) != 6:
+            return None
+        try:
+            return [float(v) for v in value]
+        except (TypeError, ValueError):
+            return None
 
     @staticmethod
     def _normalize_location(value: str) -> str:

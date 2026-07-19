@@ -39,6 +39,7 @@ Entity cycles:
 
 import threading
 import time
+from typing import Optional
 
 from shipyard_pnp.shared.contracts import MachineState, RobotState, SensorState
 
@@ -46,6 +47,7 @@ from shipyard_pnp.shared.contracts import MachineState, RobotState, SensorState
 # evaluate() must not start a new robot2 command when in these states.
 _ROBOT2_BUSY_STATES = frozenset({
     "WAITING_VISION",
+    "WAITING_DYNAMIC_PICK_JOINTS",
     "WAITING_ROBOT2_TO_C4",
     "WAITING_ROBOT2_TO_BANTAM",
     "WAITING_ROBOT2_TO_IBS",
@@ -169,15 +171,25 @@ def evaluate(fs) -> None:
             )
             fs.cycles.add_phase("robot2", "VISION_C2S2")
             fs._classification_state = "WAITING_VISION"
-            fs.send_command(
+            dynamic_pick_context = {
+                "valid_after": time.time(),
+                "command_id": None,
+            }
+            command_id = fs.send_command(
                 "niryo",
                 "robot2",
                 "CAPTURE_LOCAL_VISION",
                 piece_id=piece_id,
                 source="C2S2",
                 parameters={"position": "C2S2"},
-                on_complete=_on_vision_complete(fs, piece_id, wait_info),
+                on_complete=_on_vision_complete(
+                    fs,
+                    piece_id,
+                    wait_info,
+                    dynamic_pick_context,
+                ),
             )
+            dynamic_pick_context["command_id"] = command_id
             return
         elif do_classify is False:
             fs._map_note_dispatch("robot2", "BANTAM_TO_C4")
@@ -228,7 +240,12 @@ def _restore_classification_state(fs) -> None:
 
 # ── Vision ───────────────────────────────────────────────────────────────────
 
-def _on_vision_complete(fs, dispatched_piece_id: str, wait_info: dict):
+def _on_vision_complete(
+    fs,
+    dispatched_piece_id: str,
+    wait_info: dict,
+    dynamic_pick_context: dict,
+):
     def on_complete(task_state: str, result: dict) -> None:
         if task_state != "COMPLETED":
             fs.get_logger().error(f"Robot2 local vision failed: {result}")
@@ -348,25 +365,68 @@ def _on_vision_complete(fs, dispatched_piece_id: str, wait_info: dict):
             **fs._map_pop_dispatch_metadata("robot2"),
         )
 
-        if route == "C4":
-            fs.cycles.add_phase("robot2", "MOVING_C2S2_TO_C4")
-            _send_robot2_to_c4(fs, piece_id, color)
-        elif route == "BANTAM":
-            fs.cycles.add_phase("robot2", "MOVING_C2S2_TO_BANTAM")
-            _send_robot2_to_bantam(fs, piece_id)
-        elif route == "IBS":
-            fs.cycles.add_phase("robot2", "MOVING_C2S2_TO_IBS")
-            _send_robot2_to_ibs(fs, piece_id)
-        else:
-            fs.cycles.add_phase("robot2", "MOVING_C2S2_TO_SCRAP")
-            _send_robot2_to_scrap(fs, piece_id, color, shape)
+        fs._classification_state = "WAITING_DYNAMIC_PICK_JOINTS"
+        fs.cycles.add_phase("robot2", "WAITING_DYNAMIC_PICK_JOINTS")
+        t = threading.Thread(
+            target=_dispatch_robot2_c2s2_after_dynamic_pick,
+            args=(fs, piece_id, color, shape, route, dynamic_pick_context),
+            daemon=True,
+        )
+        t.start()
 
     return on_complete
 
 
+def _dispatch_robot2_c2s2_after_dynamic_pick(
+    fs,
+    piece_id: str,
+    color: str,
+    shape: str,
+    route: str,
+    dynamic_pick_context: dict,
+) -> None:
+    dynamic_pick = fs.resolve_robot2_c2s2_pick_joints(
+        piece_id=piece_id,
+        route=route,
+        valid_after=float(dynamic_pick_context.get("valid_after", 0.0)),
+        command_id=dynamic_pick_context.get("command_id"),
+    )
+    with fs._state_lock:
+        if fs._classification_state != "WAITING_DYNAMIC_PICK_JOINTS":
+            fs.get_logger().warning(
+                "[robot2_dynamic_pick] dispatch skipped because "
+                f"classification_state={fs._classification_state}"
+            )
+            return
+        if route == "C4":
+            fs.cycles.add_phase("robot2", "MOVING_C2S2_TO_C4")
+            _send_robot2_to_c4(fs, piece_id, color, dynamic_pick=dynamic_pick)
+        elif route == "BANTAM":
+            fs.cycles.add_phase("robot2", "MOVING_C2S2_TO_BANTAM")
+            _send_robot2_to_bantam(fs, piece_id, dynamic_pick=dynamic_pick)
+        elif route == "IBS":
+            fs.cycles.add_phase("robot2", "MOVING_C2S2_TO_IBS")
+            _send_robot2_to_ibs(fs, piece_id, dynamic_pick=dynamic_pick)
+        else:
+            fs.cycles.add_phase("robot2", "MOVING_C2S2_TO_SCRAP")
+            _send_robot2_to_scrap(fs, piece_id, color, shape, dynamic_pick=dynamic_pick)
+
+
+def _c2s2_move_parameters(target: str, dynamic_pick: Optional[dict] = None) -> dict:
+    params = {"source": "C2S2", "target": target}
+    if dynamic_pick:
+        params["dynamic_pick"] = dynamic_pick
+    return params
+
+
 # ── C2S2 → C4 ──────────────────────────────────────────────────────────────
 
-def _send_robot2_to_c4(fs, piece_id: str, color: str) -> None:
+def _send_robot2_to_c4(
+    fs,
+    piece_id: str,
+    color: str,
+    dynamic_pick: Optional[dict] = None,
+) -> None:
     fs._classification_state = "WAITING_ROBOT2_TO_C4"
     fs.register_pick_source("robot2", "conveyor2")
     fs.register_place_target("robot2", "c4_location")
@@ -378,7 +438,7 @@ def _send_robot2_to_c4(fs, piece_id: str, color: str) -> None:
         source="C2S2",
         target="C4",
         route=color,
-        parameters={"source": "C2S2", "target": "C4"},
+        parameters=_c2s2_move_parameters("C4", dynamic_pick),
         on_complete=_on_robot2_to_c4_complete(fs),
     )
 
@@ -418,7 +478,11 @@ def _on_robot2_to_c4_complete(fs):
 
 # ── C2S2 → BANTAM ──────────────────────────────────────────────────────────
 
-def _send_robot2_to_bantam(fs, piece_id: str) -> None:
+def _send_robot2_to_bantam(
+    fs,
+    piece_id: str,
+    dynamic_pick: Optional[dict] = None,
+) -> None:
     fs._classification_state = "WAITING_ROBOT2_TO_BANTAM"
     fs.register_pick_source("robot2", "conveyor2")
     fs.register_place_target("robot2", "bantam_bed")
@@ -430,7 +494,7 @@ def _send_robot2_to_bantam(fs, piece_id: str) -> None:
         source="C2S2",
         target="BANTAM_BED",
         route="BLUE",
-        parameters={"source": "C2S2", "target": "BANTAM_BED"},
+        parameters=_c2s2_move_parameters("BANTAM_BED", dynamic_pick),
         on_complete=_on_robot2_to_bantam_complete(fs, piece_id),
     )
 
@@ -461,7 +525,11 @@ def _on_robot2_to_bantam_complete(fs, piece_id: str):
 
 # ── C2S2 → IBS (bantam busy) ───────────────────────────────────────────────
 
-def _send_robot2_to_ibs(fs, piece_id: str) -> None:
+def _send_robot2_to_ibs(
+    fs,
+    piece_id: str,
+    dynamic_pick: Optional[dict] = None,
+) -> None:
     fs.get_logger().info(
         f"[classification] bantam busy — parking piece={piece_id} at IBS"
     )
@@ -476,7 +544,7 @@ def _send_robot2_to_ibs(fs, piece_id: str) -> None:
         source="C2S2",
         target="IBS_BED",
         route="BLUE",
-        parameters={"source": "C2S2", "target": "IBS_BED"},
+        parameters=_c2s2_move_parameters("IBS_BED", dynamic_pick),
         on_complete=_on_robot2_to_ibs_complete(fs, piece_id),
     )
 
@@ -678,7 +746,13 @@ def _on_robot2_bantam_to_c4_complete(fs):
 
 # ── C2S2 → SCRAP ───────────────────────────────────────────────────────────
 
-def _send_robot2_to_scrap(fs, piece_id: str, color: str, shape: str) -> None:
+def _send_robot2_to_scrap(
+    fs,
+    piece_id: str,
+    color: str,
+    shape: str,
+    dynamic_pick: Optional[dict] = None,
+) -> None:
     fs.get_logger().warning(
         f"[classification] SCRAP piece={piece_id} color={color} shape={shape}"
     )
@@ -693,7 +767,7 @@ def _send_robot2_to_scrap(fs, piece_id: str, color: str, shape: str) -> None:
         source="C2S2",
         target="SCRAP",
         route="SCRAP",
-        parameters={"source": "C2S2", "target": "SCRAP"},
+        parameters=_c2s2_move_parameters("SCRAP", dynamic_pick),
         on_complete=_on_robot2_to_scrap_complete(fs, piece_id, color, shape),
     )
 

@@ -800,6 +800,20 @@ function buildAlerts(data) {
     if (r.status === "ERROR")
       out.push({level:"danger", title:`Robot ${name}`, msg:"Robot in ERROR state"});
   }
+  const r2Pick = data.dynamic_pick?.robot2_c2s2 || {};
+  if (r2Pick.mode === "fixed_timeout") {
+    out.push({
+      level:"warning",
+      title:"Robot2 C2S2 Pick",
+      msg:r2Pick.warning || "Dynamic pick joints timed out; using fixed poses"
+    });
+  } else if (r2Pick.mode === "invalid") {
+    out.push({
+      level:"warning",
+      title:"Robot2 C2S2 Pick",
+      msg:`Invalid dynamic pick payload on ${r2Pick.topic || "/robot2/pick_joints_c2s2"}`
+    });
+  }
   if (!out.length) out.push({level:"success", title:"System", msg:"No active alerts — system looks healthy."});
   return out.slice(0, 8);
 }
@@ -1676,6 +1690,7 @@ class DashboardNode(Node):
             "domains":       raw.get("domains", {}),
             "cycles":        raw.get("cycles", {}),
             "stack_status":  raw.get("stack_status", {}),
+            "dynamic_pick":  raw.get("dynamic_pick", {}),
         }
 
     # ── public accessors ───────────────────────────────────────────

@@ -49,10 +49,14 @@ INITIAL_STACK_ORDER = [
     {"id": f"piece-{i:03d}", "color": color, "shape": None}
     for i, color in enumerate(
         [
+            "BLUE",
             "RED",
+            "BLUE",
             "RED",
-            
-            
+            "BLUE",
+            "RED",
+            "BLUE",
+            "RED",
         ],
         start=1,
     )
@@ -70,6 +74,9 @@ _GRIPPER_LOCATION = {
     "xarm1": "xarm1_gripper",
     "xarm2": "xarm2_gripper",
 }
+
+ROBOT2_DYNAMIC_PICK_TOPIC = "/robot2/pick_joints_c2s2"
+ROBOT2_DYNAMIC_PICK_TIMEOUT_SEC = 3.0
 
 
 class FactorySupervisor(Node):
@@ -117,6 +124,18 @@ class FactorySupervisor(Node):
         # and also feeds the dashboard's initial-stack visualization
         # (get_stack_status_full -> /factory/system_state -> dashboard_node.py).
         self._stack_status: dict = {}
+
+        # Latest dynamic C2S2 pick pose produced by the external ML/IK node.
+        # It is advisory only: if it is missing, stale, malformed or late,
+        # robot2 uses its fixed, known-good hardcoded C2S2 poses.
+        self._robot2_pick_joints_lock = threading.RLock()
+        self._robot2_pick_joints_event = threading.Event()
+        self._robot2_latest_pick_joints: Optional[dict] = None
+        self._robot2_dynamic_pick_status: dict = {
+            "mode": "idle",
+            "topic": ROBOT2_DYNAMIC_PICK_TOPIC,
+            "timeout_s": ROBOT2_DYNAMIC_PICK_TIMEOUT_SEC,
+        }
 
         # entity -> source location for a MOVE_PIECE-type command currently
         # in flight (pick+travel+place as ONE vendor command). Consumed in
@@ -237,6 +256,7 @@ class FactorySupervisor(Node):
             ],
             get_planner_phase=lambda: self.planner_phase.value,
             get_stack_status=self.get_stack_status_full,
+            get_dynamic_pick_status=self.get_dynamic_pick_status,
         )
 
         self.create_timer(0.5,  self.evaluate_rules,          callback_group=self.planner_cbg)
@@ -330,6 +350,13 @@ class FactorySupervisor(Node):
             String,
             "stack_status",
             self._on_stack_status,
+            10,
+            callback_group=self.ack_status_cbg,
+        )
+        self._robot2_pick_joints_sub = self.create_subscription(
+            String,
+            ROBOT2_DYNAMIC_PICK_TOPIC,
+            self._on_robot2_pick_joints,
             10,
             callback_group=self.ack_status_cbg,
         )
@@ -945,6 +972,252 @@ class FactorySupervisor(Node):
     def get_stack_status_full(self) -> dict:
         with self._state_lock:
             return dict(self._stack_status)
+
+    # ------------------------------------------------------------------
+    # Robot2 C2S2 dynamic pick joints from external ML/IK
+    # ------------------------------------------------------------------
+
+    def _on_robot2_pick_joints(self, msg: String) -> None:
+        received_at = time.time()
+        try:
+            payload = json.loads(msg.data)
+        except Exception as exc:
+            self.get_logger().warning(
+                f"[robot2_dynamic_pick] invalid JSON ignored: {exc}"
+            )
+            self._set_robot2_dynamic_pick_status(
+                mode="invalid",
+                reason="invalid_json",
+                received_at=received_at,
+            )
+            return
+
+        normalized = self._normalize_robot2_pick_joints_payload(payload)
+        if normalized is None:
+            self.get_logger().warning(
+                f"[robot2_dynamic_pick] invalid payload ignored: {payload}"
+            )
+            self._set_robot2_dynamic_pick_status(
+                mode="invalid",
+                reason="invalid_payload",
+                received_at=received_at,
+            )
+            return
+
+        normalized.update({
+            "received_at": received_at,
+            "raw_payload": payload,
+        })
+        with self._robot2_pick_joints_lock:
+            self._robot2_latest_pick_joints = normalized
+            self._robot2_pick_joints_event.set()
+            self._robot2_dynamic_pick_status = {
+                "mode": "received",
+                "topic": ROBOT2_DYNAMIC_PICK_TOPIC,
+                "timeout_s": ROBOT2_DYNAMIC_PICK_TIMEOUT_SEC,
+                "received_at": received_at,
+                "x_mm": normalized.get("x_mm"),
+                "y_mm": normalized.get("y_mm"),
+                "command_id": normalized.get("command_id"),
+                "payload_piece_id": normalized.get("payload_piece_id"),
+                "settle_s": normalized.get("settle_s"),
+            }
+        self.get_logger().info(
+            "[robot2_dynamic_pick] received C2S2 joints "
+            f"x={normalized.get('x_mm')} y={normalized.get('y_mm')}"
+        )
+
+    @staticmethod
+    def _normalize_robot2_pick_joints_payload(payload: dict) -> Optional[dict]:
+        if not isinstance(payload, dict):
+            return None
+        prepick = FactorySupervisor._normalize_joint_vector(payload.get("prepick_c2s2"))
+        pick = FactorySupervisor._normalize_joint_vector(payload.get("pick_c2s2"))
+        if prepick is None or pick is None:
+            return None
+        return {
+            "prepick_c2s2": prepick,
+            "pick_c2s2": pick,
+            "x_mm": FactorySupervisor._optional_float(payload.get("x_mm")),
+            "y_mm": FactorySupervisor._optional_float(payload.get("y_mm")),
+            "command_id": payload.get("command_id"),
+            "payload_piece_id": payload.get("piece_id"),
+            "triggered_at": FactorySupervisor._optional_float(payload.get("triggered_at")),
+            "settle_s": FactorySupervisor._optional_float(payload.get("settle_s")),
+        }
+
+    @staticmethod
+    def _normalize_joint_vector(value) -> Optional[list]:
+        if not isinstance(value, list) or len(value) != 6:
+            return None
+        try:
+            joints = [float(v) for v in value]
+        except (TypeError, ValueError):
+            return None
+        if any(v != v or v in (float("inf"), float("-inf")) for v in joints):
+            return None
+        return joints
+
+    @staticmethod
+    def _optional_float(value) -> Optional[float]:
+        if value is None:
+            return None
+        try:
+            out = float(value)
+        except (TypeError, ValueError):
+            return None
+        if out != out or out in (float("inf"), float("-inf")):
+            return None
+        return out
+
+    def _set_robot2_dynamic_pick_status(self, **patch) -> None:
+        with self._robot2_pick_joints_lock:
+            status = dict(self._robot2_dynamic_pick_status)
+            status.update(patch)
+            status.setdefault("topic", ROBOT2_DYNAMIC_PICK_TOPIC)
+            status.setdefault("timeout_s", ROBOT2_DYNAMIC_PICK_TIMEOUT_SEC)
+            self._robot2_dynamic_pick_status = status
+
+    def get_dynamic_pick_status(self) -> dict:
+        with self._robot2_pick_joints_lock:
+            return {"robot2_c2s2": dict(self._robot2_dynamic_pick_status)}
+
+    def _default_robot2_c2s2_pick_positions(self) -> dict:
+        try:
+            from shipyard_pnp.vendors.niryo.robot2_adapter import (
+                get_default_c2s2_pick_positions,
+            )
+            return get_default_c2s2_pick_positions()
+        except Exception:
+            return {"prepick_c2s2": None, "pick_c2s2": None}
+
+    def resolve_robot2_c2s2_pick_joints(
+        self,
+        piece_id: Optional[str],
+        route: Optional[str],
+        valid_after: float,
+        command_id: Optional[str] = None,
+    ) -> Optional[dict]:
+        """Wait briefly for ML/IK C2S2 pick joints.
+
+        Returns a dynamic_pick dict to pass to robot2 MOVE_PIECE, or None to
+        use the adapter's fixed hardcoded C2S2 positions.
+        """
+        timeout_s = ROBOT2_DYNAMIC_PICK_TIMEOUT_SEC
+        start = time.time()
+        deadline = start + timeout_s
+        self._set_robot2_dynamic_pick_status(
+            mode="waiting",
+            piece_id=piece_id,
+            route=route,
+            command_id=command_id,
+            valid_after=valid_after,
+            wait_started_at=start,
+        )
+
+        candidate = self._latest_robot2_pick_joints_after(valid_after, command_id)
+        while candidate is None:
+            remaining = deadline - time.time()
+            if remaining <= 0:
+                break
+            self._robot2_pick_joints_event.wait(min(remaining, 0.1))
+            self._robot2_pick_joints_event.clear()
+            candidate = self._latest_robot2_pick_joints_after(valid_after, command_id)
+
+        wait_s = round(time.time() - start, 3)
+        defaults = self._default_robot2_c2s2_pick_positions()
+        if candidate is not None:
+            dynamic_pick = {
+                "prepick_c2s2": candidate["prepick_c2s2"],
+                "pick_c2s2": candidate["pick_c2s2"],
+                "x_mm": candidate.get("x_mm"),
+                "y_mm": candidate.get("y_mm"),
+                "source": ROBOT2_DYNAMIC_PICK_TOPIC,
+                "command_id": candidate.get("command_id"),
+                "payload_piece_id": candidate.get("payload_piece_id"),
+                "settle_s": candidate.get("settle_s"),
+            }
+            self.db.insert_robot2_pick_joints_c2s2(
+                piece_id=piece_id,
+                route=route,
+                mode="dynamic",
+                reason="received_before_timeout",
+                prepick_c2s2=candidate["prepick_c2s2"],
+                pick_c2s2=candidate["pick_c2s2"],
+                x_mm=candidate.get("x_mm"),
+                y_mm=candidate.get("y_mm"),
+                wait_s=wait_s,
+                timeout_s=timeout_s,
+                received_at=candidate.get("received_at"),
+                raw_payload=candidate.get("raw_payload"),
+            )
+            self._set_robot2_dynamic_pick_status(
+                mode="dynamic",
+                reason="received_before_timeout",
+                piece_id=piece_id,
+                route=route,
+                command_id=command_id,
+                wait_s=wait_s,
+                received_at=candidate.get("received_at"),
+                x_mm=candidate.get("x_mm"),
+                y_mm=candidate.get("y_mm"),
+                settle_s=candidate.get("settle_s"),
+            )
+            return dynamic_pick
+
+        reason = f"timeout_after_{timeout_s:.1f}s"
+        description = (
+            f"Robot2 C2S2 dynamic pick joints timeout after {timeout_s:.1f}s; "
+            "using fixed prepick/pick poses"
+        )
+        context = {
+            "piece_id": piece_id,
+            "route": route,
+            "topic": ROBOT2_DYNAMIC_PICK_TOPIC,
+            "valid_after": valid_after,
+            "command_id": command_id,
+            "wait_s": wait_s,
+            "timeout_s": timeout_s,
+        }
+        self.get_logger().warning(f"[robot2_dynamic_pick] {description}")
+        self.db.insert_alarm("warning", "robot2", description, context)
+        self.db.insert_robot2_pick_joints_c2s2(
+            piece_id=piece_id,
+            route=route,
+            mode="fixed_timeout",
+            reason=reason,
+            prepick_c2s2=defaults.get("prepick_c2s2"),
+            pick_c2s2=defaults.get("pick_c2s2"),
+            wait_s=wait_s,
+            timeout_s=timeout_s,
+            raw_payload={"fallback": "fixed", **context},
+        )
+        self._set_robot2_dynamic_pick_status(
+            mode="fixed_timeout",
+            reason=reason,
+            piece_id=piece_id,
+            route=route,
+            command_id=command_id,
+            wait_s=wait_s,
+            warning=description,
+        )
+        return None
+
+    def _latest_robot2_pick_joints_after(
+        self,
+        valid_after: float,
+        command_id: Optional[str] = None,
+    ) -> Optional[dict]:
+        with self._robot2_pick_joints_lock:
+            latest = self._robot2_latest_pick_joints
+            if latest is None:
+                return None
+            if latest.get("received_at", 0.0) < valid_after:
+                return None
+            latest_command_id = latest.get("command_id")
+            if command_id and latest_command_id and latest_command_id != command_id:
+                return None
+            return dict(latest)
 
     # ------------------------------------------------------------------
     # Map-guided tie-breaking (see comment in __init__)

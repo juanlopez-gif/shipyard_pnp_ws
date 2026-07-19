@@ -20,6 +20,7 @@ niryo:
   vision_target_captures: 15
   vision_detection_threshold: 0.03
   vision_robot2_topic: /robot2/niryo_robot_vision/compressed_video_stream
+  robot2_c2s2_capture_settle_sec: 1.0
   robot2_vacuum_tool_id: 31
   conveyor1:
     robot_namespace: /robot1

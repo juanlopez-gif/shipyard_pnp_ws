@@ -13,7 +13,8 @@ class SystemStatePublisher:
     """
 
     def __init__(self, publisher, state_tracker, piece_tracker, cycle_tracker, vendor_clients,
-                 initial_order=None, get_planner_phase=None, get_stack_status=None):
+                 initial_order=None, get_planner_phase=None, get_stack_status=None,
+                 get_dynamic_pick_status=None):
         self._pub = publisher
         self._state = state_tracker
         self._pieces = piece_tracker
@@ -22,6 +23,7 @@ class SystemStatePublisher:
         self._initial_order: list = list(initial_order or [])
         self._get_planner_phase = get_planner_phase
         self._get_stack_status = get_stack_status
+        self._get_dynamic_pick_status = get_dynamic_pick_status
 
     def publish(self) -> None:
         payload = {
@@ -45,6 +47,9 @@ class SystemStatePublisher:
             "pipeline": self._pieces.snapshot(),
             "cycles": self._cycles.snapshot(),
             "stack_status": self._get_stack_status() if self._get_stack_status else {},
+            "dynamic_pick": (
+                self._get_dynamic_pick_status() if self._get_dynamic_pick_status else {}
+            ),
         }
         msg = String()
         msg.data = json.dumps(payload)

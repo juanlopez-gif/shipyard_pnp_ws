@@ -1,16 +1,3 @@
-
-You have one new message.
-
-Skip to content
-Using University of Rhode Island Mail with screen readers
-Conversations
-         
- 
-Program Policies
-Powered by Google
-Last account activity: 31 minutes ago
-Details
-
 #!/usr/bin/env python3
 """
 ml_node.py
@@ -1590,6 +1577,3 @@ def main(args=None):
 
 if __name__ == "__main__":
     main()
-
-db_vision_logger_ros.py
-Displaying db_vision_logger_ros.py.

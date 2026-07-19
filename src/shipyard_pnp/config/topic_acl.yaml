@@ -25,6 +25,10 @@ nodes:
       - /arduino_vacuum_factory/status
       - /bantam_factory/ack
       - /bantam_factory/status
+      - /robot2/pick_joints_c2s2
+  external_ml_vision_logger:
+    publishes:
+      - /robot2/pick_joints_c2s2
   niryo_vendor_supervisor:
     subscribes: [/niryo_factory/command]
     publishes: [/niryo_factory/ack, /niryo_factory/status]

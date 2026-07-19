@@ -47,6 +47,8 @@ from shipyard_pnp.factory.expected_schedule import build_schedule_from_state_cha
 from shipyard_pnp.nodes import dispatch_search2 as ds
 from shipyard_pnp.nodes import beam_search as bs
 
+import dynamic_map_registry as registry
+
 _LETTER_TO_COLOR = {"B": "BLUE", "R": "RED", "G": "GREEN"}
 _SHIPYARD_SIM_SEARCH_PATH = os.path.normpath(os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "..",
@@ -77,6 +79,17 @@ def _config_hash() -> str:
 
 def _tag(order) -> str:
     return "".join(c[0] for c in order)
+
+
+def _registry_call(fn, *args, **kwargs) -> None:
+    """Best-effort call into dynamic_map_registry -- a DB hiccup must never
+    abort a multi-hour search that already has (or will have) a good local
+    JSON result. Mirrors db_writer.py's own try/except-everything policy."""
+    try:
+        fn(*args, **kwargs)
+    except Exception as exc:
+        print(f"[registry] WARNING: {fn.__name__} failed, continuing anyway: {exc}",
+              flush=True)
 
 
 def _count_permutations(n_blue: int, n_red: int, n_green: int) -> int:
@@ -142,6 +155,9 @@ def main() -> None:
     total = n_blue + n_red + n_green
     print(f"[input] order={_tag(order)} composition=BLUE:{n_blue} RED:{n_red} "
           f"GREEN:{n_green} (n={total})", flush=True)
+
+    _registry_call(registry.ensure_table)
+    _registry_call(registry.mark_in_progress, n_blue, n_red, n_green)
 
     t_start = time.time()
 
@@ -219,6 +235,10 @@ def main() -> None:
     if best_overall is None:
         print("No candidate produced a completed schedule within the search "
               "budget -- nothing saved.")
+        # Left as IN_PROGRESS in the registry on purpose: there is no FAILED
+        # status (yet), and silently downgrading to PENDING would erase the
+        # evidence that a machine already spent time on this composition
+        # and it needs a human to look at why it never completed.
         sys.exit(1)
 
     best_ms, best_order, best_path, best_completed = best_overall
@@ -278,6 +298,22 @@ def main() -> None:
     with open(tmp_path, "w") as fh:
         json.dump(entry, fh, indent=2)
     os.replace(tmp_path, out_path)  # atomic: a crash mid-write never corrupts out_path
+
+    stats = entry["search_stats"]
+    _registry_call(
+        registry.mark_completed, n_blue, n_red, n_green,
+        fixed_order=entry["fixed_reference_order"],
+        fixed_time_s=entry["fixed_reference_time_s"],
+        dynamic_order=entry["best_order"],
+        dynamic_time_s=entry["best_time_s"],
+        saving_s=entry["saving_s"],
+        sampled=stats["sampled"],
+        permutations_total=stats["permutations_total"],
+        permutations_searched=stats["permutations_searched"],
+        map_id=entry["map_id"],
+        map_json_path=os.path.relpath(out_path, os.path.dirname(os.path.dirname(
+            os.path.abspath(__file__)))),
+    )
 
     print(f"Saved map '{entry['map_id']}' to {out_path}.")
     print(f"Total wall time: {time.time() - t_start:.1f}s")

@@ -10,10 +10,6 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 
-# Planning / design documents (not for publication)
-**/ARCHITECTURE_PLAN.md
-**/DB_DESIGN.md
-
 # Runtime logs (not experiment data)
 runtime_logs/
 

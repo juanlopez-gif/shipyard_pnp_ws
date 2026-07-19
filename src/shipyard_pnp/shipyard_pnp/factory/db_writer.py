@@ -172,6 +172,25 @@ def _ddl(schema: str) -> list[str]:
             success         BOOLEAN
         )""",
 
+        f"""
+        CREATE TABLE IF NOT EXISTS {S}.robot2_pick_joints_c2s2 (
+            id              BIGSERIAL   PRIMARY KEY,
+            run_id          TEXT        NOT NULL REFERENCES {S}.production_run(run_id),
+            piece_id        TEXT,
+            route           TEXT,
+            mode            TEXT        NOT NULL,
+            reason          TEXT,
+            prepick_c2s2    JSONB,
+            pick_c2s2       JSONB,
+            x_mm            FLOAT,
+            y_mm            FLOAT,
+            wait_s          FLOAT,
+            timeout_s       FLOAT,
+            received_at     TIMESTAMPTZ,
+            logged_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            raw_payload     JSONB
+        )""",
+
         # ── Resource telemetry ────────────────────────────────────────────────
         f"""
         CREATE TABLE IF NOT EXISTS {S}.resource_state_change (
@@ -288,6 +307,7 @@ def _ddl(schema: str) -> list[str]:
         f"CREATE INDEX IF NOT EXISTS idx_robot_task_run        ON {S}.robot_task(run_id)",
         f"CREATE INDEX IF NOT EXISTS idx_robot_task_cmd        ON {S}.robot_task(command_id)",
         f"CREATE INDEX IF NOT EXISTS idx_machine_job_run       ON {S}.machine_job(run_id)",
+        f"CREATE INDEX IF NOT EXISTS idx_robot2_pick_joints_run ON {S}.robot2_pick_joints_c2s2(run_id, logged_at)",
         f"CREATE INDEX IF NOT EXISTS idx_resource_state_run    ON {S}.resource_state_change(run_id)",
         f"CREATE INDEX IF NOT EXISTS idx_resource_state_res    ON {S}.resource_state_change(resource_id)",
         f"CREATE INDEX IF NOT EXISTS idx_command_log_run       ON {S}.command_log(run_id)",
@@ -352,6 +372,7 @@ class StubDBWriter:
     def insert_robot_task(self, command_id, robot_id, task_name, piece_id=None, source=None, target=None, started_at=None, finished_at=None, duration_s=None, result=None, error_detail=None) -> None: pass
     def insert_machine_job(self, command_id, machine_id, piece_id=None, started_at=None, finished_at=None, duration_s=None, door_open_at=None, door_close_at=None, result=None) -> None: pass
     def insert_vision_detection(self, vision_system, piece_id=None, detected_color=None, detected_shape=None, slot_id=None, started_at=None, duration_s=None, success=None) -> None: pass
+    def insert_robot2_pick_joints_c2s2(self, piece_id=None, route=None, mode="unknown", reason="", prepick_c2s2=None, pick_c2s2=None, x_mm=None, y_mm=None, wait_s=None, timeout_s=None, received_at=None, raw_payload=None) -> None: pass
     def insert_resource_state_change(self, resource_id, resource_type, from_state, to_state, duration_in_prev_s=None) -> None: pass
     def insert_queue_depth_sample(self, samples: dict) -> None: pass
     def insert_command(self, command_id, domain_id, resource_id, task_name, piece_id=None, source=None, target=None, route=None, parameters=None, correlation_id=None) -> None: pass
@@ -728,6 +749,48 @@ class RealDBWriter:
                 VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
             (self.run_id, vision_system, piece_id, detected_color, detected_shape,
              slot_id, ts, duration_s, success),
+        )
+
+    def insert_robot2_pick_joints_c2s2(
+        self,
+        piece_id: Optional[str] = None,
+        route: Optional[str] = None,
+        mode: str = "unknown",
+        reason: str = "",
+        prepick_c2s2: Optional[list] = None,
+        pick_c2s2: Optional[list] = None,
+        x_mm: Optional[float] = None,
+        y_mm: Optional[float] = None,
+        wait_s: Optional[float] = None,
+        timeout_s: Optional[float] = None,
+        received_at: Optional[float] = None,
+        raw_payload: Optional[dict] = None,
+    ) -> None:
+        import datetime as _dt
+        received_ts = (
+            _dt.datetime.fromtimestamp(received_at, tz=_dt.timezone.utc)
+            if received_at else None
+        )
+        self._exec(
+            f"""INSERT INTO {_SCHEMA}.robot2_pick_joints_c2s2
+                    (run_id,piece_id,route,mode,reason,prepick_c2s2,pick_c2s2,
+                     x_mm,y_mm,wait_s,timeout_s,received_at,raw_payload)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+            (
+                self.run_id,
+                piece_id,
+                route,
+                mode,
+                reason,
+                json.dumps(prepick_c2s2) if prepick_c2s2 is not None else None,
+                json.dumps(pick_c2s2) if pick_c2s2 is not None else None,
+                x_mm,
+                y_mm,
+                wait_s,
+                timeout_s,
+                received_ts,
+                json.dumps(raw_payload or {}),
+            ),
         )
 
     # ── Resource state ────────────────────────────────────────────────────────

@@ -165,6 +165,10 @@ class NiryoVendorSupervisor(BaseVendorSupervisor):
             "vision_detection_threshold",
             float(defaults.get("vision_detection_threshold", 0.03)),
         )
+        self.declare_parameter(
+            "robot2_c2s2_capture_settle_sec",
+            float(defaults.get("robot2_c2s2_capture_settle_sec", 1.0)),
+        )
 
         dry_run = self._mode_is_dry_run(self.get_parameter("mode").value)
         shared_driver_args = {
@@ -192,7 +196,12 @@ class NiryoVendorSupervisor(BaseVendorSupervisor):
         )
 
         self.robot1 = Robot1Adapter(self.robot1_driver)
-        self.robot2 = Robot2Adapter(self.robot2_driver)
+        self.robot2 = Robot2Adapter(
+            self.robot2_driver,
+            c2s2_capture_settle_sec=self.get_parameter(
+                "robot2_c2s2_capture_settle_sec"
+            ).value,
+        )
         self.robot2_vacuum = Robot2NiryoVacuumAdapter(self.robot2_driver)
         self.vision_robot1 = LocalVisionAdapter(
             node=self,
@@ -412,7 +421,12 @@ class NiryoVendorSupervisor(BaseVendorSupervisor):
                     raise ValueError("Niryo MOVE_PIECE is only supported by robot2")
                 source = params.get("source") or cmd.get("source")
                 target = params.get("target") or cmd.get("target")
-                return self.robot2.move_piece(source, target, status_cb)
+                return self.robot2.move_piece(
+                    source,
+                    target,
+                    dynamic_pick=params.get("dynamic_pick"),
+                    status_cb=status_cb,
+                )
 
             if task == "RUN_NIRYO_CONVEYOR":
                 conveyor_id = params.get("conveyor_id") or resource_id
