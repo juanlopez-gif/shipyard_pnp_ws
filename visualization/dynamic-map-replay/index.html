@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Shipyard PnP Cell Flow</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <section class="toolbar" aria-label="Cell flow controls">
+      <div class="title-block">
+        <p class="eyebrow">Shipyard PnP</p>
+        <h1>Cell Material Flow</h1>
+        <p id="run-context" class="run-context"></p>
+      </div>
+
+      <div class="control-strip">
+        <button id="play-toggle" class="command-button" type="button">Play</button>
+        <button id="restart" class="command-button secondary" type="button">Restart</button>
+        <label class="select-label run-label">
+          Run
+          <select id="run-select"></select>
+        </label>
+        <label class="select-label">
+          Speed
+          <select id="speed">
+            <option value="0.5">0.5x</option>
+            <option value="1" selected>1x</option>
+            <option value="2">2x</option>
+            <option value="4">4x</option>
+            <option value="8">8x</option>
+            <option value="16">16x</option>
+            <option value="32">32x</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="time-block">
+        <div class="time-readout"><span id="time-now">0.0</span>s / <span id="duration">0.0</span>s</div>
+        <input id="timeline" type="range" min="0" max="1" step="0.001" value="0">
+      </div>
+    </section>
+
+    <section class="content-grid">
+      <div class="layout-panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">2D Testbed Layout</p>
+            <h2>Physical Flow And Current State</h2>
+            <div id="order-strip" class="order-strip" aria-label="Piece order"></div>
+          </div>
+          <div class="route-tabs" aria-label="Route overlay">
+            <button class="route-tab active" type="button" data-route="all">All</button>
+            <button class="route-tab" type="button" data-route="red">Red</button>
+            <button class="route-tab" type="button" data-route="blue">Blue</button>
+            <button class="route-tab" type="button" data-route="green">Green</button>
+            <button class="route-tab" type="button" data-route="routes">Routes</button>
+            <button class="route-tab" type="button" data-route="decision">Focus</button>
+            <button class="route-tab" type="button" data-route="teach">Teach</button>
+          </div>
+        </div>
+
+        <div class="svg-frame">
+          <svg id="layout-svg" viewBox="0 0 960 600" role="img" aria-labelledby="svg-title svg-desc">
+            <title id="svg-title">Shipyard PnP two dimensional factory layout</title>
+            <desc id="svg-desc">Top-down layout of robots, conveyors, machines, stacks, moving pieces, and active physical decisions.</desc>
+          </svg>
+        </div>
+      </div>
+
+      <aside class="side-panel">
+        <section class="decision-panel">
+          <p class="eyebrow">Active Decisions</p>
+          <div id="decisions-list" class="decision-stack"></div>
+        </section>
+
+        <section class="conditions-panel">
+          <p class="eyebrow">Physical Conditions</p>
+          <ul id="conditions-list" class="condition-list"></ul>
+        </section>
+      </aside>
+    </section>
+  </main>
+
+  <script src="./data/layout.js"></script>
+  <script src="./data/sample_run.js"></script>
+  <script src="./data/runs.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
